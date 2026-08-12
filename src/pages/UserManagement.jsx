@@ -82,10 +82,9 @@ function UserManagement() {
     }
 
     const sources = [
-      { table: "profiles", select: "*" },
-      { table: "admins", select: "*" },
-      { table: "users", select: "*" },
-    ];
+  { table: "profiles", select: "*" },
+  { table: "admins", select: "*" },
+];
 
     const allRows = [];
     let lastError = null;
@@ -258,29 +257,66 @@ function UserManagement() {
   }
 
   async function deleteUser(user) {
-    const confirmed = window.confirm(
-      `Delete ${user.full_name || user.email || "this user"}? This action cannot be undone.`
-    );
-    if (!confirmed) return;
+  const confirmed = window.confirm(
+    `Delete ${user.full_name || user.email || "this user"}?\n\n` +
+      `This will permanently delete the user's account and related data.\n\n` +
+      `This action cannot be undone.`
+  );
 
-    setActionLoading(true);
-    const sourceTable = user._sourceTable || "admins";
-    const idColumn = user._idColumn || "id";
-    const idValue = user._idValue || user.id;
+  if (!confirmed) return;
 
-    const { error } = await supabase.from(sourceTable).delete().eq(idColumn, idValue);
+  setActionLoading(true);
 
-    if (error) {
-      console.error("Error deleting user:", error);
-      alert("Could not delete user.");
-      setActionLoading(false);
-      return;
+  try {
+    // Make sure the user ID is the actual Supabase Auth user ID.
+    const userId = user.id;
+
+    console.log("Deleting user:", {
+      userId,
+      name: user.full_name,
+      sourceTable: user._sourceTable,
+    });
+
+    if (!userId) {
+      throw new Error("User ID is missing.");
     }
 
+    // Call the Supabase Edge Function.
+    const { data, error } = await supabase.functions.invoke("delete-user", {
+      body: {
+        userId: userId,
+      },
+    });
+
+    console.log("Delete function response:", data);
+    console.log("Delete function error:", error);
+
+    if (error) {
+      throw new Error(error.message || "Edge Function failed.");
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || data?.message || "User deletion failed.");
+    }
+
+    alert("User account deleted successfully.");
+
     setSelectedUser(null);
+
+    // Reload the users list.
     await loadUsers();
+  } catch (error) {
+    console.error("DELETE USER ERROR:", error);
+
+    alert(
+      `Failed to delete user.\n\n${
+        error?.message || "Unknown error occurred."
+      }`
+    );
+  } finally {
     setActionLoading(false);
   }
+}
 
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-8">
