@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaUser, FaEnvelope, FaLock } from "react-icons/fa";
+import {
+  FaUser,
+  FaEnvelope,
+  FaLock,
+  FaEye,
+  FaEyeSlash,
+} from "react-icons/fa";
 import { supabase } from "../services/supabase";
 
 function SignUp() {
@@ -10,6 +16,10 @@ function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Show / Hide password states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = async () => {
     // Validation
@@ -67,7 +77,7 @@ function SignUp() {
         return;
       }
 
-      // Insert into profiles table so user activity can be tracked
+      // Insert into profiles table
       const { error: profileError } = await supabase
         .from("profiles")
         .insert([
@@ -110,7 +120,7 @@ function SignUp() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
 
           <h1 className="text-3xl font-bold text-center">
-            Register Admin
+            Sign Up as Admin
           </h1>
 
           <p className="text-center text-gray-500 mt-2 mb-8">
@@ -159,12 +169,21 @@ function SignUp() {
               <FaLock className="mr-3 text-gray-400" />
 
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full outline-none"
               />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="ml-3 text-gray-400 hover:text-blue-600 transition"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
           </div>
 
@@ -176,25 +195,42 @@ function SignUp() {
               <FaLock className="mr-3 text-gray-400" />
 
               <input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 placeholder="Confirm Password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full outline-none"
               />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowConfirmPassword(!showConfirmPassword)
+                }
+                className="ml-3 text-gray-400 hover:text-blue-600 transition"
+                aria-label={
+                  showConfirmPassword
+                    ? "Hide confirm password"
+                    : "Show confirm password"
+                }
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
           </div>
 
+          {/* Sign Up */}
           <button
             onClick={handleRegister}
-              className="w-full rounded-3xl bg-gradient-to-r from-blue-600 to-teal-500 py-3 text-white font-semibold shadow-lg shadow-blue-500/20 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+            className="w-full rounded-3xl bg-gradient-to-r from-blue-600 to-teal-500 py-3 text-white font-semibold shadow-lg shadow-blue-500/20 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl"
           >
             Sign Up
           </button>
 
+          {/* Back to Login */}
           <button
             onClick={() => navigate("/")}
-              className="w-full mt-3 rounded-3xl border border-blue-600 bg-white py-3 text-blue-600 font-semibold shadow-sm transition hover:bg-blue-600 hover:text-white"
+            className="w-full mt-3 rounded-3xl border border-blue-600 bg-white py-3 text-blue-600 font-semibold shadow-sm transition hover:bg-blue-600 hover:text-white"
           >
             Back to Login
           </button>
