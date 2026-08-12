@@ -188,7 +188,7 @@ function LoginPage() {
               onClick={handleRegister}
               className="w-full rounded-3xl border border-blue-600 bg-white py-3 text-blue-600 font-semibold shadow-sm transition hover:bg-blue-600 hover:text-white"
             >
-              Register
+              Sign Up
             </button>
           </div>
 

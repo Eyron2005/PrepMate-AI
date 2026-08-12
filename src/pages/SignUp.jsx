@@ -189,12 +189,12 @@ function SignUp() {
             onClick={handleRegister}
               className="w-full rounded-3xl bg-gradient-to-r from-blue-600 to-teal-500 py-3 text-white font-semibold shadow-lg shadow-blue-500/20 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl"
           >
-            Register
+            Sign Up
           </button>
 
           <button
             onClick={() => navigate("/")}
-              className="w-full rounded-3xl border border-blue-600 bg-white py-3 text-blue-600 font-semibold shadow-sm transition hover:bg-blue-600 hover:text-white"
+              className="w-full mt-3 rounded-3xl border border-blue-600 bg-white py-3 text-blue-600 font-semibold shadow-sm transition hover:bg-blue-600 hover:text-white"
           >
             Back to Login
           </button>
