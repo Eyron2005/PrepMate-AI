@@ -11,6 +11,8 @@ import {
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 
+const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // "online" kung may activity sa loob ng 5 minuto
+
 function UserManagement() {
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
@@ -129,6 +131,10 @@ function UserManagement() {
                 row.sign_in_at ||
                 null;
 
+              const isOnline = lastOnlineValue
+                ? Date.now() - new Date(lastOnlineValue).getTime() < ONLINE_THRESHOLD_MS
+                : false;
+
               const profileAuthUserId = row.auth_user_id || row.user_id || row.uid || null;
               const shouldSkipCurrent =
                 currentUserIdValue &&
@@ -151,6 +157,7 @@ function UserManagement() {
                   "Unnamed User",
                 email: row.email || row.user_email || row.user_metadata?.email || "",
                 is_active: Boolean(activeValue),
+                is_online: isOnline,
                 created_at: row.created_at || row.createdAt || row.inserted_at || new Date().toISOString(),
                 last_online_at: lastOnlineValue ? new Date(lastOnlineValue).toISOString() : null,
               };
@@ -425,11 +432,12 @@ function UserManagement() {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                              user.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                              user.is_online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {user.is_active ? "Active" : "Inactive"}
+                            <span className={`h-2 w-2 rounded-full ${user.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
+                            {user.is_online ? "Online" : "Offline"}
                           </span>
                         </td>
                         <td className="px-6 py-4">{new Date(user.created_at).toLocaleDateString()}</td>
@@ -459,8 +467,9 @@ function UserManagement() {
                 <h2 className="mt-3 text-2xl font-semibold text-slate-900">{selectedUser ? selectedUser.full_name || selectedUser.email : "Select a user to view details"}</h2>
               </div>
               {selectedUser && (
-                <span className={`inline-flex items-center rounded-full px-3 py-2 text-sm font-semibold ${selectedUser.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                  {selectedUser.is_active ? "Active" : "Inactive"}
+                <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${selectedUser.is_online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                  <span className={`h-2 w-2 rounded-full ${selectedUser.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
+                  {selectedUser.is_online ? "Online" : "Offline"}
                 </span>
               )}
             </div>

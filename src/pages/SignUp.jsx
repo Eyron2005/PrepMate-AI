@@ -16,20 +16,23 @@ function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Show / Hide password states
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = async () => {
+    setErrorMessage("");
+
     // Validation
     if (!fullName || !email || !password || !confirmPassword) {
-      alert("Please fill in all fields.");
+      setErrorMessage("Please fill in all fields.");
       return;
     }
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match.");
+      setErrorMessage("Passwords do not match.");
       return;
     }
 
@@ -45,17 +48,14 @@ function SignUp() {
         },
       });
 
-      console.log("AUTH DATA:", data);
-      console.log("AUTH ERROR:", error);
-
       if (error) {
-        alert(error.message);
+        setErrorMessage(error.message);
         return;
       }
 
       // Make sure user exists
       if (!data.user) {
-        alert("User was not created.");
+        setErrorMessage("User was not created.");
         return;
       }
 
@@ -73,34 +73,14 @@ function SignUp() {
 
       if (adminError) {
         console.error("Admin Insert Error:", adminError);
-        alert(adminError.message);
+        setErrorMessage(adminError.message);
         return;
       }
 
-      // Insert into profiles table
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([
-          {
-            auth_user_id: data.user.id,
-            full_name: fullName,
-            email,
-            emails: email,
-            last_online: new Date().toISOString(),
-          },
-        ]);
-
-      if (profileError) {
-        console.error("Profile Insert Error:", profileError);
-        alert(profileError.message);
-        return;
-      }
-
-      alert("Registration Successful!");
       navigate("/");
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      setErrorMessage(err.message);
     }
   };
 
@@ -126,6 +106,12 @@ function SignUp() {
           <p className="text-center text-gray-500 mt-2 mb-8">
             Create a new administrator account.
           </p>
+
+          {errorMessage && (
+            <div className="mb-6 rounded-3xl border border-red-200 bg-red-50/90 p-4 text-sm text-red-800 shadow-sm">
+              {errorMessage}
+            </div>
+          )}
 
           {/* Full Name */}
           <div className="mb-4">
