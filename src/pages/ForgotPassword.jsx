@@ -40,7 +40,9 @@ function ForgotPassword() {
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-600 to-teal-500 flex items-center justify-center shadow-2xl shadow-blue-200/40">
-            <span className="text-white text-2xl font-bold">Prepmate AI</span>
+            <span className="text-white text-lg font-bold text-center">
+              Prepmate AI
+            </span>
           </div>
         </div>
 
