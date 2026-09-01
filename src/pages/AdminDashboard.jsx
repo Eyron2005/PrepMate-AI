@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import AdminTopNav from "../components/AdminTopNav";
 import {
   FaUsers,
   FaQuestionCircle,
   FaUserCog,
-  FaSignOutAlt,
 } from "react-icons/fa";
 
 function AdminDashboard() {
@@ -61,17 +61,19 @@ function AdminDashboard() {
       .single();
 
     const metadataName = session.user.user_metadata?.full_name;
+    const email = session.user.email || "";
+
     if (error) {
-      setAdminName(metadataName || session.user.email || "Administrator");
+      setAdminName((metadataName && metadataName !== email.split("@")[0]) ? metadataName : "Administrator");
       return;
     }
 
     if (data?.full_name) {
-      setAdminName(data.full_name);
+      setAdminName((data.full_name && data.full_name !== email.split("@")[0]) ? data.full_name : "Administrator");
     } else if (metadataName) {
-      setAdminName(metadataName);
+      setAdminName((metadataName && metadataName !== email.split("@")[0]) ? metadataName : "Administrator");
     } else {
-      setAdminName(session.user.email || "Administrator");
+      setAdminName("Administrator");
     }
   }
 
@@ -103,90 +105,41 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen flex bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_18%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.16),_transparent_14%),linear-gradient(to_bottom,_#f8fafc,_#e2e8f0)] text-slate-900">
-      <aside className="w-80 shrink-0 bg-white/90 backdrop-blur-xl text-slate-900 flex flex-col shadow-[0_35px_80px_-40px_rgba(15,23,42,0.25)] border border-white/80">
-        <div className="px-8 py-8 border-b border-slate-200 bg-gradient-to-br from-sky-600 to-cyan-500 text-white rounded-br-[2rem]">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-14 w-14 rounded-3xl bg-white/15 grid place-items-center text-xl font-bold text-white shadow-lg shadow-cyan-500/20">
-              H
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold">Prepmate AI</h1>
-              <p className="text-sm text-white/80">Admin Panel</p>
-            </div>
-          </div>
+    <div className="page-shell min-h-screen text-slate-900">
+      <div className="float-orb orb-one" />
+      <div className="float-orb orb-two" />
+      <div className="float-orb orb-three" />
 
-          <div className="rounded-3xl bg-blue-600 p-4 border border-blue-800">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-200 mb-2">
-              Signed in as
-            </p>
-            <p className="font-medium text-white">{adminName || "Administrator"}</p>
-          </div>
-        </div>
+      <AdminTopNav adminName="Administrator" />
 
-        <nav className="flex-1 px-6 py-8 space-y-4">
-          <button className="w-full flex items-center gap-3 rounded-[1.75rem] bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-4 text-left text-sm font-semibold text-white shadow-xl shadow-cyan-500/20 transition hover:-translate-x-1 hover:shadow-2xl">
-            <FaUserCog className="text-lg" />
-            Dashboard
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate("/user-management")}
-            className="w-full flex items-center gap-3 rounded-[1.75rem] bg-white/90 px-5 py-4 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-300/50 transition hover:-translate-x-1 hover:bg-slate-100"
-          >
-            <FaUsers className="text-lg text-sky-600" />
-            User Management
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate("/question-management")}
-            className="w-full flex items-center gap-3 rounded-[1.75rem] bg-white/90 px-5 py-4 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-300/50 transition hover:-translate-x-1 hover:bg-slate-100"
-          >
-            <FaQuestionCircle className="text-lg text-emerald-600" />
-            Question Management
-          </button>
-        </nav>
-
-        <div className="px-6 pb-6">
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-3 rounded-3xl bg-red-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-red-500"
-          >
-            <FaSignOutAlt />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
-        <div className={`rounded-[2rem] glass-card border border-white/70 p-8 shadow-2xl ring-1 ring-slate-200/70 transform transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-6'}`}>
-          <div className="flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
+      <main className="relative mx-auto max-w-7xl px-6 py-8 lg:px-8 lg:py-10">
+        <div className={`glass-card relative overflow-hidden rounded-[2rem] border border-white/70 p-8 shadow-[0_25px_60px_-30px_rgba(14,116,144,0.5)] ring-1 ring-sky-100/80 transition-all duration-700 ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-6 opacity-0'}`}>
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-sky-500/12 via-cyan-400/10 to-indigo-400/10" />
+          <div className="relative flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
             <div className="max-w-2xl">
-              <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-sky-700">
+              <span className="inline-flex rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.3em] text-sky-700 shadow-inner shadow-sky-100">
                 Admin Dashboard
               </span>
               <h2 className="mt-5 text-4xl font-semibold tracking-tight text-slate-950">
                 Welcome back, {adminName || "Administrator"}
               </h2>
-              <p className="mt-4 text-slate-600">
+              <p className="mt-4 max-w-xl text-slate-600">
                 Your central hub for managing users, questions, and system health.
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-4 sm:grid-cols-3">
-              <div className={`rounded-[1.75rem] bg-gradient-to-br from-blue-50 to-white p-5 text-center shadow-lg transform transition duration-500 ${mounted ? 'scale-100' : 'scale-95'}`}>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Users</p>
-                <p className="mt-3 text-3xl font-semibold text-blue-600"><CountUp value={totalUsers} className="inline-block" /></p>
+              <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-100 via-white to-cyan-50 p-5 text-center shadow-[0_18px_40px_-24px_rgba(14,116,144,0.8)] transition duration-500 ${mounted ? 'scale-100' : 'scale-95'}`}>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Users</p>
+                <p className="mt-3 text-3xl font-semibold text-sky-700"><CountUp value={totalUsers} className="inline-block" /></p>
               </div>
-              <div className={`rounded-[1.75rem] bg-gradient-to-br from-cyan-50 to-white p-5 text-center shadow-lg transform transition duration-500 ${mounted ? 'scale-100' : 'scale-95'}`}>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Questions</p>
-                <p className="mt-3 text-3xl font-semibold text-cyan-600"><CountUp value={totalQuestions} className="inline-block" /></p>
+              <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-cyan-100 via-white to-sky-50 p-5 text-center shadow-[0_18px_40px_-24px_rgba(14,116,144,0.8)] transition duration-500 ${mounted ? 'scale-100' : 'scale-95'}`}>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Questions</p>
+                <p className="mt-3 text-3xl font-semibold text-cyan-700"><CountUp value={totalQuestions} className="inline-block" /></p>
               </div>
-              <div className={`rounded-[1.75rem] bg-gradient-to-br from-slate-50 to-white p-5 text-center shadow-lg transform transition duration-500 ${mounted ? 'scale-100' : 'scale-95'}`}>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Status</p>
-                <p className="mt-3 text-3xl font-semibold text-slate-900">{mounted ? <span className="inline-flex items-center gap-2"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />Live</span> : 'Live'}</p>
+              <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-violet-100 via-white to-indigo-50 p-5 text-center shadow-[0_18px_40px_-24px_rgba(99,102,241,0.7)] transition duration-500 ${mounted ? 'scale-100' : 'scale-95'}`}>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Status</p>
+                <p className="mt-3 text-3xl font-semibold text-violet-700">{mounted ? <span className="inline-flex items-center gap-2"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse" />Live</span> : 'Live'}</p>
               </div>
             </div>
           </div>
@@ -194,43 +147,43 @@ function AdminDashboard() {
 
         <section className="mt-8 grid gap-6 xl:grid-cols-[minmax(420px,1fr)_360px]">
           <div className="grid gap-6 md:grid-cols-2">
-            <article className="rounded-[1.75rem] glass-card border border-white/70 p-8 shadow-xl ring-1 ring-slate-200/60 transition duration-500 hover:-translate-y-1 hover:shadow-2xl">
+            <article className="glass-card hover-lift rounded-[1.75rem] border border-white/70 p-8 shadow-[0_20px_45px_-30px_rgba(37,99,235,0.65)] ring-1 ring-sky-100/70 transition duration-500">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Total Users</p>
                   <p className="mt-4 text-5xl font-semibold text-slate-900">{totalUsers}</p>
                 </div>
-                <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-100 to-cyan-100 text-sky-700 shadow-sm">
-                  <FaUsers className="text-2xl" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-cyan-400 text-xl text-white shadow-[0_16px_28px_-16px_rgba(14,165,233,0.9)]">
+                  <FaUsers />
                 </div>
               </div>
-              <p className="mt-4 text-sm text-slate-500">Current active users in your system.</p>
+              <p className="mt-4 text-sm text-slate-600">Current active users in your system.</p>
             </article>
 
-            <article className="rounded-[1.75rem] glass-card border border-white/70 p-8 shadow-xl ring-1 ring-slate-200/60 transition duration-500 hover:-translate-y-1 hover:shadow-2xl">
+            <article className="glass-card hover-lift rounded-[1.75rem] border border-white/70 p-8 shadow-[0_20px_45px_-30px_rgba(6,182,212,0.65)] ring-1 ring-cyan-100/70 transition duration-500">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Total Questions</p>
                   <p className="mt-4 text-5xl font-semibold text-slate-950">{totalQuestions}</p>
                 </div>
-                <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-cyan-100 text-cyan-700 shadow-sm">
-                  <FaQuestionCircle className="text-2xl" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-cyan-500 to-sky-500 text-xl text-white shadow-[0_16px_28px_-16px_rgba(6,182,212,0.9)]">
+                  <FaQuestionCircle />
                 </div>
               </div>
-              <p className="mt-4 text-sm text-slate-500">Questions available for candidate review and management.</p>
+              <p className="mt-4 text-sm text-slate-600">Questions available for candidate review and management.</p>
             </article>
           </div>
 
           <aside className="space-y-6">
-            <article className="rounded-[2rem] glass-card border border-white/70 p-6 shadow-xl ring-1 ring-slate-200/60 transition duration-500 hover:-translate-y-1 hover:shadow-2xl">
+            <article className="glass-card hover-lift rounded-[2rem] border border-white/70 p-6 shadow-[0_20px_45px_-30px_rgba(16,185,129,0.5)] ring-1 ring-emerald-100/70 transition duration-500">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">System health</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">System health</p>
                   <h4 className="mt-2 text-xl font-semibold text-slate-950">All systems operational</h4>
                 </div>
-                <span className="inline-flex rounded-full bg-cyan-100 px-3 py-2 text-xs font-semibold text-cyan-700">Good</span>
+                <span className="inline-flex rounded-full bg-gradient-to-r from-emerald-100 to-cyan-100 px-3 py-2 text-xs font-semibold text-emerald-700 shadow-inner shadow-emerald-100">Good</span>
               </div>
-              <p className="mt-4 text-sm text-slate-500">No outages detected. Metrics and workflows are strong across the board.</p>
+              <p className="mt-4 text-sm text-slate-600">No outages detected. Metrics and workflows are strong across the board.</p>
             </article>
           </aside>
         </section>

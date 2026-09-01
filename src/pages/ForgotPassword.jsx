@@ -38,13 +38,12 @@ function ForgotPassword() {
       <div className="w-full max-w-md fade-in-up">
 
         {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-600 to-teal-500 flex items-center justify-center shadow-2xl shadow-blue-200/40">
-            <span className="text-white text-lg font-bold text-center">
-              Prepmate AI
-            </span>
+        <div className="mb-7 flex justify-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 text-center text-sm font-black tracking-[0.22em] text-white shadow-[0_24px_40px_-20px_rgba(37,99,235,0.85)] ring-4 ring-white/70">
+              Prepmate
+            </div>
           </div>
-        </div>
+
 
         {/* Card */}
         <div className="glass-card rounded-[2rem] border border-white/70 shadow-[0_35px_100px_-40px_rgba(15,23,42,0.4)] p-8">

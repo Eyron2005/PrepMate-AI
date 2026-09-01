@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 
 function LoginPage() {
@@ -11,7 +11,6 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Login Function
   const handleLogin = async () => {
     setErrorMessage("");
 
@@ -94,118 +93,108 @@ function LoginPage() {
     navigate("/dashboard");
   };
 
-  // Register Function
   const handleRegister = () => {
     navigate("/register");
   };
 
-  // Forgot Password Function
   const handleForgotPassword = () => {
     navigate("/forgot-password");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md fade-in-up">
+    <div className="page-shell relative min-h-screen overflow-hidden px-4 py-10 text-slate-900">
+      <div className="float-orb orb-one" />
+      <div className="float-orb orb-two" />
+      <div className="float-orb orb-three" />
 
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-600 to-teal-500 flex items-center justify-center shadow-2xl shadow-blue-200/40">
-            <span className="text-white text-lg font-bold text-center">
-              Prepmate AI
-            </span>
-          </div>
-        </div>
-
-        {/* Card */}
-        <div className="glass-card rounded-[2rem] border border-white/70 shadow-[0_35px_100px_-40px_rgba(15,23,42,0.4)] p-8">
-
-          <h1 className="text-3xl font-bold text-center text-slate-900">
-            Welcome Back
-          </h1>
-          {errorMessage && (
-            <div className="mt-4 rounded-3xl border border-red-200 bg-red-50/90 p-4 text-sm text-red-800 shadow-sm">
-              {errorMessage}
-            </div>
-          )}
-          {/* Email */}
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Email
-            </label>
-
-            <div className="flex items-center rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-200">
-              <FaEnvelope className="text-slate-400 mr-3" />
-
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
-              />
+      <div className="relative mx-auto flex max-w-5xl items-center justify-center">
+        <div className="w-full max-w-md fade-in-up">
+          <div className="mb-7 flex justify-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 text-center text-sm font-black tracking-[0.22em] text-white shadow-[0_24px_40px_-20px_rgba(37,99,235,0.85)] ring-4 ring-white/70">
+              Prepmate
             </div>
           </div>
 
-          {/* Password */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Password
-            </label>
+          <div className="glass-card rounded-[2rem] border border-white/70 p-8 shadow-[0_35px_100px_-40px_rgba(15,23,42,0.45)] ring-1 ring-sky-100/80">
+            <div className="mb-6 text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.32em] text-sky-700">Admin Portal</p>
+              <h1 className="mt-4 text-3xl font-bold text-slate-900">Welcome back</h1>
+              <p className="mt-2 text-sm text-slate-600">Sign in to continue to your dashboard</p>
+            </div>
 
-            <div className="relative flex items-center rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-200">
-              <FaLock className="text-slate-400 mr-3" />
+            {errorMessage && (
+              <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-sm font-medium text-rose-700 shadow-sm">
+                {errorMessage}
+              </div>
+            )}
 
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
-              />
+            <div className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
+                <div className="flex items-center rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+                  <FaEnvelope className="mr-3 text-slate-400" />
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
+                <div className="relative flex items-center rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+                  <FaLock className="mr-3 text-slate-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="ml-3 text-slate-500 transition hover:text-slate-900"
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
               <button
                 type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="ml-3 text-slate-500 hover:text-slate-900"
+                onClick={handleLogin}
+                className="flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-500 py-3.5 text-base font-semibold text-white shadow-[0_18px_28px_-18px_rgba(37,99,235,0.9)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-18px_rgba(14,165,233,0.9)]"
               >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                Sign In <FaArrowRight className="text-sm" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRegister}
+                className="w-full rounded-3xl border border-sky-600 bg-white py-3 text-base font-semibold text-sky-700 shadow-sm transition hover:bg-sky-600 hover:text-white"
+              >
+                Sign Up
               </button>
             </div>
           </div>
 
-          {/* Buttons */}
-          <div className="space-y-3">
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Forgot your password?{" "}
             <button
               type="button"
-              onClick={handleLogin}
-              className="w-full rounded-3xl bg-gradient-to-r from-blue-600 to-teal-500 py-3 text-white font-semibold shadow-lg shadow-blue-500/20 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+              onClick={handleForgotPassword}
+              className="font-semibold text-sky-700 hover:underline"
             >
-              Sign In
+              Reset Password
             </button>
-
-            <button
-              type="button"
-              onClick={handleRegister}
-              className="w-full rounded-3xl border border-blue-600 bg-white py-3 text-blue-600 font-semibold shadow-sm transition hover:bg-blue-600 hover:text-white"
-            >
-              Sign Up
-            </button>
-          </div>
-
+          </p>
         </div>
-
-        {/* Forgot Password */}
-        <p className="text-center text-slate-500 mt-6 text-sm">
-          Forgot your password?{" "}
-          <button
-            type="button"
-            onClick={handleForgotPassword}
-            className="text-blue-600 font-semibold hover:underline"
-          >
-            Reset Password
-          </button>
-        </p>
-
       </div>
     </div>
   );
