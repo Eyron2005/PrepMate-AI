@@ -24,6 +24,7 @@ function UserManagement() {
   const [loadError, setLoadError] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [deleteUserTarget, setDeleteUserTarget] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     loadUsers();
@@ -282,10 +283,11 @@ function UserManagement() {
         throw new Error(data?.error || data?.message || "User deletion failed.");
       }
 
-      alert("User account deleted successfully.");
       setSelectedUser(null);
       setDeleteUserTarget(null);
       await loadUsers();
+      setActionLoading(false);
+      setSuccessMessage("User account deleted successfully.");
     } catch (error) {
       console.error("DELETE USER ERROR:", error);
       alert(`Failed to delete user.\n\n${error?.message || "Unknown error occurred."}`);
@@ -526,6 +528,22 @@ function UserManagement() {
           </div>
         </div>
       )}
+
+        {successMessage && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-10 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-[2rem] glass-card border border-white/70 bg-white/95 p-8 text-center shadow-2xl ring-1 ring-emerald-200/80 fade-in-up">
+              <p className="text-sm uppercase tracking-[0.3em] text-emerald-600">Success</p>
+              <h3 className="mt-3 text-2xl font-semibold text-slate-950">{successMessage}</h3>
+              <button
+                type="button"
+                onClick={() => setSuccessMessage("")}
+                className="mt-6 rounded-3xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

@@ -20,17 +20,44 @@ function ForgotPassword() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setLoading(false);
 
-    if (error) {
-      setErrorMessage(error.message);
-      return;
+    try {
+      const { data, error } = await supabase.functions.invoke("send-password-code", {
+        body: { email: email.trim() },
+      });
+
+      let responseData = data;
+      if (error?.context?.json) {
+        try {
+          responseData = await error.context.json();
+        } catch {
+          responseData = data;
+        }
+      }
+
+      if (error || !responseData?.success) {
+        setErrorMessage(
+          responseData?.error ||
+            responseData?.message ||
+            error?.message ||
+            "Failed to send verification code."
+        );
+        return;
+      }
+
+      // Store code and email in localStorage for next step
+      if (responseData?.code) {
+        localStorage.setItem("resetCode", responseData.code);
+        localStorage.setItem("resetEmail", email.trim());
+      }
+
+      setMessage("If this email is registered, a 6-digit verification code has been sent.");
+      setTimeout(() => navigate("/reset-password"), 1500);
+    } catch (error) {
+      setErrorMessage(error.message || "Failed to send verification code.");
+    } finally {
+      setLoading(false);
     }
-
-    setMessage("If this email is registered, a reset link has been sent.");
   };
 
   return (
@@ -53,7 +80,7 @@ function ForgotPassword() {
           </h1>
 
           <p className="text-center text-gray-500 mt-2 mb-8">
-            Enter your email address and we'll send you a password reset link.
+            Enter your email address and we'll send you a 6-digit verification code.
           </p>
 
           {/* Email */}
@@ -89,9 +116,10 @@ function ForgotPassword() {
           <button
             type="button"
             onClick={handleReset}
+            disabled={loading}
             className="w-full rounded-3xl bg-gradient-to-r from-blue-600 to-teal-500 py-3 text-white font-semibold shadow-lg shadow-blue-500/20 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl"
           >
-            Send Reset Link
+            {loading ? "Sending..." : "Send Verification Code"}
           </button>
 
           <button

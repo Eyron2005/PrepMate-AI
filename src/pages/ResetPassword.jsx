@@ -5,6 +5,7 @@ import { supabase } from "../services/supabase";
 
 function ResetPassword() {
   const navigate = useNavigate();
+  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -12,9 +13,8 @@ function ResetPassword() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [accessToken, setAccessToken] = useState(null);
-  const [refreshToken, setRefreshToken] = useState(null);
-  const [isRecoveryValid, setIsRecoveryValid] = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [email, setEmail] = useState("");
 
   const passwordRules = [
     {
@@ -47,38 +47,41 @@ function ResetPassword() {
   const isPasswordStrong = passwordStatus.every((rule) => rule.valid);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.startsWith("#") ? hash.substring(1) : hash);
-    const error = params.get("error");
-    const errorDescription = params.get("error_description");
-    const type = params.get("type");
-    const access_token = params.get("access_token");
-    const refresh_token = params.get("refresh_token");
-
-    if (error) {
-      setErrorMessage(errorDescription || error);
-      return;
+    // Check if code is stored in localStorage from ForgotPassword flow
+    const storedCode = localStorage.getItem("resetCode");
+    const storedEmail = localStorage.getItem("resetEmail");
+    if (storedCode) {
+      setCode(storedCode);
     }
-
-    if (type === "recovery" && access_token) {
-      setAccessToken(access_token);
-      setRefreshToken(refresh_token);
-      setIsRecoveryValid(true);
-      setMessage("Reset link validated. Enter a new password.");
-      window.history.replaceState(null, "", window.location.pathname);
-      return;
+    if (storedEmail) {
+      setEmail(storedEmail);
     }
-
-    setErrorMessage("Please open the reset link from your email to set a new password.");
   }, []);
+
+  const handleVerifyCode = async () => {
+    setErrorMessage("");
+    setMessage("");
+
+    if (!code.trim()) {
+      setErrorMessage("Please enter the 6-digit code sent to your email.");
+      return;
+    }
+
+    if (code.trim() !== localStorage.getItem("resetCode")) {
+      setErrorMessage("The code is incorrect. Please try again.");
+      return;
+    }
+
+    setCodeVerified(true);
+    setMessage("Code verified! Now set your new password.");
+  };
 
   const handleResetPassword = async () => {
     setErrorMessage("");
     setMessage("");
 
-    if (!isRecoveryValid) {
-      setErrorMessage("The reset link is invalid or expired. Redirecting to login...");
-      setTimeout(() => navigate("/"), 800);
+    if (!codeVerified) {
+      setErrorMessage("Please verify your code first.");
       return;
     }
 
@@ -98,42 +101,56 @@ function ResetPassword() {
     }
 
     setLoading(true);
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
 
-    if (sessionError) {
+    try {
+      // Get the user's email from localStorage
+      const userEmail = localStorage.getItem("resetEmail") || email;
+
+      // Update the password via Supabase auth
+      const { error } = await supabase.auth.updateUserById(
+        localStorage.getItem("resetUserId"),
+        { password: password.trim() }
+      );
+
+      if (error) {
+        setLoading(false);
+        setErrorMessage(error.message || "Failed to reset password.");
+        return;
+      }
+
       setLoading(false);
-      setErrorMessage(sessionError.message);
-      return;
+      setMessage("Your password has been reset successfully. Redirecting to login...");
+      
+      // Clear stored data
+      localStorage.removeItem("resetCode");
+      localStorage.removeItem("resetEmail");
+      localStorage.removeItem("resetUserId");
+      
+      setTimeout(() => navigate("/"), 1500);
+    } catch (err) {
+      setLoading(false);
+      setErrorMessage("An error occurred. Please try again.");
     }
-
-    const { error } = await supabase.auth.updateUser({ password: password.trim() });
-    setLoading(false);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    setMessage("Your password has been reset. Redirecting to login...");
-    setTimeout(() => navigate("/"), 1200);
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-6">
-          <div className="w-28 h-28 rounded-full bg-blue-600 flex items-center justify-center shadow-lg">
-            <span className="text-white text-2xl font-bold">Prepmate AI</span>
+    <div className="min-h-screen flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md fade-in-up">
+        {/* Logo */}
+        <div className="mb-7 flex justify-center">
+          <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 text-center text-sm font-black tracking-[0.22em] text-white shadow-[0_24px_40px_-20px_rgba(37,99,235,0.85)] ring-4 ring-white/70">
+            Prepmate
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h1 className="text-3xl font-bold text-center text-gray-800">Reset Password</h1>
+        {/* Card */}
+        <div className="glass-card rounded-[2rem] border border-white/70 shadow-[0_35px_100px_-40px_rgba(15,23,42,0.4)] p-8">
+          <h1 className="text-3xl font-bold text-center text-slate-900">
+            {codeVerified ? "Reset Password" : "Verify Code"}
+          </h1>
+
           <p className="text-center text-gray-500 mt-2 mb-8">
-            Enter your new password below to finish resetting your account.
+            {codeVerified ? "Enter your new password below." : "Enter the 6-digit code sent to your email."}
           </p>
 
           {errorMessage && (
@@ -148,80 +165,112 @@ function ResetPassword() {
             </div>
           )}
 
-          <div className="mb-6">
-            <label className="block mb-2 font-medium text-gray-700">New Password</label>
-            <div className="flex items-center border rounded-lg px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500">
-              <FaLock className="mr-3 text-gray-400" />
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="New password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="ml-2 text-gray-500 hover:text-gray-700"
-              >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
-            </div>
-            <div className="mt-3 space-y-2 text-sm text-gray-600">
-              {passwordStatus.map((rule) => (
-                <div key={rule.label} className="flex items-center gap-2">
-                  <span
-                    className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                      rule.valid ? "border-emerald-500 bg-emerald-500" : "border-gray-300"
-                    }`}
-                  >
-                    {rule.valid ? <span className="text-white text-xs">✓</span> : ""}
-                  </span>
-                  <span className={rule.valid ? "text-emerald-700" : "text-gray-500"}>{rule.label}</span>
+          {/* Code Verification Step */}
+          {!codeVerified ? (
+            <>
+              <div className="mb-6">
+                <label className="block mb-2 font-medium text-slate-700">
+                  Verification Code
+                </label>
+                <div className="flex items-center rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-200">
+                  <input
+                    type="text"
+                    maxLength="6"
+                    placeholder="000000"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    className="w-full bg-transparent outline-none text-slate-800 placeholder:text-slate-400 text-center text-2xl font-bold tracking-widest"
+                  />
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          <div className="mb-6">
-            <label className="block mb-2 font-medium text-gray-700">Confirm Password</label>
-            <div className="flex items-center border rounded-lg px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500">
-              <FaLock className="mr-3 text-gray-400" />
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full outline-none"
-              />
               <button
                 type="button"
-                onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="ml-2 text-gray-500 hover:text-gray-700"
+                onClick={handleVerifyCode}
+                className="w-full rounded-3xl bg-gradient-to-r from-blue-600 to-teal-500 py-3 text-white font-semibold shadow-lg shadow-blue-500/20 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl"
               >
-                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                Verify Code
               </button>
-            </div>
-            <p className={`mt-2 text-sm ${confirmPassword && password !== confirmPassword ? "text-red-600" : "text-gray-500"}`}>
-              {confirmPassword && password !== confirmPassword
-                ? "Passwords do not match"
-                : "Re-enter your password to confirm."}
-            </p>
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Password Reset Step */}
+              <div className="mb-6">
+                <label className="block mb-2 font-medium text-gray-700">New Password</label>
+                <div className="flex items-center border rounded-lg px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500">
+                  <FaLock className="mr-3 text-gray-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="New password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="ml-2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2 text-sm text-gray-600">
+                  {passwordStatus.map((rule) => (
+                    <div key={rule.label} className="flex items-center gap-2">
+                      <span
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                          rule.valid ? "border-emerald-500 bg-emerald-500" : "border-gray-300"
+                        }`}
+                      >
+                        {rule.valid ? <span className="text-white text-xs">✓</span> : ""}
+                      </span>
+                      <span className={rule.valid ? "text-emerald-700" : "text-gray-500"}>{rule.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          <button
-            type="button"
-            onClick={handleResetPassword}
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg transition disabled:opacity-60"
-          >
-            {loading ? "Resetting..." : "Reset Password"}
-          </button>
+              <div className="mb-6">
+                <label className="block mb-2 font-medium text-gray-700">Confirm Password</label>
+                <div className="flex items-center border rounded-lg px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500">
+                  <FaLock className="mr-3 text-gray-400" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="ml-2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+                <p className={`mt-2 text-sm ${confirmPassword && password !== confirmPassword ? "text-red-600" : "text-gray-500"}`}>
+                  {confirmPassword && password !== confirmPassword
+                    ? "Passwords do not match"
+                    : "Re-enter your password to confirm."}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={loading || !isPasswordStrong}
+                className="w-full rounded-3xl bg-gradient-to-r from-blue-600 to-teal-500 py-3 text-white font-semibold shadow-lg shadow-blue-500/20 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
+              >
+                {loading ? "Resetting..." : "Reset Password"}
+              </button>
+            </>
+          )}
 
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="w-full mt-3 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white py-3 rounded-lg transition"
+            className="w-full mt-3 rounded-3xl border border-blue-600 bg-white py-3 text-blue-600 font-semibold shadow-sm transition hover:bg-blue-600 hover:text-white"
           >
             Back to Login
           </button>

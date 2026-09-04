@@ -23,7 +23,6 @@ function QuestionManagement() {
     question: "",
     category: "",
     difficulty: "",
-    answer: "",
   });
 
   useEffect(() => {
@@ -73,7 +72,7 @@ function QuestionManagement() {
   }, [searchTerm, categoryFilter, difficultyFilter, questions]);
 
   function resetForm() {
-    setFormState({ question: "", category: "", difficulty: "", answer: "" });
+    setFormState({ question: "", category: "", difficulty: "" });
     setEditingQuestion(null);
   }
 
@@ -88,7 +87,6 @@ function QuestionManagement() {
       question: question.question,
       category: question.category,
       difficulty: question.difficulty,
-      answer: question.answer,
     });
     setIsFormOpen(true);
   }
@@ -104,7 +102,6 @@ function QuestionManagement() {
       question: formState.question,
       category: formState.category,
       difficulty: formState.difficulty,
-      answer: formState.answer,
     };
 
     const query = editingQuestion
@@ -377,16 +374,6 @@ function QuestionManagement() {
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Answer / Explanation</label>
-                  <textarea
-                    value={formState.answer}
-                    onChange={(e) => setFormState({ ...formState, answer: e.target.value })}
-                    rows={3}
-                    className="mt-3 w-full rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button
                     onClick={() => {

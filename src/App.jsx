@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
-import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
@@ -13,9 +12,6 @@ function App() {
       <Routes>
         {/* Login */}
         <Route index element={<LoginPage />} />
-
-        {/* Register */}
-        <Route path="/register" element={<SignUp />} />
 
         {/* Forgot Password */}
         <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -93,10 +93,6 @@ function LoginPage() {
     navigate("/dashboard");
   };
 
-  const handleRegister = () => {
-    navigate("/register");
-  };
-
   const handleForgotPassword = () => {
     navigate("/forgot-password");
   };
@@ -174,13 +170,6 @@ function LoginPage() {
                 Sign In <FaArrowRight className="text-sm" />
               </button>
 
-              <button
-                type="button"
-                onClick={handleRegister}
-                className="w-full rounded-3xl border border-sky-600 bg-white py-3 text-base font-semibold text-sky-700 shadow-sm transition hover:bg-sky-600 hover:text-white"
-              >
-                Sign Up
-              </button>
             </div>
           </div>
 
