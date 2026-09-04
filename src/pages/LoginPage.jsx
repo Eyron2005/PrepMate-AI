@@ -93,10 +93,6 @@ function LoginPage() {
     navigate("/dashboard");
   };
 
-  const handleForgotPassword = () => {
-    navigate("/forgot-password");
-  };
-
   return (
     <div className="page-shell relative min-h-screen overflow-hidden px-4 py-10 text-slate-900">
       <div className="float-orb orb-one" />
@@ -172,17 +168,6 @@ function LoginPage() {
 
             </div>
           </div>
-
-          <p className="mt-6 text-center text-sm text-slate-600">
-            Forgot your password?{" "}
-            <button
-              type="button"
-              onClick={handleForgotPassword}
-              className="font-semibold text-sky-700 hover:underline"
-            >
-              Reset Password
-            </button>
-          </p>
         </div>
       </div>
     </div>

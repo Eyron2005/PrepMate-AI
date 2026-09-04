@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
-import ForgotPassword from "./pages/ForgotPassword";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import QuestionManagement from "./pages/QuestionManagement";
@@ -12,9 +11,6 @@ function App() {
       <Routes>
         {/* Login */}
         <Route index element={<LoginPage />} />
-
-        {/* Forgot Password */}
-        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Dashboard */}
         <Route path="/dashboard" element={<AdminDashboard />} />
