@@ -102,9 +102,11 @@ function LoginPage() {
       <div className="relative mx-auto flex max-w-5xl items-center justify-center">
         <div className="w-full max-w-md fade-in-up">
           <div className="mb-7 flex justify-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 text-center text-sm font-black tracking-[0.22em] text-white shadow-[0_24px_40px_-20px_rgba(37,99,235,0.85)] ring-4 ring-white/70">
-              Prepmate
-            </div>
+            <img
+              alt="Prepmate logo"
+              src="/PrepmateLogo.svg"
+              className="h-40 w-40 object-contain drop-shadow-[0_24px_16px_rgba(37,99,235,0.28)]"
+            />
           </div>
 
           <div className="glass-card rounded-[2rem] border border-white/70 p-8 shadow-[0_35px_100px_-40px_rgba(15,23,42,0.45)] ring-1 ring-sky-100/80">

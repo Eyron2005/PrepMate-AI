@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import AdminTopNav from "../components/AdminTopNav";
 import { supabase } from "../services/supabase";
 
-const categories = ["Technical", "Behavioral", "Coding", "System Design", "Logic", "HR"];
+const categories = ["Technical", "Behavioral", "Situational", "General"];
 const difficulties = ["Easy", "Medium", "Hard"];
 
 function QuestionManagement() {

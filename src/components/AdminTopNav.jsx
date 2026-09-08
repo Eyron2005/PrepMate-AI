@@ -21,9 +21,11 @@ export default function AdminTopNav({ adminName = "Administrator" }) {
     <header className="sticky top-0 z-20 border-b border-sky-100/80 bg-white/75 backdrop-blur-xl shadow-[0_18px_40px_-28px_rgba(14,116,144,0.5)]">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 lg:px-8">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 text-lg font-bold text-white shadow-[0_14px_30px_-12px_rgba(37,99,235,0.9)] ring-2 ring-white/70">
-            H
-          </div>
+          <img
+            src="/PrepmateLogo.svg"
+            alt="Prepmate logo"
+            className="h-11 w-11 object-contain drop-shadow-[0_10px_12px_rgba(37,99,235,0.22)]"
+          />
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Prepmate AI</h1>
             <p className="text-xs font-medium tracking-[0.18em] text-sky-700 uppercase">Admin Panel</p>
