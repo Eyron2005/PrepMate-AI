@@ -3,7 +3,7 @@ import LoginPage from "./pages/LoginPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import QuestionManagement from "./pages/QuestionManagement";
-import ResetPassword from "./pages/ResetPassword";
+import AdminRoute from "./components/AdminRoute";
 
 function App() {
   return (
@@ -12,17 +12,13 @@ function App() {
         {/* Login */}
         <Route index element={<LoginPage />} />
 
-        {/* Dashboard */}
-        <Route path="/dashboard" element={<AdminDashboard />} />
+        {/* Admin-only pages */}
+        <Route element={<AdminRoute />}>
+          <Route path="/dashboard" element={<AdminDashboard />} />
+          <Route path="/user-management" element={<UserManagement />} />
+          <Route path="/question-management" element={<QuestionManagement />} />
+        </Route>
 
-        {/* User Management */}
-        <Route path="/user-management" element={<UserManagement />} />
-
-        {/* Question Management */}
-        <Route path="/question-management" element={<QuestionManagement />} />
-
-        {/* Reset Password */}
-        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </BrowserRouter>
   );
