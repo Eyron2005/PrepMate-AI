@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FaFilter, FaPlus, FaSearch, FaTrash, FaEdit } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import AdminTopNav from "../components/AdminTopNav";
+import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
 const categories = ["Technical", "Behavioral", "Situational", "General"];
@@ -159,9 +159,9 @@ function QuestionManagement() {
       <div className="float-orb orb-two" />
       <div className="float-orb orb-three" />
 
-      <AdminTopNav adminName="Administrator" />
+      <AdminSidebar adminName="Administrator" />
 
-      <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10">
+      <div className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-10 md:ml-64">
         <section className="glass-card relative overflow-hidden rounded-[2rem] border border-white/70 p-8 shadow-[0_25px_60px_-30px_rgba(14,116,144,0.5)] ring-1 ring-sky-100/80 fade-in-up">
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-sky-500/12 via-cyan-400/10 to-indigo-400/10" />
           <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

@@ -8,7 +8,7 @@ import {
   FaToggleOn,
   FaUserCircle,
 } from "react-icons/fa";
-import AdminTopNav from "../components/AdminTopNav";
+import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
@@ -301,9 +301,9 @@ function UserManagement() {
       <div className="float-orb orb-two" />
       <div className="float-orb orb-three" />
 
-      <AdminTopNav adminName="Administrator" />
+      <AdminSidebar adminName="Administrator" />
 
-      <main className="relative mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8">
+      <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64">
         <section
           className={`glass-card relative overflow-hidden rounded-[2rem] border border-white/70 p-8 shadow-[0_25px_60px_-30px_rgba(14,116,144,0.5)] ring-1 ring-sky-100/80 transition-all duration-700 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"
