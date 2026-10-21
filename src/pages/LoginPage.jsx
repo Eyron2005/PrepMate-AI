@@ -30,21 +30,51 @@ function LoginPage() {
     }
 
     const userId = data?.user?.id;
-    const lastOnline = new Date().toISOString();
+    const { data: admin, error: adminLookupError } = await supabase
+      .from("admins")
+      .select("id, is_active")
+      .eq("id", userId)
+      .maybeSingle();
 
-    if (userId) {
+    if (adminLookupError) {
+      console.error("Unable to verify account role:", adminLookupError);
+      await supabase.auth.signOut();
+      setErrorMessage(`Unable to verify your account role: ${adminLookupError.message}`);
+      return;
+    }
+
+    const isAdmin = admin && admin.is_active !== false;
+    let isStaff = false;
+    if (!isAdmin) {
+      const { data: staff, error: staffLookupError } = await supabase
+        .from("staff")
+        .select("id, is_active")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (staffLookupError) {
+        console.error("Unable to verify staff account:", staffLookupError);
+        await supabase.auth.signOut();
+        setErrorMessage(`Unable to verify staff access: ${staffLookupError.message}`);
+        return;
+      }
+      isStaff = Boolean(staff && staff.is_active !== false);
+    }
+
+    if (!isAdmin && !isStaff) {
+      await supabase.auth.signOut();
+      setErrorMessage("This account does not have admin or staff access.");
+      return;
+    }
+
+    const lastOnline = new Date().toISOString();
+    if (userId && isAdmin) {
       try {
-        const { data: adminUpdateData, error: adminUpdateError } = await supabase
+        const { error: adminUpdateError } = await supabase
           .from("admins")
           .update({ last_online: lastOnline })
-          .eq("id", userId)
-          .select("id, last_online");
-
-        if (adminUpdateError) {
-          console.warn("Could not update admin last_online:", adminUpdateError);
-        } else {
-          console.log("Admin last_online updated:", adminUpdateData);
-        }
+          .eq("id", userId);
+        if (adminUpdateError) console.warn("Could not update admin last_online:", adminUpdateError);
       } catch (adminUpdateError) {
         console.warn("Could not update admin last_online:", adminUpdateError);
       }
@@ -90,7 +120,7 @@ function LoginPage() {
       }
     }
 
-    navigate("/dashboard");
+    navigate(isAdmin ? "/dashboard" : "/staff-dashboard");
   };
 
   return (

@@ -5,9 +5,9 @@ import {
   FaQuestionCircle,
   FaSignOutAlt,
   FaUserTie,
-  FaUserGraduate,
   FaDatabase,
   FaCog,
+  FaUserCheck,
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 
@@ -61,9 +61,9 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
             <span className="hidden md:inline">Staff Management</span>
           </NavLink>
 
-          <NavLink to="/ojt-management" title="OJT Management" aria-label="OJT Management" className={navLinkClass}>
-            <FaUserGraduate className="shrink-0 text-base" />
-            <span className="hidden md:inline">OJT Management</span>
+          <NavLink to="/staff-assignments" title="Staff Assignments" aria-label="Staff Assignments" className={navLinkClass}>
+            <FaUserCheck className="shrink-0 text-base" />
+            <span className="hidden md:inline">Staff Assignments</span>
           </NavLink>
 
           <NavLink to="/backup-restore" title="Backup and Restore" aria-label="Backup and Restore" className={navLinkClass}>

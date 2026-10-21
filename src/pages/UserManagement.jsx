@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaEye,
@@ -22,20 +22,15 @@ function UserManagement() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
   const [deleteUserTarget, setDeleteUserTarget] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
 
@@ -58,27 +53,6 @@ function UserManagement() {
     }
 
     const currentUserIdValue = session.user.id;
-    setCurrentUserId(currentUserIdValue);
-
-    const { data: adminData, error: adminError } = await supabase
-      .from("admins")
-      .select("id")
-      .eq("id", currentUserIdValue)
-      .single();
-
-    if (adminError) {
-      console.error("Admin verification error:", adminError);
-      setLoadError("Unable to verify admin access. Check your Supabase configuration.");
-      setLoading(false);
-      return;
-    }
-
-    if (!adminData) {
-      console.warn("Signed in user is not in admins table:", session.user.id);
-      setLoadError("You must be an admin to view user profiles.");
-      setLoading(false);
-      return;
-    }
 
     const sources = [
       { table: "profiles", select: "*" },
@@ -174,9 +148,6 @@ function UserManagement() {
     }
 
     if (allRows.length === 0) {
-      setLoadError(
-        "No profiles were returned from Supabase. This is often caused by Row Level Security policies on the profiles table."
-      );
       setUsers([]);
       setSelectedUser(null);
       setLoading(false);
@@ -218,7 +189,12 @@ function UserManagement() {
       return deduped.find((user) => user.id === prev.id) || null;
     });
     setLoading(false);
-  }
+  }, [navigate]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => loadUsers());
+    return () => cancelAnimationFrame(id);
+  }, [loadUsers]);
 
   const filteredUsers = useMemo(() => {
     if (!searchTerm.trim()) return users;

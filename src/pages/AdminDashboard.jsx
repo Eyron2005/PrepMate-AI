@@ -6,7 +6,6 @@ import {
   FaUsers,
   FaQuestionCircle,
   FaUserTie,
-  FaUserGraduate,
   FaDatabase,
   FaCog,
 } from "react-icons/fa";
@@ -138,15 +137,6 @@ function AdminDashboard() {
                 icon: FaUserTie,
                 color: "from-violet-500 to-indigo-500",
                 surface: "border-violet-100",
-                count: null,
-              },
-              {
-                title: "OJT Management",
-                description: "Track trainees, placement dates, supervisors, and status.",
-                href: "/ojt-management",
-                icon: FaUserGraduate,
-                color: "from-cyan-500 to-sky-500",
-                surface: "border-cyan-100",
                 count: null,
               },
               {

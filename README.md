@@ -30,6 +30,19 @@ Apply
 to remove any generated UUID default from `staff.id`, which must reference the newly created
 Auth account.
 
+Apply
+[`supabase/migrations/20261020235000_staff_dashboard_access.sql`](./supabase/migrations/20261020235000_staff_dashboard_access.sql)
+to add the staff dashboard's profile access and initial OJT policies. The role-scoped migration
+below replaces those initial policies with assignment-based access.
+
+Apply
+[`supabase/migrations/20261021010000_role_scoped_staff_access.sql`](./supabase/migrations/20261021010000_role_scoped_staff_access.sql)
+to enable the role-based feature access. It removes stale policies that reference the missing
+`public.administrations` relation, gives staff access only to assigned student profiles, interview
+results, and OJT records, allows staff to view a limited set of settings, and keeps account,
+backup, question-management, and settings-write access admin-only. Use Staff Assignments in the
+admin panel to grant or revoke student access.
+
 OJT Management uses the existing `public.ojt_records` columns `student_name`, `student_number`,
 `course`, and `company_name`. It does not require the separate `system_settings` table to load
 or manage OJT records.
