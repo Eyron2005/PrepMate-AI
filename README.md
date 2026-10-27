@@ -2,10 +2,10 @@
 
 ## Admin management database setup
 
-Before using Staff Management, OJT Management, System Settings, or Backup & Restore, apply
+Before using Staff Management, OJT Management, or Backup & Restore, apply
 [`supabase/migrations/20261020224000_admin_management.sql`](./supabase/migrations/20261020224000_admin_management.sql)
-to the connected Supabase project using the Supabase SQL Editor. It creates the staff, OJT, and
-settings tables with admin-only row-level security and adds the transactional restore function.
+to the connected Supabase project using the Supabase SQL Editor. It creates the staff and OJT
+tables with admin-only row-level security and adds the transactional restore function.
 
 If your `public.staff` table already exists with `full_name`, `email`, `position`, and
 `department` columns, also apply
@@ -39,17 +39,14 @@ Apply
 [`supabase/migrations/20261021010000_role_scoped_staff_access.sql`](./supabase/migrations/20261021010000_role_scoped_staff_access.sql)
 to enable the role-based feature access. It removes stale policies that reference the missing
 `public.administrations` relation, gives staff access only to assigned student profiles, interview
-results, and OJT records, allows staff to view a limited set of settings, and keeps account,
-backup, question-management, and settings-write access admin-only. Use Staff Assignments in the
-admin panel to grant or revoke student access.
+results, and OJT records, and keeps account, backup, and question-management access admin-only.
+Use Staff Assignments in the admin panel to grant or revoke student access.
 
 OJT Management uses the existing `public.ojt_records` columns `student_name`, `student_number`,
-`course`, and `company_name`. It does not require the separate `system_settings` table to load
-or manage OJT records.
+`course`, and `company_name`.
 
-Backups include `questions`, `staff`, `ojt_records`, and `system_settings`. User profiles and
-authentication accounts are excluded. Restoring replaces rows in these four tables after an
-in-app confirmation.
+Backups include `questions`, `staff`, and `ojt_records`. User profiles and authentication
+accounts are excluded. Restoring replaces rows in these tables after an in-app confirmation.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

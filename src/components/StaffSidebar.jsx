@@ -3,7 +3,6 @@ import {
   FaChartPie,
   FaClipboardList,
   FaFileAlt,
-  FaCog,
   FaSignOutAlt,
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
@@ -12,7 +11,6 @@ const links = [
   { to: "/staff-dashboard", label: "Dashboard", icon: FaChartPie, end: true },
   { to: "/staff/student-records", label: "Student Records", icon: FaClipboardList },
   { to: "/staff/interview-results", label: "Interview Results", icon: FaFileAlt },
-  { to: "/staff/system-settings", label: "System Settings", icon: FaCog },
 ];
 
 export default function StaffSidebar({ staffName = "Staff" }) {

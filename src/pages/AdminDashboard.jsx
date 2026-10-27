@@ -7,7 +7,7 @@ import {
   FaQuestionCircle,
   FaUserTie,
   FaDatabase,
-  FaCog,
+  FaFileAlt,
 } from "react-icons/fa";
 
 function AdminDashboard() {
@@ -140,21 +140,21 @@ function AdminDashboard() {
                 count: null,
               },
               {
+                title: "Interview Results",
+                description: "Review interview sessions, scores, transcripts, and feedback.",
+                href: "/interview-results",
+                icon: FaFileAlt,
+                color: "from-amber-500 to-orange-500",
+                surface: "border-amber-100",
+                count: null,
+              },
+              {
                 title: "Backup & Restore",
                 description: "Download a backup or restore a saved snapshot.",
                 href: "/backup-restore",
                 icon: FaDatabase,
                 color: "from-emerald-500 to-teal-500",
                 surface: "border-emerald-100",
-                count: null,
-              },
-              {
-                title: "System Settings",
-                description: "Configure organization details and OJT defaults.",
-                href: "/system-settings",
-                icon: FaCog,
-                color: "from-amber-500 to-orange-500",
-                surface: "border-amber-100",
                 count: null,
               },
             ].map(({ title, description, href, icon: Icon, color, surface, count }) => (

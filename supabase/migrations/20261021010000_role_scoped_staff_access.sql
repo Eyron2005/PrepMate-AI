@@ -82,7 +82,6 @@ begin
     'interview_results',
     'ojt_records',
     'questions',
-    'system_settings',
     'staff_student_assignments'
   ]
   loop
@@ -295,34 +294,6 @@ create policy "Users read active interview questions"
   to anon, authenticated
   using (is_active is true);
 
-create table if not exists public.system_settings (
-  id smallint primary key default 1 check (id = 1),
-  organization_name text not null default 'Prepmate AI',
-  support_email text not null default '',
-  default_ojt_duration_days integer not null default 90
-    check (default_ojt_duration_days between 1 and 3650),
-  allow_new_registrations boolean not null default true,
-  updated_at timestamptz not null default now()
-);
-
-insert into public.system_settings (id)
-values (1)
-on conflict (id) do nothing;
-
-alter table public.system_settings enable row level security;
-create policy "Admins manage system settings"
-  on public.system_settings
-  for all
-  to authenticated
-  using (public.is_current_user_admin())
-  with check (public.is_current_user_admin());
-
-create policy "Staff read limited system settings"
-  on public.system_settings
-  for select
-  to authenticated
-  using (public.is_current_user_staff());
-
 grant select, insert, update, delete on public.admins to authenticated;
 grant select, insert, update, delete on public.profiles to authenticated;
 grant select, insert, update, delete on public.staff_student_assignments to authenticated;
@@ -330,6 +301,5 @@ grant select, insert, update, delete on public.interview_sessions to authenticat
 grant select, insert, update, delete on public.interview_results to authenticated;
 grant select, insert, update, delete on public.ojt_records to authenticated;
 grant select, insert, update, delete on public.questions to authenticated;
-grant select, insert, update, delete on public.system_settings to authenticated;
 
 notify pgrst, 'reload schema';

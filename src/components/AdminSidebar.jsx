@@ -6,8 +6,8 @@ import {
   FaSignOutAlt,
   FaUserTie,
   FaDatabase,
-  FaCog,
   FaUserCheck,
+  FaFileAlt,
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 
@@ -66,14 +66,14 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
             <span className="hidden md:inline">Staff Assignments</span>
           </NavLink>
 
+          <NavLink to="/interview-results" title="Interview Results" aria-label="Interview Results" className={navLinkClass}>
+            <FaFileAlt className="shrink-0 text-base" />
+            <span className="hidden md:inline">Interview Results</span>
+          </NavLink>
+
           <NavLink to="/backup-restore" title="Backup and Restore" aria-label="Backup and Restore" className={navLinkClass}>
             <FaDatabase className="shrink-0 text-base" />
             <span className="hidden md:inline">Backup &amp; Restore</span>
-          </NavLink>
-
-          <NavLink to="/system-settings" title="System Settings" aria-label="System Settings" className={navLinkClass}>
-            <FaCog className="shrink-0 text-base" />
-            <span className="hidden md:inline">System Settings</span>
           </NavLink>
       </nav>
 

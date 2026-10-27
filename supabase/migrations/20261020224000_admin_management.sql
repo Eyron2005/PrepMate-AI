@@ -24,23 +24,8 @@ create table if not exists public.ojt_records (
   check (start_date is null or end_date is null or end_date >= start_date)
 );
 
-create table if not exists public.system_settings (
-  id smallint primary key default 1 check (id = 1),
-  organization_name text not null default 'Prepmate AI',
-  support_email text not null default '',
-  default_ojt_duration_days integer not null default 90
-    check (default_ojt_duration_days between 1 and 3650),
-  allow_new_registrations boolean not null default true,
-  updated_at timestamptz not null default now()
-);
-
-insert into public.system_settings (id)
-values (1)
-on conflict (id) do nothing;
-
 alter table public.staff enable row level security;
 alter table public.ojt_records enable row level security;
-alter table public.system_settings enable row level security;
 
 drop policy if exists "Admins manage staff" on public.staff;
 create policy "Admins manage staff"
@@ -78,27 +63,8 @@ create policy "Admins manage OJT records"
     )
   );
 
-drop policy if exists "Admins manage system settings" on public.system_settings;
-create policy "Admins manage system settings"
-  on public.system_settings for all to authenticated
-  using (
-    exists (
-      select 1 from public.admins
-      where admins.id = (select auth.uid())
-        and coalesce(admins.is_active, true)
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admins
-      where admins.id = (select auth.uid())
-        and coalesce(admins.is_active, true)
-    )
-  );
-
 grant select, insert, update, delete on public.staff to authenticated;
 grant select, insert, update, delete on public.ojt_records to authenticated;
-grant select, insert, update, delete on public.system_settings to authenticated;
 
 create or replace function public.restore_admin_backup(p_backup jsonb)
 returns jsonb
@@ -122,19 +88,13 @@ begin
     or jsonb_typeof(p_backup->'tables'->'questions') is distinct from 'array'
     or jsonb_typeof(p_backup->'tables'->'staff') is distinct from 'array'
     or jsonb_typeof(p_backup->'tables'->'ojt_records') is distinct from 'array'
-    or jsonb_typeof(p_backup->'tables'->'system_settings') is distinct from 'array'
   then
     raise exception 'Invalid or unsupported backup file';
-  end if;
-
-  if jsonb_array_length(p_backup->'tables'->'system_settings') <> 1 then
-    raise exception 'Backup must contain exactly one settings record';
   end if;
 
   delete from public.ojt_records;
   delete from public.staff;
   delete from public.questions;
-  delete from public.system_settings;
 
   insert into public.questions
   select * from jsonb_populate_recordset(null::public.questions, p_backup->'tables'->'questions');
@@ -145,14 +105,10 @@ begin
   insert into public.ojt_records
   select * from jsonb_populate_recordset(null::public.ojt_records, p_backup->'tables'->'ojt_records');
 
-  insert into public.system_settings
-  select * from jsonb_populate_recordset(null::public.system_settings, p_backup->'tables'->'system_settings');
-
   select jsonb_build_object(
     'questions', (select count(*) from public.questions),
     'staff', (select count(*) from public.staff),
-    'ojt_records', (select count(*) from public.ojt_records),
-    'system_settings', (select count(*) from public.system_settings)
+    'ojt_records', (select count(*) from public.ojt_records)
   ) into restored_counts;
 
   return restored_counts;

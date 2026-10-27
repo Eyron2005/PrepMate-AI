@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaClipboardList, FaCog, FaFileAlt } from "react-icons/fa";
+import { FaClipboardList, FaFileAlt } from "react-icons/fa";
 import StaffSidebar from "../components/StaffSidebar";
 import { supabase } from "../services/supabase";
 
@@ -20,14 +20,6 @@ const sections = [
     icon: FaFileAlt,
     color: "from-emerald-500 to-teal-500",
     surface: "border-emerald-100",
-  },
-  {
-    title: "System Settings",
-    description: "View organization details and OJT defaults.",
-    href: "/staff/system-settings",
-    icon: FaCog,
-    color: "from-amber-500 to-orange-500",
-    surface: "border-amber-100",
   },
 ];
 
@@ -80,7 +72,7 @@ function StaffDashboard() {
               Welcome back, {staffName}
             </h1>
             <p className="mt-3 max-w-2xl text-slate-600">
-              Review your assigned students and interview results, and view limited system settings.
+              Review your assigned students and interview results.
             </p>
           </div>
         </section>

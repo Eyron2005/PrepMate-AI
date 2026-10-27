@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import StaffSidebar from "../components/StaffSidebar";
+import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
-function StaffInterviewResults() {
+function StaffInterviewResults({ isAdmin = false }) {
   const [sessions, setSessions] = useState([]);
   const [answers, setAnswers] = useState([]);
   const [studentsById, setStudentsById] = useState({});
@@ -29,7 +30,7 @@ function StaffInterviewResults() {
       if (!active) return;
       if (sessionError || answerError || profileError) {
         const error = sessionError || answerError || profileError;
-        console.error("Unable to load assigned interview results:", error);
+        console.error("Unable to load interview results:", error);
         setErrorMessage(`Unable to load interview results: ${error.message}`);
       } else {
         const names = {};
@@ -71,12 +72,12 @@ function StaffInterviewResults() {
   return (
     <div className="page-shell min-h-screen text-slate-900">
       <div className="float-orb orb-one" /><div className="float-orb orb-two" /><div className="float-orb orb-three" />
-      <StaffSidebar />
+      {isAdmin ? <AdminSidebar /> : <StaffSidebar />}
       <main className="relative ml-20 flex max-w-7xl flex-col gap-6 px-4 py-8 md:ml-64 md:px-8">
         <section className="glass-card rounded-[2rem] border border-white/70 p-8 shadow-xl ring-1 ring-sky-100/80">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-sky-700">Staff Workspace</p>
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-sky-700">{isAdmin ? "Administration" : "Staff Workspace"}</p>
           <h1 className="mt-3 text-4xl font-semibold text-slate-950">Interview Results</h1>
-          <p className="mt-3 text-slate-600">View interview results for students assigned to you.</p>
+          <p className="mt-3 text-slate-600">{isAdmin ? "Review interview results and responses across all students." : "View interview results for students assigned to you."}</p>
         </section>
 
         {errorMessage && <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{errorMessage}</p>}
@@ -85,7 +86,7 @@ function StaffInterviewResults() {
           <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-2xl font-semibold">Interview sessions</h2>
-              <p className="mt-1 text-sm text-slate-500">{filtered.length} assigned results</p>
+              <p className="mt-1 text-sm text-slate-500">{filtered.length} {isAdmin ? "results" : "assigned results"}</p>
             </div>
             <div className="relative w-full sm:max-w-sm">
               <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -110,7 +111,7 @@ function StaffInterviewResults() {
                 {loading ? (
                   <tr><td colSpan="6" className="px-5 py-12 text-center text-slate-500">Loading interview results...</td></tr>
                 ) : errorMessage ? null : filtered.length === 0 ? (
-                  <tr><td colSpan="6" className="px-5 py-12 text-center text-slate-500">No interview results for your assigned students.</td></tr>
+                  <tr><td colSpan="6" className="px-5 py-12 text-center text-slate-500">{isAdmin ? "No interview results found." : "No interview results for your assigned students."}</td></tr>
                 ) : filtered.map((session) => (
                   <tr key={session.id} className="hover:bg-sky-50/50">
                     <td className="px-5 py-4 font-semibold">{studentsById[session.profile_id] || "Assigned student"}</td>
@@ -129,7 +130,7 @@ function StaffInterviewResults() {
         <section className="glass-card overflow-hidden rounded-[2rem] border border-white/70 shadow-xl ring-1 ring-sky-100/80">
           <div className="p-6">
             <h2 className="text-2xl font-semibold">Interview answers and feedback</h2>
-            <p className="mt-1 text-sm text-slate-500">{filteredAnswers.length} assigned responses</p>
+            <p className="mt-1 text-sm text-slate-500">{filteredAnswers.length} {isAdmin ? "responses" : "assigned responses"}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
@@ -144,7 +145,7 @@ function StaffInterviewResults() {
                 {loading ? (
                   <tr><td colSpan="5" className="px-5 py-12 text-center text-slate-500">Loading interview responses...</td></tr>
                 ) : errorMessage ? null : filteredAnswers.length === 0 ? (
-                  <tr><td colSpan="5" className="px-5 py-12 text-center text-slate-500">No interview responses for your assigned students.</td></tr>
+                  <tr><td colSpan="5" className="px-5 py-12 text-center text-slate-500">{isAdmin ? "No interview responses found." : "No interview responses for your assigned students."}</td></tr>
                 ) : filteredAnswers.map((answer) => (
                   <tr key={answer.id} className="align-top hover:bg-sky-50/50">
                     <td className="px-5 py-4 font-semibold">{studentsById[answer.profile_id] || "Assigned student"}</td>
