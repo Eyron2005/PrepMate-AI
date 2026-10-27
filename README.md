@@ -18,12 +18,37 @@ If adding a staff row still reports that it violates row-level security, apply
 It replaces existing `staff` policies with a single admin-only policy that checks the current
 authenticated user through a restricted database function.
 
-Staff Management creates a Supabase Auth account by invitation, then links the staff profile to
-that account using its UUID as `staff.id`. Deploy the `create-staff-account` Edge Function with
-`supabase functions deploy create-staff-account`. The function verifies the caller is an active
-admin and uses the Supabase service-role key only on the server; never add that key to the Vite
-environment or frontend code. Configure Supabase Auth email/SMTP and the project Site URL so
-staff can receive and complete their invitation.
+Staff Management sends invitations through the existing `create-staff-account` Edge Function.
+Apply [`supabase/migrations/20261028020000_staff_invitations.sql`](./supabase/migrations/20261028020000_staff_invitations.sql)
+and deploy the updated `create-staff-account` function and new `accept-staff-invitation` function.
+The function uses the browser's HTTPS origin to form its acceptance redirect. Optionally set
+the Edge Function secret `STAFF_INVITATION_REDIRECT_URL` to a fixed HTTPS URL ending in
+`/accept-staff-invitation` to override that behavior. Add every development and production
+acceptance URL to Supabase Auth's allowed redirect URLs; Supabase Auth rejects redirects not
+on that allowlist. The service-role key is used only by the invitation Edge Function; never
+add it to the Vite environment or frontend code.
+
+Configure Supabase Auth > Email Templates > Invite user with a dedicated staff message. Use
+`{{ .ConfirmationURL }}` for its acceptance link and `{{ .Data.full_name }}` for the invitee's
+name. For example:
+
+```html
+<h2>You've been invited to join Prepmate as a staff member</h2>
+<p>Hello {{ if .Data.full_name }}{{ .Data.full_name }}{{ else }}there{{ end }},</p>
+<p>An administrator has invited you to join Prepmate as a staff member.</p>
+{{ if .Data.position }}<p>Position: {{ .Data.position }}</p>{{ end }}
+{{ if .Data.department }}<p>Department: {{ .Data.department }}</p>{{ end }}
+<p><a href="{{ .ConfirmationURL }}">Accept your staff invitation</a></p>
+<p>This secure invitation expires in one hour. If you weren't expecting this invitation, contact your administrator or ignore this email.</p>
+```
+
+Set Supabase Auth's email invitation link expiry to one hour to match the database invitation
+expiry. The mobile app's signup/OTP email template and verification endpoints are unchanged.
+Staff access remains disabled until the authenticated, email-verified invitee sets a password
+and accepts the invitation. Existing Auth accounts are not duplicated; with Supabase's built-in
+invitation template alone, invitations to those addresses are deferred and the Admin Panel
+reports why. Sending invitations to existing accounts requires a configured email sender that
+can send to an already registered user.
 
 Apply
 [`supabase/migrations/20261020233000_staff_auth_account_link.sql`](./supabase/migrations/20261020233000_staff_auth_account_link.sql)

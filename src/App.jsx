@@ -11,6 +11,7 @@ import StaffDashboard from "./pages/StaffDashboard";
 import StaffStudentRecords from "./pages/StaffStudentRecords";
 import StaffInterviewResults from "./pages/StaffInterviewResults";
 import StaffAssignments from "./pages/StaffAssignments";
+import AcceptStaffInvitation from "./pages/AcceptStaffInvitation";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <Routes>
         {/* Login */}
         <Route index element={<LoginPage />} />
+        <Route path="/accept-staff-invitation" element={<AcceptStaffInvitation />} />
 
         {/* Admin-only pages */}
         <Route element={<AdminRoute />}>

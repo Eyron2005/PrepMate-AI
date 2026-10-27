@@ -56,8 +56,8 @@ function StaffManagement() {
 
   async function saveStaff(event) {
     event.preventDefault();
-    if (!editing && !form.email.trim()) {
-      setErrorMessage("An email address is required to send the staff account invitation.");
+    if (!editing && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setErrorMessage("Enter a valid email address to send the staff invitation.");
       return;
     }
     setSaving(true);
@@ -92,7 +92,7 @@ function StaffManagement() {
           }
           throw error;
         }
-        if (!result?.staff) throw new Error("The staff account was created without a staff profile.");
+        if (!result?.staff) throw new Error("The invitation was sent without a pending staff profile.");
         data = result.staff;
       }
 
@@ -101,7 +101,7 @@ function StaffManagement() {
         : [...rows, data].sort((a, b) => a.full_name.localeCompare(b.full_name)));
       setMessage(editing
         ? "Staff profile updated."
-        : "Staff account created and an invitation email was sent.");
+        : "Staff invitation sent. Staff access will be enabled after the recipient accepts it.");
       resetForm();
     } catch (error) {
       console.error("Unable to save staff:", error);
