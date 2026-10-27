@@ -21,10 +21,13 @@ authenticated user through a restricted database function.
 Staff Management sends invitations through the existing `create-staff-account` Edge Function.
 Apply [`supabase/migrations/20261028020000_staff_invitations.sql`](./supabase/migrations/20261028020000_staff_invitations.sql)
 and deploy the updated `create-staff-account` function and new `accept-staff-invitation` function.
-The function uses the browser's HTTPS origin to form its acceptance redirect. Optionally set
-the Edge Function secret `STAFF_INVITATION_REDIRECT_URL` to a fixed HTTPS URL ending in
-`/accept-staff-invitation` to override that behavior. Add every development and production
-acceptance URL to Supabase Auth's allowed redirect URLs; Supabase Auth rejects redirects not
+The production Edge Function secret `STAFF_INVITATION_REDIRECT_URL` must be set to
+`https://www.prepmate.site/accept-staff-invitation`. This fixed destination prevents invitations
+created from a local development session from redirecting to localhost. For local testing,
+override the secret with a localhost URL only in a separate development Supabase project.
+In Supabase Dashboard > Authentication > URL Configuration, set Site URL to
+`https://www.prepmate.site` and add `https://www.prepmate.site/**` to Redirect URLs. Keep
+localhost entries only for local development. Supabase Auth rejects invitation redirects not
 on that allowlist. The service-role key is used only by the invitation Edge Function; never
 add it to the Vite environment or frontend code.
 
