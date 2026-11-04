@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import AdminSidebar from "../components/AdminSidebar";
+import { useAuth } from "../contexts/authContext";
 import {
   FaUsers,
   FaQuestionCircle,
@@ -11,7 +12,10 @@ import {
 } from "react-icons/fa";
 
 function AdminDashboard() {
-  const navigate = useNavigate();
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+  const metadataName = session?.user?.user_metadata?.full_name;
+  const email = session?.user?.email || "";
   const [adminName, setAdminName] = useState("Administrator");
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -25,26 +29,16 @@ function AdminDashboard() {
   useEffect(() => {
     let active = true;
 
-    async function checkSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!active) return;
-      if (!session) {
-        navigate("/");
-        return;
-      }
+    async function loadAdminName() {
+      if (!userId) return;
 
       const { data, error } = await supabase
         .from("admins")
         .select("full_name")
-        .eq("id", session.user.id)
+        .eq("id", userId)
         .single();
 
       if (!active) return;
-      const metadataName = session.user.user_metadata?.full_name;
-      const email = session.user.email || "";
       const name = error ? metadataName : data?.full_name || metadataName;
       setAdminName(name && name !== email.split("@")[0] ? name : "Administrator");
     }
@@ -62,7 +56,7 @@ function AdminDashboard() {
     }
 
     const frameId = requestAnimationFrame(() => {
-      checkSession();
+      loadAdminName();
       loadDashboard();
     });
 
@@ -70,7 +64,7 @@ function AdminDashboard() {
       active = false;
       cancelAnimationFrame(frameId);
     };
-  }, [navigate]);
+  }, [email, metadataName, userId]);
 
   return (
     <div className="page-shell min-h-screen text-slate-900">

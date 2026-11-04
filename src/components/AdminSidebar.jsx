@@ -15,7 +15,11 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
   const navigate = useNavigate();
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) {
+      console.error("Unable to sign out:", error);
+      return;
+    }
     navigate("/");
   }
 

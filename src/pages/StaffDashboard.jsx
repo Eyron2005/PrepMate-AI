@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaClipboardList, FaFileAlt } from "react-icons/fa";
 import StaffSidebar from "../components/StaffSidebar";
-import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/authContext";
 
 const sections = [
   {
@@ -24,25 +24,20 @@ const sections = [
 ];
 
 function StaffDashboard() {
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+  const metadataName = session?.user?.user_metadata?.full_name;
+  const email = session?.user?.email;
   const [staffName, setStaffName] = useState("Staff");
 
   useEffect(() => {
     let active = true;
 
     async function loadStaffName() {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+      if (!active || !userId) return;
 
-      if (error) {
-        console.error("Unable to load staff session:", error);
-        return;
-      }
-      if (!active || !session) return;
-
-      const name = session.user.user_metadata?.full_name
-        || session.user.email?.split("@")[0]
+      const name = metadataName
+        || email?.split("@")[0]
         || "Staff";
       setStaffName(name);
     }
@@ -51,7 +46,7 @@ function StaffDashboard() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [email, metadataName, userId]);
 
   return (
     <div className="page-shell min-h-screen text-slate-900">

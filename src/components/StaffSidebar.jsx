@@ -17,7 +17,7 @@ export default function StaffSidebar({ staffName = "Staff" }) {
   const navigate = useNavigate();
 
   async function handleLogout() {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
       console.error("Unable to sign out:", error);
       return;

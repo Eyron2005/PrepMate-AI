@@ -10,10 +10,12 @@ import {
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
+import { usePresence } from "../contexts/presenceContext";
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 
 function UserManagement() {
+  const { connectionCounts, presenceError } = usePresence();
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
   const [users, setUsers] = useState([]);
@@ -55,8 +57,9 @@ function UserManagement() {
     const currentUserIdValue = session.user.id;
 
     const sources = [
-      { table: "profiles", select: "*" },
       { table: "admins", select: "*" },
+      { table: "staff", select: "*" },
+      { table: "profiles", select: "*" },
     ];
 
     const allRows = [];
@@ -97,14 +100,12 @@ function UserManagement() {
                 row.sign_in_at ||
                 null;
 
-              const isOnline = lastOnlineValue
-                ? Date.now() - new Date(lastOnlineValue).getTime() < ONLINE_THRESHOLD_MS
-                : false;
-
               const profileAuthUserId = row.auth_user_id || row.user_id || row.uid || null;
+              const presenceUserId = profileAuthUserId || idValue;
+              const isPresenceManaged = source.table === "admins" || source.table === "staff";
               const shouldSkipCurrent =
                 currentUserIdValue &&
-                (idValue === currentUserIdValue || profileAuthUserId === currentUserIdValue);
+                (idValue === currentUserIdValue || presenceUserId === currentUserIdValue);
 
               if (shouldSkipCurrent) return null;
 
@@ -123,7 +124,11 @@ function UserManagement() {
                   "Unnamed User",
                 email: row.email || row.user_email || row.user_metadata?.email || "",
                 is_active: Boolean(activeValue),
-                is_online: isOnline,
+                presence_user_id: presenceUserId,
+                presence_managed: isPresenceManaged,
+                legacy_is_online: lastOnlineValue
+                  ? Date.now() - new Date(lastOnlineValue).getTime() < ONLINE_THRESHOLD_MS
+                  : false,
                 created_at: row.created_at || row.createdAt || row.inserted_at || new Date().toISOString(),
                 last_online_at: lastOnlineValue ? new Date(lastOnlineValue).toISOString() : null,
               };
@@ -157,8 +162,13 @@ function UserManagement() {
     const deduped = Object.values(
       allRows.reduce((acc, row) => {
         if (!row.id) return acc;
-        if (!acc[row.id] || acc[row.id]._sourceTable === "users") {
-          acc[row.id] = row;
+        const key = row.presence_user_id || row.id;
+        const existing = acc[key];
+        if (
+          !existing ||
+          (existing._sourceTable === "profiles" && row._sourceTable !== "profiles")
+        ) {
+          acc[key] = row;
         }
         return acc;
       }, {})
@@ -186,7 +196,7 @@ function UserManagement() {
     setUsers(filteredDeduped);
     setSelectedUser((prev) => {
       if (!prev) return null;
-      return deduped.find((user) => user.id === prev.id) || null;
+      return deduped.find((user) => user.presence_user_id === prev.presence_user_id) || null;
     });
     setLoading(false);
   }, [navigate]);
@@ -197,15 +207,32 @@ function UserManagement() {
   }, [loadUsers]);
 
   const filteredUsers = useMemo(() => {
-    if (!searchTerm.trim()) return users;
-    return users.filter((user) => {
+    const usersWithPresence = users.map((user) => ({
+      ...user,
+      connection_count: connectionCounts[user.presence_user_id] || 0,
+      is_online: user.presence_managed
+        ? (connectionCounts[user.presence_user_id] || 0) > 0
+        : user.legacy_is_online,
+    }));
+
+    if (!searchTerm.trim()) return usersWithPresence;
+    return usersWithPresence.filter((user) => {
       const name = user.full_name?.toLowerCase() || "";
       const email = user.email?.toLowerCase() || "";
       const query = searchTerm.toLowerCase();
       return name.includes(query) || email.includes(query);
     });
-  }, [searchTerm, users]);
+  }, [connectionCounts, searchTerm, users]);
 
+  const selectedUserWithPresence = selectedUser
+    ? {
+        ...selectedUser,
+        connection_count: connectionCounts[selectedUser.presence_user_id] || 0,
+        is_online: selectedUser.presence_managed
+          ? (connectionCounts[selectedUser.presence_user_id] || 0) > 0
+          : selectedUser.legacy_is_online,
+      }
+    : null;
   const activeCount = users.filter((user) => user.is_active).length;
   const inactiveCount = users.length - activeCount;
 
@@ -321,6 +348,11 @@ function UserManagement() {
               <div>
                 <h2 className="text-2xl font-semibold text-slate-950">View Users</h2>
                 <p className="mt-2 text-sm text-slate-500">Search users by name or email and select a profile to review details.</p>
+                {presenceError && (
+                  <p role="alert" className="mt-2 text-sm font-medium text-rose-600">
+                    Live presence is unavailable: {presenceError.message}
+                  </p>
+                )}
               </div>
               <div className="relative max-w-sm">
                 <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -382,7 +414,9 @@ function UserManagement() {
                             }`}
                           >
                             <span className={`h-2 w-2 rounded-full ${user.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
-                            {user.is_online ? "Online" : "Offline"}
+                            {user.is_online
+                              ? `Online${user.connection_count > 1 ? ` · ${user.connection_count} connections` : ""}`
+                              : "Offline"}
                           </span>
                         </td>
                         <td className="px-6 py-4">{new Date(user.created_at).toLocaleDateString()}</td>
@@ -410,57 +444,61 @@ function UserManagement() {
               <div>
                 <p className="text-sm uppercase tracking-[0.24em] text-slate-500">User Profile</p>
                 <h2 className="mt-3 text-2xl font-semibold text-slate-950">
-                  {selectedUser ? selectedUser.full_name || selectedUser.email : "Select a user"}
+                  {selectedUserWithPresence
+                    ? selectedUserWithPresence.full_name || selectedUserWithPresence.email
+                    : "Select a user"}
                 </h2>
               </div>
-              {selectedUser && (
+              {selectedUserWithPresence && (
                 <span
                   className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${
-                    selectedUser.is_online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                    selectedUserWithPresence.is_online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  <span className={`h-2 w-2 rounded-full ${selectedUser.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
-                  {selectedUser.is_online ? "Online" : "Offline"}
+                  <span className={`h-2 w-2 rounded-full ${selectedUserWithPresence.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
+                  {selectedUserWithPresence.is_online
+                    ? `Online${selectedUserWithPresence.connection_count > 1 ? ` · ${selectedUserWithPresence.connection_count} connections` : ""}`
+                    : "Offline"}
                 </span>
               )}
             </div>
 
-            {selectedUser ? (
+            {selectedUserWithPresence ? (
               <div className="mt-8 grid gap-6">
                 <div className="rounded-3xl bg-gradient-to-br from-sky-50 to-cyan-50 p-6 shadow-inner shadow-sky-100">
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Full Name</p>
-                  <p className="mt-3 text-lg font-semibold text-slate-900">{selectedUser.full_name || "Unnamed User"}</p>
+                  <p className="mt-3 text-lg font-semibold text-slate-900">{selectedUserWithPresence.full_name || "Unnamed User"}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-3xl bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
                     <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Account Created</p>
-                    <p className="mt-3 text-base font-semibold text-slate-900">{new Date(selectedUser.created_at).toLocaleString()}</p>
+                    <p className="mt-3 text-base font-semibold text-slate-900">{new Date(selectedUserWithPresence.created_at).toLocaleString()}</p>
                   </div>
                   <div className="rounded-3xl bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
                     <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Last Online</p>
                     <p className="mt-3 text-base font-semibold text-slate-900">
-                      {selectedUser.last_online_at ? new Date(selectedUser.last_online_at).toLocaleString() : "Unavailable"}
+                      {selectedUserWithPresence.last_online_at ? new Date(selectedUserWithPresence.last_online_at).toLocaleString() : "Unavailable"}
                     </p>
                   </div>
                 </div>
 
                 <div className="rounded-3xl bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-400">User ID</p>
-                  <p className="mt-3 break-all text-sm text-slate-700">{selectedUser.id}</p>
+                  <p className="mt-3 break-all text-sm text-slate-700">{selectedUserWithPresence.id}</p>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
-                    onClick={() => toggleActiveState(selectedUser)}
+                    onClick={() => toggleActiveState(selectedUserWithPresence)}
                     disabled={actionLoading}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_15px_24px_-18px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {selectedUser.is_active ? <FaToggleOff /> : <FaToggleOn />}
-                    {selectedUser.is_active ? "Deactivate Account" : "Activate Account"}
+                    {selectedUserWithPresence.is_active ? <FaToggleOff /> : <FaToggleOn />}
+                    {selectedUserWithPresence.is_active ? "Deactivate Account" : "Activate Account"}
                   </button>
                   <button
-                    onClick={() => confirmDeleteUser(selectedUser)}
+                    onClick={() => confirmDeleteUser(selectedUserWithPresence)}
                     disabled={actionLoading}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-rose-500 to-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_15px_24px_-18px_rgba(244,63,94,0.9)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                   >

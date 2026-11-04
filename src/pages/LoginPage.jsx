@@ -1,15 +1,64 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight } from "react-icons/fa";
 import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/authContext";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { session, loading: authLoading, error: authError } = useAuth();
+  const userId = session?.user?.id;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (authError || !userId) return;
+
+    let active = true;
+
+    async function restoreDestination() {
+      try {
+        const { data: admin, error: adminError } = await supabase
+          .from("admins")
+          .select("id, is_active")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (adminError) throw adminError;
+        if (admin && admin.is_active !== false) {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+
+        const { data: staff, error: staffError } = await supabase
+          .from("staff")
+          .select("id, is_active")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (staffError) throw staffError;
+        if (staff && staff.is_active !== false) {
+          navigate("/staff-dashboard", { replace: true });
+          return;
+        }
+
+        if (active) setErrorMessage("This account does not have admin or staff access.");
+      } catch (error) {
+        console.error("Unable to restore the account role:", error);
+        if (active) setErrorMessage(`Unable to verify your account role: ${error.message}`);
+      }
+    }
+
+    restoreDestination();
+    return () => {
+      active = false;
+    };
+  }, [authError, authLoading, navigate, userId]);
 
   const handleLogin = async () => {
     setErrorMessage("");
@@ -38,7 +87,6 @@ function LoginPage() {
 
     if (adminLookupError) {
       console.error("Unable to verify account role:", adminLookupError);
-      await supabase.auth.signOut();
       setErrorMessage(`Unable to verify your account role: ${adminLookupError.message}`);
       return;
     }
@@ -54,7 +102,6 @@ function LoginPage() {
 
       if (staffLookupError) {
         console.error("Unable to verify staff account:", staffLookupError);
-        await supabase.auth.signOut();
         setErrorMessage(`Unable to verify staff access: ${staffLookupError.message}`);
         return;
       }
@@ -62,7 +109,6 @@ function LoginPage() {
     }
 
     if (!isAdmin && !isStaff) {
-      await supabase.auth.signOut();
       setErrorMessage("This account does not have admin or staff access.");
       return;
     }
@@ -146,9 +192,9 @@ function LoginPage() {
               <p className="mt-2 text-sm text-slate-600">Sign in to continue to your dashboard</p>
             </div>
 
-            {errorMessage && (
+            {(errorMessage || (authError && `Unable to restore your session: ${authError.message}`)) && (
               <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-sm font-medium text-rose-700 shadow-sm">
-                {errorMessage}
+                {errorMessage || `Unable to restore your session: ${authError.message}`}
               </div>
             )}
 

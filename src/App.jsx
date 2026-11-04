@@ -12,34 +12,37 @@ import StaffStudentRecords from "./pages/StaffStudentRecords";
 import StaffInterviewResults from "./pages/StaffInterviewResults";
 import StaffAssignments from "./pages/StaffAssignments";
 import AcceptStaffInvitation from "./pages/AcceptStaffInvitation";
+import { AuthProvider } from "./contexts/AuthProvider";
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Login */}
-        <Route index element={<LoginPage />} />
-        <Route path="/accept-staff-invitation" element={<AcceptStaffInvitation />} />
+      <AuthProvider>
+        <Routes>
+          {/* Login */}
+          <Route index element={<LoginPage />} />
+          <Route path="/accept-staff-invitation" element={<AcceptStaffInvitation />} />
 
-        {/* Admin-only pages */}
-        <Route element={<AdminRoute />}>
-          <Route path="/dashboard" element={<AdminDashboard />} />
-          <Route path="/user-management" element={<UserManagement />} />
-          <Route path="/question-management" element={<QuestionManagement />} />
-          <Route path="/staff-management" element={<StaffManagement />} />
-          <Route path="/staff-assignments" element={<StaffAssignments />} />
-          <Route path="/interview-results" element={<StaffInterviewResults isAdmin />} />
-          <Route path="/backup-restore" element={<BackupRestore />} />
-        </Route>
+          {/* Admin-only pages */}
+          <Route element={<AdminRoute />}>
+            <Route path="/dashboard" element={<AdminDashboard />} />
+            <Route path="/user-management" element={<UserManagement />} />
+            <Route path="/question-management" element={<QuestionManagement />} />
+            <Route path="/staff-management" element={<StaffManagement />} />
+            <Route path="/staff-assignments" element={<StaffAssignments />} />
+            <Route path="/interview-results" element={<StaffInterviewResults isAdmin />} />
+            <Route path="/backup-restore" element={<BackupRestore />} />
+          </Route>
 
-        {/* Staff-only workspace */}
-        <Route element={<StaffRoute />}>
-          <Route path="/staff-dashboard" element={<StaffDashboard />} />
-          <Route path="/staff/student-records" element={<StaffStudentRecords />} />
-          <Route path="/staff/interview-results" element={<StaffInterviewResults />} />
-        </Route>
+          {/* Staff-only workspace */}
+          <Route element={<StaffRoute />}>
+            <Route path="/staff-dashboard" element={<StaffDashboard />} />
+            <Route path="/staff/student-records" element={<StaffStudentRecords />} />
+            <Route path="/staff/interview-results" element={<StaffInterviewResults />} />
+          </Route>
 
-      </Routes>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
