@@ -1,15 +1,72 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight } from "react-icons/fa";
 import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/authContext";
+
+async function getDashboardPath(userId) {
+  const { data: admin, error: adminLookupError } = await supabase
+    .from("admins")
+    .select("id, is_active")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (adminLookupError) throw adminLookupError;
+  if (admin && admin.is_active !== false) return "/dashboard";
+
+  const { data: staff, error: staffLookupError } = await supabase
+    .from("staff")
+    .select("id, is_active")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (staffLookupError) throw staffLookupError;
+  return staff && staff.is_active !== false ? "/staff-dashboard" : null;
+}
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { session, isInitialized, authError } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
+  const loginAttemptInProgress = useRef(false);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (!session || loginAttemptInProgress.current) {
+      setCheckingSession(false);
+      return;
+    }
+
+    let active = true;
+    setCheckingSession(true);
+
+    async function redirectExistingSession() {
+      try {
+        const path = await getDashboardPath(session.user.id);
+        if (!active) return;
+        if (path) {
+          navigate(path, { replace: true });
+        } else {
+          setErrorMessage("This account does not have admin or staff access.");
+        }
+      } catch (error) {
+        console.error("Unable to verify the signed-in account role:", error);
+        if (active) setErrorMessage(`Unable to verify your account role: ${error.message}`);
+      } finally {
+        if (active) setCheckingSession(false);
+      }
+    }
+
+    redirectExistingSession();
+    return () => {
+      active = false;
+    };
+  }, [isInitialized, navigate, session]);
 
   const handleLogin = async () => {
     setErrorMessage("");
@@ -19,54 +76,36 @@ function LoginPage() {
       return;
     }
 
+    loginAttemptInProgress.current = true;
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
+      loginAttemptInProgress.current = false;
       setErrorMessage(error.message);
       return;
     }
 
     const userId = data?.user?.id;
-    const { data: admin, error: adminLookupError } = await supabase
-      .from("admins")
-      .select("id, is_active")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (adminLookupError) {
-      console.error("Unable to verify account role:", adminLookupError);
-      await supabase.auth.signOut();
-      setErrorMessage(`Unable to verify your account role: ${adminLookupError.message}`);
+    let dashboardPath;
+    try {
+      dashboardPath = await getDashboardPath(userId);
+    } catch (roleError) {
+      console.error("Unable to verify account role:", roleError);
+      loginAttemptInProgress.current = false;
+      setErrorMessage(`Unable to verify your account role: ${roleError.message}`);
       return;
     }
 
-    const isAdmin = admin && admin.is_active !== false;
-    let isStaff = false;
-    if (!isAdmin) {
-      const { data: staff, error: staffLookupError } = await supabase
-        .from("staff")
-        .select("id, is_active")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (staffLookupError) {
-        console.error("Unable to verify staff account:", staffLookupError);
-        await supabase.auth.signOut();
-        setErrorMessage(`Unable to verify staff access: ${staffLookupError.message}`);
-        return;
-      }
-      isStaff = Boolean(staff && staff.is_active !== false);
-    }
-
-    if (!isAdmin && !isStaff) {
-      await supabase.auth.signOut();
+    if (!dashboardPath) {
+      loginAttemptInProgress.current = false;
       setErrorMessage("This account does not have admin or staff access.");
       return;
     }
 
+    const isAdmin = dashboardPath === "/dashboard";
     const lastOnline = new Date().toISOString();
     if (userId && isAdmin) {
       try {
@@ -120,8 +159,12 @@ function LoginPage() {
       }
     }
 
-    navigate(isAdmin ? "/dashboard" : "/staff-dashboard");
+    navigate(dashboardPath);
   };
+
+  if (!isInitialized || checkingSession) {
+    return <div className="min-h-screen bg-slate-50" />;
+  }
 
   return (
     <div className="page-shell relative min-h-screen overflow-hidden px-4 py-10 text-slate-900">
@@ -146,9 +189,9 @@ function LoginPage() {
               <p className="mt-2 text-sm text-slate-600">Sign in to continue to your dashboard</p>
             </div>
 
-            {errorMessage && (
+            {(errorMessage || authError) && (
               <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-sm font-medium text-rose-700 shadow-sm">
-                {errorMessage}
+                {errorMessage || `Unable to restore your session: ${authError.message}`}
               </div>
             )}
 
