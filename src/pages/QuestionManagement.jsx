@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
-const categories = ["Technical", "Behavioral", "Situational", "General"];
+const categories = ["Technical", "Behavioral", "Situational", "HR"];
 const difficulties = ["Easy", "Medium", "Hard"];
 
 function QuestionManagement() {
@@ -47,7 +47,7 @@ function QuestionManagement() {
       ...item,
       id: item.id || item.question_id || item.uid,
       question: item.question || item.title || "Untitled question",
-      category: item.category || item.topic || "General",
+      category: item.category || item.topic || "HR",
       difficulty: item.difficulty || item.level || "Medium",
       answer: item.answer || item.solution || "",
       created_at: item.created_at || item.createdAt || new Date().toISOString(),
