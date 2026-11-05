@@ -14,8 +14,24 @@ import { usePresence } from "../contexts/presenceContext";
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 
+function getAccountIsActive(row) {
+  const activeValue = row.is_active ?? row.active;
+
+  if (typeof activeValue === "boolean") return activeValue;
+  if (typeof activeValue === "string") {
+    return ["true", "1", "active", "enabled"].includes(activeValue.trim().toLowerCase());
+  }
+  if (activeValue != null) return Boolean(activeValue);
+
+  if (typeof row.status === "string" && row.status.trim()) {
+    return row.status.trim().toLowerCase() === "active";
+  }
+
+  return true;
+}
+
 function UserManagement() {
-  const { connectionCounts, presenceError } = usePresence();
+  const { connectionCounts } = usePresence();
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
   const [users, setUsers] = useState([]);
@@ -54,149 +70,76 @@ function UserManagement() {
       return;
     }
 
-    const currentUserIdValue = session.user.id;
+    const profileRows = [];
+    const pageSize = 1000;
+    let offset = 0;
 
-    const sources = [
-      { table: "admins", select: "*" },
-      { table: "staff", select: "*" },
-      { table: "profiles", select: "*" },
-    ];
+    while (true) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .range(offset, offset + pageSize - 1);
 
-    const allRows = [];
-    let lastError = null;
-    let anySourceSucceeded = false;
-
-    for (const source of sources) {
-      try {
-        const { data, error } = await supabase.from(source.table).select(source.select);
-        if (error) {
-          lastError = error;
-          continue;
-        }
-
-        anySourceSucceeded = true;
-
-        if (Array.isArray(data) && data.length > 0) {
-          const normalized = data
-            .map((row) => {
-              const idColumn = row.id ? "id" : row.user_id ? "user_id" : row.uid ? "uid" : null;
-              const idValue = idColumn ? row[idColumn] : null;
-
-              if (!idValue) return null;
-
-              const activeValue =
-                row.is_active ??
-                row.active ??
-                (typeof row.status === "string" ? row.status.toLowerCase() === "active" : false);
-
-              const lastOnlineValue =
-                row.last_online ||
-                row.last_seen ||
-                row.last_active ||
-                row.last_active_at ||
-                row.updated_at ||
-                row.last_sign_in_at ||
-                row.last_sign_in ||
-                row.sign_in_at ||
-                null;
-
-              const profileAuthUserId = row.auth_user_id || row.user_id || row.uid || null;
-              const presenceUserId = profileAuthUserId || idValue;
-              const isPresenceManaged = source.table === "admins" || source.table === "staff";
-              const shouldSkipCurrent =
-                currentUserIdValue &&
-                (idValue === currentUserIdValue || presenceUserId === currentUserIdValue);
-
-              if (shouldSkipCurrent) return null;
-
-              return {
-                ...row,
-                _sourceTable: source.table,
-                _idColumn: idColumn,
-                _idValue: idValue,
-                id: idValue,
-                full_name:
-                  row.full_name ||
-                  row.fullname ||
-                  row.name ||
-                  row.user_metadata?.full_name ||
-                  row.email ||
-                  "Unnamed User",
-                email: row.email || row.user_email || row.user_metadata?.email || "",
-                is_active: Boolean(activeValue),
-                presence_user_id: presenceUserId,
-                presence_managed: isPresenceManaged,
-                legacy_is_online: lastOnlineValue
-                  ? Date.now() - new Date(lastOnlineValue).getTime() < ONLINE_THRESHOLD_MS
-                  : false,
-                created_at: row.created_at || row.createdAt || row.inserted_at || new Date().toISOString(),
-                last_online_at: lastOnlineValue ? new Date(lastOnlineValue).toISOString() : null,
-              };
-            })
-            .filter(Boolean);
-
-          allRows.push(...normalized);
-        }
-      } catch (err) {
-        lastError = err;
-        console.error(`Error querying table ${source.table}:`, err?.message || err);
+      if (error) {
+        console.error("Error querying table profiles:", error);
+        setLoadError("Unable to load users. Check the console for details.");
+        setUsers([]);
+        setSelectedUser(null);
+        setLoading(false);
+        return;
       }
+
+      const page = data || [];
+      profileRows.push(...page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
     }
 
-    if (!anySourceSucceeded) {
-      console.error("All user table queries failed:", lastError);
-      setLoadError("Unable to load users. Check the console for details.");
-      setUsers([]);
-      setSelectedUser(null);
-      setLoading(false);
-      return;
-    }
+    const profileUsers = profileRows
+      .filter((row) => row.id)
+      .map((row) => {
+        const lastOnlineValue =
+          row.last_online ||
+          row.last_seen ||
+          row.last_active ||
+          row.last_active_at ||
+          null;
+        const presenceUserId = row.auth_user_id || row.user_id || row.uid || row.id;
 
-    if (allRows.length === 0) {
-      setUsers([]);
-      setSelectedUser(null);
-      setLoading(false);
-      return;
-    }
+        return {
+          ...row,
+          _sourceTable: "profiles",
+          _idColumn: "id",
+          _idValue: row.id,
+          full_name:
+            row.full_name ||
+            row.fullname ||
+            row.name ||
+            row.user_metadata?.full_name ||
+            row.email ||
+            "Unnamed User",
+          email: row.email || row.user_email || row.user_metadata?.email || "",
+          is_active: getAccountIsActive(row),
+          presence_user_id: presenceUserId,
+          presence_managed: false,
+          legacy_is_online: lastOnlineValue
+            ? Date.now() - new Date(lastOnlineValue).getTime() < ONLINE_THRESHOLD_MS
+            : false,
+          created_at: row.created_at || row.createdAt || row.inserted_at || new Date().toISOString(),
+          last_online_at: lastOnlineValue ? new Date(lastOnlineValue).toISOString() : null,
+        };
+      });
 
-    const deduped = Object.values(
-      allRows.reduce((acc, row) => {
-        if (!row.id) return acc;
-        const key = row.presence_user_id || row.id;
-        const existing = acc[key];
-        if (
-          !existing ||
-          (existing._sourceTable === "profiles" && row._sourceTable !== "profiles")
-        ) {
-          acc[key] = row;
-        }
-        return acc;
-      }, {})
-    );
-
-    const currentUserEmail = session?.user?.email?.toLowerCase();
-    const filteredDeduped = currentUserIdValue
-      ? deduped.filter((row) => {
-          const authUserId = row.auth_user_id || row.user_id || row.uid || null;
-          const rowEmail = (row.email || row.user_email || row.user_metadata?.email || "").toLowerCase();
-          return (
-            row.id !== currentUserIdValue &&
-            authUserId !== currentUserIdValue &&
-            rowEmail !== currentUserEmail
-          );
-        })
-      : deduped;
-
-    filteredDeduped.sort((a, b) => {
+    profileUsers.sort((a, b) => {
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
       return bTime - aTime;
     });
 
-    setUsers(filteredDeduped);
+    setUsers(profileUsers);
     setSelectedUser((prev) => {
       if (!prev) return null;
-      return deduped.find((user) => user.presence_user_id === prev.presence_user_id) || null;
+      return profileUsers.find((user) => user.presence_user_id === prev.presence_user_id) || null;
     });
     setLoading(false);
   }, [navigate]);
@@ -206,35 +149,40 @@ function UserManagement() {
     return () => cancelAnimationFrame(id);
   }, [loadUsers]);
 
+  const usersWithPresence = useMemo(
+    () =>
+      users.map((user) => ({
+        ...user,
+        connection_count: connectionCounts[user.presence_user_id] || 0,
+        is_online: user.presence_managed
+          ? (connectionCounts[user.presence_user_id] || 0) > 0
+          : user.legacy_is_online,
+      })),
+    [connectionCounts, users],
+  );
   const filteredUsers = useMemo(() => {
-    const usersWithPresence = users.map((user) => ({
-      ...user,
-      connection_count: connectionCounts[user.presence_user_id] || 0,
-      is_online: user.presence_managed
-        ? (connectionCounts[user.presence_user_id] || 0) > 0
-        : user.legacy_is_online,
-    }));
-
-    if (!searchTerm.trim()) return usersWithPresence;
-    return usersWithPresence.filter((user) => {
+    const matchingUsers = usersWithPresence.filter((user) => {
+      if (!searchTerm.trim()) return true;
       const name = user.full_name?.toLowerCase() || "";
       const email = user.email?.toLowerCase() || "";
       const query = searchTerm.toLowerCase();
       return name.includes(query) || email.includes(query);
     });
-  }, [connectionCounts, searchTerm, users]);
+
+    return matchingUsers.sort((a, b) => {
+      if (a.is_online !== b.is_online) return Number(b.is_online) - Number(a.is_online);
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [searchTerm, usersWithPresence]);
 
   const selectedUserWithPresence = selectedUser
     ? {
         ...selectedUser,
-        connection_count: connectionCounts[selectedUser.presence_user_id] || 0,
-        is_online: selectedUser.presence_managed
-          ? (connectionCounts[selectedUser.presence_user_id] || 0) > 0
-          : selectedUser.legacy_is_online,
+        ...usersWithPresence.find((user) => user.presence_user_id === selectedUser.presence_user_id),
       }
     : null;
-  const activeCount = users.filter((user) => user.is_active).length;
-  const inactiveCount = users.length - activeCount;
+  const onlineCount = usersWithPresence.filter((user) => user.is_online).length;
+  const offlineCount = users.length - onlineCount;
 
   async function toggleActiveState(user) {
     setActionLoading(true);
@@ -330,14 +278,14 @@ function UserManagement() {
               <p className="mt-2 text-sm text-sky-100/90">All registered users in the system.</p>
             </div>
             <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-cyan-100 via-white to-sky-50 p-6 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.8)] ring-1 ring-sky-100 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Active Accounts</p>
-              <p className="mt-4 text-4xl font-semibold text-slate-950">{activeCount}</p>
-              <p className="mt-2 text-sm text-slate-500">Users with an active account.</p>
+              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Online Users</p>
+              <p className="mt-4 text-4xl font-semibold text-slate-950">{onlineCount}</p>
+              <p className="mt-2 text-sm text-slate-500">Users currently shown as online.</p>
             </div>
             <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-violet-100 via-white to-indigo-50 p-6 shadow-[0_18px_40px_-24px_rgba(99,102,241,0.7)] ring-1 ring-violet-100 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Inactive Accounts</p>
-              <p className="mt-4 text-4xl font-semibold text-slate-950">{inactiveCount}</p>
-              <p className="mt-2 text-sm text-slate-500">Users that are temporarily disabled.</p>
+              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Offline Users</p>
+              <p className="mt-4 text-4xl font-semibold text-slate-950">{offlineCount}</p>
+              <p className="mt-2 text-sm text-slate-500">Users not currently shown as online.</p>
             </div>
           </div>
         </section>
@@ -348,11 +296,6 @@ function UserManagement() {
               <div>
                 <h2 className="text-2xl font-semibold text-slate-950">View Users</h2>
                 <p className="mt-2 text-sm text-slate-500">Search users by name or email and select a profile to review details.</p>
-                {presenceError && (
-                  <p role="alert" className="mt-2 text-sm font-medium text-rose-600">
-                    Live presence is unavailable: {presenceError.message}
-                  </p>
-                )}
               </div>
               <div className="relative max-w-sm">
                 <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

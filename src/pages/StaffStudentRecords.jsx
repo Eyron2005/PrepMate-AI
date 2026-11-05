@@ -76,7 +76,7 @@ function StaffStudentRecords() {
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  {["Student name", "Student ID", "Added", "Last online"].map((heading) => (
+                  {["Student name", "User ID", "Added", "Last online"].map((heading) => (
                     <th key={heading} className="px-5 py-4">{heading}</th>
                   ))}
                 </tr>
