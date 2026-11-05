@@ -6,6 +6,7 @@ import {
   FaSignOutAlt,
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
+import { clearProfileOnlineStatus } from "../services/profilePresence";
 
 const links = [
   { to: "/staff-dashboard", label: "Dashboard", icon: FaChartPie, end: true },
@@ -17,6 +18,20 @@ export default function StaffSidebar({ staffName = "Staff" }) {
   const navigate = useNavigate();
 
   async function handleLogout() {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.error("Unable to retrieve the session before sign out:", sessionError);
+      return;
+    }
+
+    if (sessionData.session?.user.id) {
+      try {
+        await clearProfileOnlineStatus(sessionData.session.user.id);
+      } catch (error) {
+        console.error("Unable to clear the profile online status:", error);
+      }
+    }
+
     const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
       console.error("Unable to sign out:", error);

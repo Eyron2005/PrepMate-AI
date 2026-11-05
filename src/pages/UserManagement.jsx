@@ -11,8 +11,7 @@ import {
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 import { usePresence } from "../contexts/presenceContext";
-
-const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
+import { isPresenceRecentlyOnline } from "../services/presence";
 
 function getAccountIsActive(row) {
   const activeValue = row.is_active ?? row.active;
@@ -98,13 +97,9 @@ function UserManagement() {
     const profileUsers = profileRows
       .filter((row) => row.id)
       .map((row) => {
-        const lastOnlineValue =
-          row.last_online ||
-          row.last_seen ||
-          row.last_active ||
-          row.last_active_at ||
-          null;
+        const lastOnlineValue = row.last_online || null;
         const presenceUserId = row.auth_user_id || row.user_id || row.uid || row.id;
+        const lastOnlineDate = lastOnlineValue ? new Date(lastOnlineValue) : null;
 
         return {
           ...row,
@@ -122,11 +117,12 @@ function UserManagement() {
           is_active: getAccountIsActive(row),
           presence_user_id: presenceUserId,
           presence_managed: false,
-          legacy_is_online: lastOnlineValue
-            ? Date.now() - new Date(lastOnlineValue).getTime() < ONLINE_THRESHOLD_MS
-            : false,
+          legacy_is_online: isPresenceRecentlyOnline(lastOnlineValue),
           created_at: row.created_at || row.createdAt || row.inserted_at || new Date().toISOString(),
-          last_online_at: lastOnlineValue ? new Date(lastOnlineValue).toISOString() : null,
+          last_online_at:
+            lastOnlineDate && Number.isFinite(lastOnlineDate.getTime())
+              ? lastOnlineDate.toISOString()
+              : null,
         };
       });
 
@@ -144,10 +140,50 @@ function UserManagement() {
     setLoading(false);
   }, [navigate]);
 
+  const refreshOnlineStatuses = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, auth_user_id, last_online");
+
+    if (error) {
+      console.error("Unable to refresh user online statuses:", error);
+      return;
+    }
+
+    const latestStatuses = new Map();
+    for (const profile of data || []) {
+      const lastOnlineDate = profile.last_online ? new Date(profile.last_online) : null;
+      const lastOnlineAt =
+        lastOnlineDate && Number.isFinite(lastOnlineDate.getTime())
+          ? lastOnlineDate.toISOString()
+          : null;
+      const status = {
+        last_online_at: lastOnlineAt,
+        legacy_is_online: isPresenceRecentlyOnline(lastOnlineAt),
+      };
+
+      latestStatuses.set(profile.id, status);
+      if (profile.auth_user_id) latestStatuses.set(profile.auth_user_id, status);
+    }
+
+    setUsers((currentUsers) =>
+      currentUsers.map((user) => {
+        const latestStatus =
+          latestStatuses.get(user.id) || latestStatuses.get(user.presence_user_id);
+        return latestStatus ? { ...user, ...latestStatus } : user;
+      }),
+    );
+  }, []);
+
   useEffect(() => {
     const id = requestAnimationFrame(() => loadUsers());
     return () => cancelAnimationFrame(id);
   }, [loadUsers]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(refreshOnlineStatuses, 15_000);
+    return () => window.clearInterval(intervalId);
+  }, [refreshOnlineStatuses]);
 
   const usersWithPresence = useMemo(
     () =>
