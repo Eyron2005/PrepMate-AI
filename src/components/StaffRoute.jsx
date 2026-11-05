@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { supabase } from "../services/supabase";
-import { PresenceProvider } from "../contexts/PresenceProvider";
 import { useAuth } from "../contexts/authContext";
 
 function StaffRoute() {
@@ -76,7 +75,7 @@ function StaffRoute() {
   }
 
   return status === "allowed"
-    ? <PresenceProvider><Outlet /></PresenceProvider>
+    ? <Outlet />
     : <Navigate to="/" replace />;
 }
 

@@ -1,5 +1,6 @@
 export const PRESENCE_TOPIC = "prepmate-admin-presence";
 export const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
+export const PRESENCE_CLOCK_SKEW_MS = 60 * 1000;
 
 export function getPresenceConnectionCounts(presenceState) {
   return Object.fromEntries(
@@ -14,5 +15,7 @@ export function isPresenceRecentlyOnline(lastOnlineAt, now = Date.now()) {
 
   const timestamp = new Date(lastOnlineAt).getTime();
   const age = now - timestamp;
-  return Number.isFinite(timestamp) && age >= 0 && age < ONLINE_THRESHOLD_MS;
+  return Number.isFinite(timestamp)
+    && age > -PRESENCE_CLOCK_SKEW_MS
+    && age < ONLINE_THRESHOLD_MS;
 }

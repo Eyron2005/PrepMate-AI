@@ -22,7 +22,10 @@ function StaffInterviewResults({ isAdmin = false }) {
         { data: profiles, error: profileError },
       ] =
         await Promise.all([
-          supabase.from("interview_sessions").select("*").order("created_at", { ascending: false }),
+          supabase
+            .from("interview_sessions")
+            .select("id, profile_id, created_at, overall_score, speech_score, camera_score, summary")
+            .order("created_at", { ascending: false }),
           supabase.from("interview_results").select("id, profile_id, session_id, user_transcript, ai_score, ai_feedback, created_at").order("created_at", { ascending: false }),
           supabase.from("profiles").select("id, auth_user_id, full_name"),
         ]);

@@ -1,47 +1,59 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LoginPage from "./pages/LoginPage";
-import AdminDashboard from "./pages/AdminDashboard";
-import UserManagement from "./pages/UserManagement";
-import QuestionManagement from "./pages/QuestionManagement";
-import StaffManagement from "./pages/StaffManagement";
-import BackupRestore from "./pages/BackupRestore";
 import AdminRoute from "./components/AdminRoute";
 import StaffRoute from "./components/StaffRoute";
-import StaffDashboard from "./pages/StaffDashboard";
-import StaffStudentRecords from "./pages/StaffStudentRecords";
-import StaffInterviewResults from "./pages/StaffInterviewResults";
-import StaffAssignments from "./pages/StaffAssignments";
-import AcceptStaffInvitation from "./pages/AcceptStaffInvitation";
 import { AuthProvider } from "./contexts/AuthProvider";
+import { PresenceProvider } from "./contexts/PresenceProvider";
+
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
+const QuestionManagement = lazy(() => import("./pages/QuestionManagement"));
+const StaffManagement = lazy(() => import("./pages/StaffManagement"));
+const BackupRestore = lazy(() => import("./pages/BackupRestore"));
+const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
+const StaffStudentRecords = lazy(() => import("./pages/StaffStudentRecords"));
+const StaffInterviewResults = lazy(() => import("./pages/StaffInterviewResults"));
+const StaffAssignments = lazy(() => import("./pages/StaffAssignments"));
+const AcceptStaffInvitation = lazy(() => import("./pages/AcceptStaffInvitation"));
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* Login */}
-          <Route index element={<LoginPage />} />
-          <Route path="/accept-staff-invitation" element={<AcceptStaffInvitation />} />
+        <Suspense fallback={
+          <div
+            className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500"
+            role="status"
+            aria-busy="true"
+          >
+            Loading page...
+          </div>
+        }>
+          <Routes>
+            <Route index element={<LoginPage />} />
+            <Route path="/accept-staff-invitation" element={<AcceptStaffInvitation />} />
 
-          {/* Admin-only pages */}
-          <Route element={<AdminRoute />}>
-            <Route path="/dashboard" element={<AdminDashboard />} />
-            <Route path="/user-management" element={<UserManagement />} />
-            <Route path="/question-management" element={<QuestionManagement />} />
-            <Route path="/staff-management" element={<StaffManagement />} />
-            <Route path="/staff-assignments" element={<StaffAssignments />} />
-            <Route path="/interview-results" element={<StaffInterviewResults isAdmin />} />
-            <Route path="/backup-restore" element={<BackupRestore />} />
-          </Route>
+            <Route element={<AdminRoute />}>
+              <Route path="/dashboard" element={<AdminDashboard />} />
+              <Route
+                path="/user-management"
+                element={<PresenceProvider><UserManagement /></PresenceProvider>}
+              />
+              <Route path="/question-management" element={<QuestionManagement />} />
+              <Route path="/staff-management" element={<StaffManagement />} />
+              <Route path="/staff-assignments" element={<StaffAssignments />} />
+              <Route path="/interview-results" element={<StaffInterviewResults isAdmin />} />
+              <Route path="/backup-restore" element={<BackupRestore />} />
+            </Route>
 
-          {/* Staff-only workspace */}
-          <Route element={<StaffRoute />}>
-            <Route path="/staff-dashboard" element={<StaffDashboard />} />
-            <Route path="/staff/student-records" element={<StaffStudentRecords />} />
-            <Route path="/staff/interview-results" element={<StaffInterviewResults />} />
-          </Route>
-
-        </Routes>
+            <Route element={<StaffRoute />}>
+              <Route path="/staff-dashboard" element={<StaffDashboard />} />
+              <Route path="/staff/student-records" element={<StaffStudentRecords />} />
+              <Route path="/staff/interview-results" element={<StaffInterviewResults />} />
+            </Route>
+          </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );

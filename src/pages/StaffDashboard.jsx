@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaClipboardList, FaFileAlt } from "react-icons/fa";
 import StaffSidebar from "../components/StaffSidebar";
@@ -28,25 +27,9 @@ function StaffDashboard() {
   const userId = session?.user?.id;
   const metadataName = session?.user?.user_metadata?.full_name;
   const email = session?.user?.email;
-  const [staffName, setStaffName] = useState("Staff");
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadStaffName() {
-      if (!active || !userId) return;
-
-      const name = metadataName
-        || email?.split("@")[0]
-        || "Staff";
-      setStaffName(name);
-    }
-
-    loadStaffName();
-    return () => {
-      active = false;
-    };
-  }, [email, metadataName, userId]);
+  const staffName = userId
+    ? metadataName || email?.split("@")[0] || "Staff"
+    : "Staff";
 
   return (
     <div className="page-shell min-h-screen text-slate-900">

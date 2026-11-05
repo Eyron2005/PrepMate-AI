@@ -18,7 +18,10 @@ function StaffManagement() {
 
   useEffect(() => {
     async function loadStaff() {
-      const { data, error } = await supabase.from("staff").select("*").order("full_name");
+      const { data, error } = await supabase
+        .from("staff")
+        .select("id, full_name, email, department, position")
+        .order("full_name");
       if (error) {
         console.error("Unable to load staff:", error);
         setErrorMessage(`Unable to load staff: ${error.message}`);
@@ -76,7 +79,7 @@ function StaffManagement() {
           .from("staff")
           .update(payload)
           .eq("id", editing.id)
-          .select()
+          .select("id, full_name, email, department, position")
           .single();
         if (result.error) throw result.error;
         data = result.data;

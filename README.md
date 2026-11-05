@@ -70,6 +70,9 @@ to enable the role-based feature access. It removes stale policies that referenc
 results, and OJT records, and keeps account, backup, and question-management access admin-only.
 Use Staff Assignments in the admin panel to grant or revoke student access.
 
+Apply [`supabase/migrations/20261105000000_profile_performance_indexes.sql`](./supabase/migrations/20261105000000_profile_performance_indexes.sql)
+to add indexes used by User Management's ordered profile pages and recent-online status lookup.
+
 OJT Management uses the existing `public.ojt_records` columns `student_name`, `student_number`,
 `course`, and `company_name`.
 

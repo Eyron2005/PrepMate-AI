@@ -17,8 +17,8 @@ function AdminDashboard() {
   const metadataName = session?.user?.user_metadata?.full_name;
   const email = session?.user?.email || "";
   const [adminName, setAdminName] = useState("Administrator");
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [totalQuestions, setTotalQuestions] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(null);
+  const [totalQuestions, setTotalQuestions] = useState(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -44,25 +44,29 @@ function AdminDashboard() {
     }
 
     async function loadDashboard() {
-      const { count: userCount } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
-      if (active) setTotalUsers(userCount || 0);
+      const [userResult, questionResult] = await Promise.all([
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        supabase.from("questions").select("id", { count: "exact", head: true }),
+      ]);
+      if (!active) return;
 
-      const { count: questionCount } = await supabase
-        .from("questions")
-        .select("*", { count: "exact", head: true });
-      if (active) setTotalQuestions(questionCount || 0);
+      if (userResult.error) {
+        console.error("Unable to load the registered user count:", userResult.error);
+      } else {
+        setTotalUsers(userResult.count || 0);
+      }
+      if (questionResult.error) {
+        console.error("Unable to load the question count:", questionResult.error);
+      } else {
+        setTotalQuestions(questionResult.count || 0);
+      }
     }
 
-    const frameId = requestAnimationFrame(() => {
-      loadAdminName();
-      loadDashboard();
-    });
+    loadAdminName();
+    loadDashboard();
 
     return () => {
       active = false;
-      cancelAnimationFrame(frameId);
     };
   }, [email, metadataName, userId]);
 
@@ -113,7 +117,7 @@ function AdminDashboard() {
                 icon: FaUsers,
                 color: "from-sky-500 to-cyan-500",
                 surface: "border-sky-100",
-                count: totalUsers,
+                count: totalUsers ?? "—",
               },
               {
                 title: "Total Questions",
@@ -122,7 +126,7 @@ function AdminDashboard() {
                 icon: FaQuestionCircle,
                 color: "from-cyan-500 to-sky-500",
                 surface: "border-cyan-100",
-                count: totalQuestions,
+                count: totalQuestions ?? "—",
               },
               {
                 title: "Staff Management",
@@ -165,7 +169,7 @@ function AdminDashboard() {
                 </div>
                 <h3 className="mt-5 text-lg font-semibold text-slate-950">{title}</h3>
                 {count !== null && (
-                  <p className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">{count}</p>
+                  <p className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">{count ?? "—"}</p>
                 )}
                 <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{description}</p>
                 <span className="mt-5 text-sm font-semibold text-sky-700">Open management</span>
