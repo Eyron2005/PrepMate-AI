@@ -13,7 +13,7 @@ const StaffManagement = lazy(() => import("./pages/StaffManagement"));
 const BackupRestore = lazy(() => import("./pages/BackupRestore"));
 const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
 const StaffStudentRecords = lazy(() => import("./pages/StaffStudentRecords"));
-const StaffInterviewResults = lazy(() => import("./pages/StaffInterviewResults"));
+const AdminInterviewResults = lazy(() => import("./pages/AdminInterviewResults"));
 const StaffAssignments = lazy(() => import("./pages/StaffAssignments"));
 const AcceptStaffInvitation = lazy(() => import("./pages/AcceptStaffInvitation"));
 
@@ -43,14 +43,14 @@ function App() {
               <Route path="/question-management" element={<QuestionManagement />} />
               <Route path="/staff-management" element={<StaffManagement />} />
               <Route path="/staff-assignments" element={<StaffAssignments />} />
-              <Route path="/interview-results" element={<StaffInterviewResults isAdmin />} />
+              <Route path="/interview-results" element={<AdminInterviewResults />} />
               <Route path="/backup-restore" element={<BackupRestore />} />
             </Route>
 
             <Route element={<StaffRoute />}>
               <Route path="/staff-dashboard" element={<StaffDashboard />} />
               <Route path="/staff/student-records" element={<StaffStudentRecords />} />
-              <Route path="/staff/interview-results" element={<StaffInterviewResults />} />
+              <Route path="/staff/interview-results" element={<AdminInterviewResults isStaff />} />
             </Route>
           </Routes>
         </Suspense>
