@@ -1,13 +1,51 @@
 import { useEffect, useMemo, useState } from "react";
-import { FaFilter, FaPlus, FaSearch, FaTrash, FaEdit } from "react-icons/fa";
+import {
+  FaFilter,
+  FaPlus,
+  FaSearch,
+  FaTrash,
+  FaEdit,
+  FaQuestionCircle,
+  FaTimes,
+  FaLayerGroup,
+  FaSignal,
+  FaSyncAlt,
+} from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
 const categories = ["Technical", "Behavioral", "Situational", "HR"];
 const difficulties = ["Easy", "Medium", "Hard"];
 
-function QuestionManagement() {
+function getDifficultyBadge(difficulty) {
+  switch (difficulty) {
+    case "Easy":
+      return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80";
+    case "Medium":
+      return "bg-amber-50 text-amber-700 ring-1 ring-amber-200/80";
+    case "Hard":
+      return "bg-rose-50 text-rose-700 ring-1 ring-rose-200/80";
+    default:
+      return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
+  }
+}
 
+function getCategoryBadge(category) {
+  switch (category) {
+    case "Technical":
+      return "bg-sky-50 text-sky-700 ring-1 ring-sky-200/80";
+    case "Behavioral":
+      return "bg-violet-50 text-violet-700 ring-1 ring-violet-200/80";
+    case "Situational":
+      return "bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200/80";
+    case "HR":
+      return "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/80";
+    default:
+      return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
+  }
+}
+
+function QuestionManagement() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -91,13 +129,13 @@ function QuestionManagement() {
 
   async function handleSaveQuestion() {
     if (!formState.question.trim() || !formState.category || !formState.difficulty) {
-      alert("Please fill in the question, category, and difficulty.");
+      alert("Please fill in the question text, category, and difficulty.");
       return;
     }
 
     setActionLoading(true);
     const payload = {
-      question: formState.question,
+      question: formState.question.trim(),
       category: formState.category,
       difficulty: formState.difficulty,
     };
@@ -159,75 +197,101 @@ function QuestionManagement() {
 
       <AdminSidebar adminName="Administrator" />
 
-      <div className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-10 md:ml-64">
-        <section className="glass-card relative overflow-hidden rounded-[2rem] border border-white/70 p-8 shadow-[0_25px_60px_-30px_rgba(14,116,144,0.5)] ring-1 ring-sky-100/80 fade-in-up">
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-sky-500/12 via-cyan-400/10 to-indigo-400/10" />
-          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
+        {/* Banner Hero */}
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 fade-in-up sm:p-9">
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-cyan-400/15 via-sky-400/12 to-indigo-400/10" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.32em] text-sky-700">Admin Dashboard</p>
-              <h1 className="mt-3 text-4xl font-semibold text-slate-950">Question Management</h1>
-              <p className="mt-3 max-w-2xl text-slate-600">
-                Add, edit, delete, search, and filter questions for your candidate review flow.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-100 to-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-cyan-800 shadow-sm">
+                <FaQuestionCircle className="text-cyan-600 text-[11px]" />
+                Curated Question Bank
+              </span>
+              <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+                Question Management
+              </h1>
+              <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+                Create, customize, and refine candidate mock interview prompts across technical specializations and HR behavioral tracks.
               </p>
             </div>
+
+            <button
+              onClick={openAddForm}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-sky-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sky-500/40 active:translate-y-0"
+            >
+              <FaPlus className="text-xs" />
+              <span>Create New Question</span>
+            </button>
           </div>
 
-          <div className="relative mt-8 grid gap-4 md:grid-cols-3">
-            <div className="stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-100 via-white to-cyan-50 p-6 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.8)] ring-1 ring-sky-100 transition duration-500 hover:-translate-y-1">
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Total Questions</p>
-              <p className="mt-4 text-4xl font-semibold text-slate-950">{questions.length}</p>
+          {/* Quick Metrics Bar */}
+          <div className="relative mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="stat-card rounded-[1.75rem] border border-sky-100/80 bg-gradient-to-br from-sky-50/80 via-white to-cyan-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-sky-200/50">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-800">Total Questions</p>
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+                  <FaQuestionCircle className="text-sm" />
+                </span>
+              </div>
+              <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">{questions.length}</p>
+              <p className="mt-1 text-xs text-slate-500">Live active interview prompts</p>
             </div>
-            <div className="stat-card rounded-[1.75rem] bg-gradient-to-br from-cyan-100 via-white to-sky-50 p-6 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.8)] ring-1 ring-sky-100 transition duration-500 hover:-translate-y-1">
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Categories</p>
-              <p className="mt-4 text-4xl font-semibold text-slate-950">{new Set(questions.map((item) => item.category)).size}</p>
+
+            <div className="stat-card rounded-[1.75rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/80 via-white to-sky-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-cyan-200/50">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Track Categories</p>
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700">
+                  <FaLayerGroup className="text-sm" />
+                </span>
+              </div>
+              <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">
+                {new Set(questions.map((item) => item.category)).size}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Technical, Behavioral, Situational, HR</p>
             </div>
-            <div className="stat-card rounded-[1.75rem] bg-gradient-to-br from-violet-100 via-white to-indigo-50 p-6 shadow-[0_18px_40px_-24px_rgba(99,102,241,0.7)] ring-1 ring-violet-100 transition duration-500 hover:-translate-y-1">
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Difficulties</p>
-              <p className="mt-4 text-4xl font-semibold text-slate-950">{new Set(questions.map((item) => item.difficulty)).size}</p>
+
+            <div className="stat-card rounded-[1.75rem] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-white to-indigo-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-violet-200/50">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Difficulty Tiers</p>
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                  <FaSignal className="text-sm" />
+                </span>
+              </div>
+              <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">
+                {new Set(questions.map((item) => item.difficulty)).size}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Easy, Medium, and Hard stages</p>
             </div>
           </div>
         </section>
 
-        <section className="glass-card rounded-[2rem] border border-white/70 p-6 shadow-[0_20px_45px_-30px_rgba(37,99,235,0.7)] ring-1 ring-sky-100/80 fade-in-up">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-950">Questions</h2>
-              <p className="mt-2 text-sm text-slate-500">Search and filter the question bank, or manage items directly.</p>
-            </div>
-            <button
-              onClick={openAddForm}
-              className="inline-flex items-center gap-2 rounded-3xl bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_28px_-18px_rgba(37,99,235,0.9)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-18px_rgba(14,165,233,0.9)]"
-            >
-              <FaPlus /> Add Question
-            </button>
-          </div>
-
-          <div className="mt-6 rounded-[1.75rem] border border-slate-200/80 bg-white/80 p-4 shadow-inner shadow-slate-100/80">
-            <div className="flex items-center gap-3 text-slate-950">
-              <div className="rounded-3xl bg-gradient-to-br from-sky-600 to-cyan-500 p-3 text-white shadow-[0_18px_24px_-18px_rgba(14,165,233,0.9)]">
-                <FaFilter />
-              </div>
-              <div>
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Filters</p>
-                <h2 className="text-2xl font-semibold">Refine questions</h2>
-              </div>
+        {/* Filters & Table Card */}
+        <section className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 fade-in-up sm:p-7">
+          {/* Filter Bar */}
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FaFilter className="text-xs text-sky-700" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Filter &amp; Search Question Bank</span>
             </div>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(220px,1.5fr)_minmax(180px,1fr)_minmax(180px,1fr)_auto]">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_auto]">
+              {/* Search Input */}
               <div className="relative">
-                <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <FaSearch className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search questions..."
-                  className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-12 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                  placeholder="Search question keywords..."
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
                 />
               </div>
 
+              {/* Category Dropdown */}
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
               >
                 <option value="">All Categories</option>
                 {categories.map((category) => (
@@ -235,10 +299,11 @@ function QuestionManagement() {
                 ))}
               </select>
 
+              {/* Difficulty Dropdown */}
               <select
                 value={difficultyFilter}
                 onChange={(e) => setDifficultyFilter(e.target.value)}
-                className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
               >
                 <option value="">All Difficulties</option>
                 {difficulties.map((difficulty) => (
@@ -246,183 +311,227 @@ function QuestionManagement() {
                 ))}
               </select>
 
-              <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setCategoryFilter("");
-                  setDifficultyFilter("");
-                }}
-                className="rounded-3xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-              >
-                Clear Filters
-              </button>
+              {/* Clear */}
+              {(searchTerm || categoryFilter || difficultyFilter) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setCategoryFilter("");
+                    setDifficultyFilter("");
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+                >
+                  <FaTimes className="text-xs" />
+                  <span>Reset</span>
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-[1.75rem] bg-white/70 shadow-xl ring-1 ring-slate-200/70 backdrop-blur-xl">
-            <table className="min-w-full divide-y divide-slate-200 text-sm text-slate-700">
-              <thead className="bg-slate-50/90 text-left text-xs uppercase tracking-[0.2em] text-slate-500">
-                <tr>
-                  <th className="px-6 py-4">Question</th>
-                  <th className="px-6 py-4">Category</th>
-                  <th className="px-6 py-4">Difficulty</th>
-                  <th className="px-6 py-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white/80">
-                {loading ? (
+          {/* Table */}
+          <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-100 text-xs text-slate-700">
+                <thead className="bg-slate-50/90 text-left uppercase tracking-wider text-[11px] font-bold text-slate-500">
                   <tr>
-                    <td colSpan="4" className="px-6 py-14 text-center text-slate-500">Loading questions...</td>
+                    <th className="px-5 py-3.5">Question Prompt</th>
+                    <th className="px-4 py-3.5">Category</th>
+                    <th className="px-4 py-3.5">Difficulty</th>
+                    <th className="px-4 py-3.5 text-right">Actions</th>
                   </tr>
-                ) : filteredQuestions.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-14 text-center text-slate-500">No questions match your search and filters.</td>
-                  </tr>
-                ) : (
-                  filteredQuestions.map((question) => (
-                    <tr key={question.id} className="transition hover:bg-slate-50/90 motion-safe:animate-[fadeIn_0.25s_ease-out]">
-                      <td className="px-6 py-4">
-                        <div className="max-w-xl overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-slate-900">
-                          {question.question}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">{question.category}</td>
-                      <td className="px-6 py-4">{question.difficulty}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => startEdit(question)}
-                            className="rounded-3xl bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-200"
-                          >
-                            <FaEdit /> Edit
-                          </button>
-                          <button
-                            onClick={() => confirmDeleteQuestion(question)}
-                            disabled={actionLoading}
-                            className="rounded-3xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <FaTrash /> Delete
-                          </button>
-                        </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-14 text-center text-slate-400">
+                        <FaSyncAlt className="mx-auto mb-2 animate-spin text-base text-sky-600" />
+                        Loading question bank...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : filteredQuestions.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-14 text-center text-slate-400">
+                        No questions found matching your filter criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredQuestions.map((question) => (
+                      <tr key={question.id} className="transition-colors hover:bg-sky-50/50">
+                        <td className="px-5 py-4">
+                          <p className="max-w-xl text-xs font-bold text-slate-900 leading-snug">
+                            {question.question}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] font-bold ${getCategoryBadge(question.category)}`}>
+                            {question.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] font-bold ${getDifficultyBadge(question.difficulty)}`}>
+                            {question.difficulty}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(question)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-sky-50 hover:text-sky-800"
+                              title="Edit Question"
+                            >
+                              <FaEdit className="text-[10px]" /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmDeleteQuestion(question)}
+                              disabled={actionLoading}
+                              className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100 disabled:opacity-50"
+                              title="Delete Question"
+                            >
+                              <FaTrash className="text-[10px]" /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
+      </main>
 
-        {isFormOpen && (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 px-4 py-10 backdrop-blur-sm">
-            <div className="mx-auto w-full max-w-3xl rounded-[2rem] glass-card border border-white/70 bg-white/85 p-8 shadow-2xl ring-1 ring-slate-200/70 fade-in-up">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Add / Edit Question Modal */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
+          <div className="w-full max-w-2xl rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up sm:p-9">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700">Question Bank</p>
+                <h3 className="mt-1 text-2xl font-extrabold text-slate-950">
+                  {editingQuestion ? "Edit Question" : "Add New Question"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  setIsFormOpen(false);
+                }}
+                className="rounded-xl border border-slate-200 p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <FaTimes className="text-sm" />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  Question Prompt Text
+                </label>
+                <textarea
+                  value={formState.question}
+                  onChange={(e) => setFormState({ ...formState, question: e.target.value })}
+                  rows={4}
+                  placeholder="e.g., Can you describe a challenging technical project you worked on and how you resolved unexpected roadblocks?"
+                  className="w-full rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.24em] text-sky-600">Question Form</p>
-                  <h2 className="mt-3 text-3xl font-semibold text-slate-950">
-                    {editingQuestion ? "Edit Question" : "Add Question"}
-                  </h2>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    Category Track
+                  </label>
+                  <select
+                    value={formState.category}
+                    onChange={(e) => setFormState({ ...formState, category: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
+                  >
+                    <option value="">Select Category Track</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    Difficulty Tier
+                  </label>
+                  <select
+                    value={formState.difficulty}
+                    onChange={(e) => setFormState({ ...formState, difficulty: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
+                  >
+                    <option value="">Select Difficulty Tier</option>
+                    {difficulties.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:justify-end border-t border-slate-100 pt-5">
                 <button
+                  type="button"
                   onClick={() => {
                     resetForm();
                     setIsFormOpen(false);
                   }}
-                  className="rounded-3xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div className="mt-8 grid gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Question Text</label>
-                  <textarea
-                    value={formState.question}
-                    onChange={(e) => setFormState({ ...formState, question: e.target.value })}
-                    rows={4}
-                    className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">Category</label>
-                    <select
-                      value={formState.category}
-                      onChange={(e) => setFormState({ ...formState, category: e.target.value })}
-                      className="mt-3 w-full rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="">Select category</option>
-                      {categories.map((category) => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">Difficulty</label>
-                    <select
-                      value={formState.difficulty}
-                      onChange={(e) => setFormState({ ...formState, difficulty: e.target.value })}
-                      className="mt-3 w-full rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="">Select difficulty</option>
-                      {difficulties.map((difficulty) => (
-                        <option key={difficulty} value={difficulty}>{difficulty}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                  <button
-                    onClick={() => {
-                      resetForm();
-                      setIsFormOpen(false);
-                    }}
-                    className="rounded-3xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveQuestion}
-                    disabled={actionLoading}
-                    className="rounded-3xl bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_28px_-18px_rgba(37,99,235,0.9)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-18px_rgba(14,165,233,0.9)] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {editingQuestion ? "Save Changes" : "Create Question"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {deleteQuestionTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-[2rem] glass-card border border-white/70 bg-white/90 p-6 shadow-2xl ring-1 ring-slate-200/70 fade-in-up">
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Confirm delete</p>
-              <h3 className="mt-3 text-2xl font-semibold text-slate-950">Delete this question?</h3>
-              <p className="mt-4 text-slate-600">This action cannot be undone. The question will be removed from the bank.</p>
-
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setDeleteQuestionTarget(null)}
-                  className="rounded-3xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={deleteQuestion}
+                  onClick={handleSaveQuestion}
                   disabled={actionLoading}
-                  className="rounded-3xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
                 >
-                  {actionLoading ? "Deleting..." : "Delete"}
+                  {actionLoading ? "Saving Question..." : editingQuestion ? "Update Question" : "Create Question"}
                 </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Delete Question Confirmation Modal */}
+      {deleteQuestionTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+              <FaTrash className="text-lg" />
+            </div>
+            <h3 className="mt-4 text-xl font-extrabold text-slate-950">Delete question from bank?</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">
+              This prompt will be removed permanently from future mock interview generation sessions.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteQuestionTarget(null)}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteQuestion}
+                disabled={actionLoading}
+                className="rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-600/30 transition hover:bg-rose-700 disabled:opacity-60"
+              >
+                {actionLoading ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

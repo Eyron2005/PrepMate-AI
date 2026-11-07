@@ -6,6 +6,13 @@ import {
   FaToggleOff,
   FaToggleOn,
   FaUserCircle,
+  FaSyncAlt,
+  FaCopy,
+  FaCheck,
+  FaTimes,
+  FaShieldAlt,
+  FaCalendarAlt,
+  FaClock,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
@@ -41,6 +48,15 @@ function isMissingColumnError(error) {
     || /column .* does not exist|could not find .* column/i.test(error?.message || "");
 }
 
+function getInitials(name) {
+  if (!name) return "U";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 function UserManagement() {
   const { connectionCounts } = usePresence();
   const [mounted, setMounted] = useState(false);
@@ -48,6 +64,7 @@ function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'online' | 'offline'
   const [currentPage, setCurrentPage] = useState(0);
   const [matchingUserCount, setMatchingUserCount] = useState(0);
   const [totalUserCount, setTotalUserCount] = useState(null);
@@ -58,6 +75,8 @@ function UserManagement() {
   const [loadError, setLoadError] = useState(null);
   const [deleteUserTarget, setDeleteUserTarget] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const [copiedId, setCopiedId] = useState(false);
+
   const requestId = useRef(0);
   const requestController = useRef(null);
   const hasLoadedUsers = useRef(false);
@@ -250,7 +269,17 @@ function UserManagement() {
       }),
     [connectionCounts, users],
   );
-  const filteredUsers = usersWithPresence;
+
+  const filteredUsers = useMemo(() => {
+    if (statusFilter === "online") {
+      return usersWithPresence.filter((u) => u.is_online);
+    }
+    if (statusFilter === "offline") {
+      return usersWithPresence.filter((u) => !u.is_online);
+    }
+    return usersWithPresence;
+  }, [statusFilter, usersWithPresence]);
+
   const pageCount = Math.max(1, Math.ceil(matchingUserCount / USER_PAGE_SIZE));
 
   const selectedUserWithPresence = selectedUser
@@ -259,6 +288,7 @@ function UserManagement() {
         ...usersWithPresence.find((user) => user.presence_user_id === selectedUser.presence_user_id),
       }
     : null;
+
   const offlineCount =
     totalUserCount === null || onlineCount === null
       ? null
@@ -326,6 +356,20 @@ function UserManagement() {
     }
   }
 
+  function copyToClipboard(text) {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  }
+
+  const handleRefreshAll = () => {
+    loadUsers();
+    loadAccountCounts();
+    refreshOnlineStatuses();
+  };
+
   return (
     <div className="page-shell min-h-screen text-slate-900">
       <div className="float-orb orb-one" />
@@ -334,161 +378,269 @@ function UserManagement() {
 
       <AdminSidebar adminName="Administrator" />
 
-      <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64">
+      <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
+        {/* Header Hero */}
         <section
-          className={`glass-card relative overflow-hidden rounded-[2rem] border border-white/70 p-8 shadow-[0_25px_60px_-30px_rgba(14,116,144,0.5)] ring-1 ring-sky-100/80 transition-all duration-700 ${
+          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-9 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"
           }`}
         >
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-sky-500/12 via-cyan-400/10 to-indigo-400/10" />
-          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-sky-400/15 via-cyan-400/12 to-indigo-400/10" />
+
+          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.32em] text-sky-700">Admin Dashboard</p>
-              <h1 className="mt-3 text-4xl font-semibold text-slate-950">User Management</h1>
-              <p className="mt-3 max-w-2xl text-slate-600">
-                View users, search profiles, inspect account details, and manage activation state from one dashboard.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
+                <FaShieldAlt className="text-sky-600 text-[11px]" />
+                Directory Management
+              </span>
+              <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+                User Management
+              </h1>
+              <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+                Search profiles, monitor real-time user presence, inspect metadata, and manage active account access.
               </p>
             </div>
+
+            <button
+              type="button"
+              onClick={handleRefreshAll}
+              disabled={refreshing || loading}
+              className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-white/80 px-4 py-2.5 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
+            >
+              <FaSyncAlt className={`text-xs ${refreshing || loading ? "animate-spin" : ""}`} />
+              <span>{refreshing ? "Refreshing..." : "Sync Directory"}</span>
+            </button>
           </div>
 
-          <div className="relative mt-8 grid gap-4 md:grid-cols-3">
-            <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-6 text-white shadow-[0_18px_40px_-20px_rgba(37,99,235,0.9)] transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
-              <p className="text-sm uppercase tracking-[0.24em] text-sky-100">Total Users</p>
-              <p className="mt-4 text-4xl font-semibold">{totalUserCount ?? "—"}</p>
-    
+          {/* Stats Bar */}
+          <div className="relative mt-8 grid gap-4 sm:grid-cols-3">
+            {/* Total Users */}
+            <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-6 text-white shadow-[0_18px_35px_-20px_rgba(37,99,235,0.85)] ring-1 ring-white/30 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-100">Total Users</p>
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
+              </div>
+              <p className="mt-4 text-4xl font-extrabold tracking-tight">{totalUserCount ?? "—"}</p>
+              <p className="mt-2 text-xs text-sky-100/90">Registered candidate profiles in database</p>
             </div>
-            <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-cyan-100 via-white to-sky-50 p-6 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.8)] ring-1 ring-sky-100 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Online Users</p>
-              <p className="mt-4 text-4xl font-semibold text-slate-950">{onlineCount ?? "—"}</p>
-              <p className="mt-2 text-sm text-slate-500">Users currently shown as online.</p>
+
+            {/* Online Users */}
+            <div className={`stat-card rounded-[1.75rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-cyan-200/50 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Online Users</p>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+              </div>
+              <p className="mt-4 text-4xl font-extrabold tracking-tight text-slate-950">{onlineCount ?? "—"}</p>
+              <p className="mt-2 text-xs text-slate-500">Active or connected in last 5 minutes</p>
             </div>
-            <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-violet-100 via-white to-indigo-50 p-6 shadow-[0_18px_40px_-24px_rgba(99,102,241,0.7)] ring-1 ring-violet-100 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Offline Users</p>
-              <p className="mt-4 text-4xl font-semibold text-slate-950">{offlineCount ?? "—"}</p>
-              <p className="mt-2 text-sm text-slate-500">Users not currently shown as online.</p>
+
+            {/* Offline Users */}
+            <div className={`stat-card rounded-[1.75rem] border border-violet-100/80 bg-gradient-to-br from-violet-50/70 via-white to-indigo-50/50 p-6 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-violet-200/50 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Offline Users</p>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">AWAY</span>
+              </div>
+              <p className="mt-4 text-4xl font-extrabold tracking-tight text-slate-950">{offlineCount ?? "—"}</p>
+              <p className="mt-2 text-xs text-slate-500">Not currently detected in active session</p>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-          <div className="glass-card rounded-[2rem] border border-white/70 p-6 shadow-[0_20px_45px_-30px_rgba(37,99,235,0.7)] ring-1 ring-sky-100/80">
+        {/* Content Layout: Table & Profile Inspector */}
+        <section className="grid gap-7 xl:grid-cols-[1.55fr_1fr]">
+          {/* Users Table Card */}
+          <div className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-2xl font-semibold text-slate-950">View Users</h2>
-                <p className="mt-2 text-sm text-slate-500">Search users by name or email and select a profile to review details.</p>
-                {refreshing && <p className="mt-1 text-xs text-sky-700" role="status">Refreshing users...</p>}
+                <h2 className="text-xl font-bold text-slate-950">Candidate Profiles</h2>
+                <p className="mt-1 text-xs text-slate-500">Search and select a user to review complete details.</p>
               </div>
-              <div className="relative max-w-sm">
-                <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+              {/* Search Bar */}
+              <div className="relative w-full max-w-xs">
+                <FaSearch className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search users..."
-                  className="w-full rounded-3xl border border-slate-200 bg-slate-50/80 px-12 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                  placeholder="Search by name or email..."
+                  className="w-full rounded-2xl border border-slate-200/90 bg-slate-50/80 pl-10 pr-9 py-2.5 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  >
+                    <FaTimes className="text-xs" />
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* Filter Tabs */}
+            <div className="mt-5 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("all")}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  statusFilter === "all"
+                    ? "bg-sky-600 text-white shadow-sm shadow-sky-600/30"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                All Users ({matchingUserCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("online")}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  statusFilter === "online"
+                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Online ({onlineCount ?? 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("offline")}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  statusFilter === "offline"
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                Offline ({offlineCount ?? 0})
+              </button>
+            </div>
+
             {loadError && users.length > 0 && (
-              <p role="status" className="mt-4 text-sm text-rose-600">{loadError} Showing the previously loaded records.</p>
+              <p role="status" className="mt-4 text-xs font-semibold text-rose-600">
+                {loadError} Showing previously cached records.
+              </p>
             )}
 
-            <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/80 shadow-inner shadow-slate-100/80">
-              <table className="min-w-full divide-y divide-slate-200 text-sm text-slate-700">
-                <thead className="bg-slate-50/90 text-left text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <tr>
-                    <th className="px-6 py-4">Name</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4">Joined</th>
-                    <th className="px-6 py-4">Last Online</th>
-                    <th className="px-6 py-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white/70">
-                  {loading ? (
+            {/* Table */}
+            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-100 text-xs text-slate-700">
+                  <thead className="bg-slate-50/90 text-left uppercase tracking-wider text-[11px] font-bold text-slate-500">
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-slate-500">Loading users...</td>
+                      <th className="px-5 py-3.5">Candidate</th>
+                      <th className="px-4 py-3.5">Presence</th>
+                      <th className="px-4 py-3.5">Registered</th>
+                      <th className="px-4 py-3.5 text-right">Action</th>
                     </tr>
-                  ) : loadError && filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-rose-600">{loadError}</td>
-                    </tr>
-                  ) : filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-slate-500">No users found. Try a different search term.</td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((user, idx) => (
-                      <tr
-                        key={user.id}
-                        style={{ transitionDelay: `${idx * 50}ms` }}
-                        className={`transform transition-all duration-500 ease-out hover:bg-slate-50/90 ${mounted ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-100 to-cyan-100 text-sky-700 shadow-sm">
-                              <FaUserCircle />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-slate-900">{user.full_name || "Unnamed User"}</p>
-                              <p className="text-xs text-slate-400">{user.id}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                              user.is_online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            <span className={`h-2 w-2 rounded-full ${user.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
-                            {user.is_online
-                              ? `Online${user.connection_count > 1 ? ` · ${user.connection_count} connections` : ""}`
-                              : "Offline"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">{new Date(user.created_at).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-slate-600">
-                          {user.last_online_at ? new Date(user.last_online_at).toLocaleString() : "Unavailable"}
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => setSelectedUser(user)}
-                            className="inline-flex items-center gap-2 rounded-3xl bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-[0_12px_22px_-14px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5"
-                          >
-                            <FaEye /> View
-                          </button>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-14 text-center text-slate-400">
+                          <FaSyncAlt className="mx-auto mb-2 animate-spin text-base text-sky-600" />
+                          Loading candidate profiles...
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : loadError && filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-14 text-center text-rose-600">
+                          {loadError}
+                        </td>
+                      </tr>
+                    ) : filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-14 text-center text-slate-400">
+                          No candidate profiles match the current criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user) => {
+                        const isSelected = selectedUser?.id === user.id;
+                        return (
+                          <tr
+                            key={user.id}
+                            onClick={() => setSelectedUser(user)}
+                            className={`cursor-pointer transition-colors hover:bg-sky-50/60 ${
+                              isSelected ? "bg-sky-50/90 ring-1 ring-inset ring-sky-300" : ""
+                            }`}
+                          >
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+                                  {getInitials(user.full_name)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate font-bold text-slate-900">{user.full_name}</p>
+                                  <p className="truncate text-[11px] text-slate-500">{user.email || "No email"}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                                  user.is_online
+                                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                <span className={`h-1.5 w-1.5 rounded-full ${user.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
+                                {user.is_online ? "Online" : "Offline"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-slate-500">
+                              {new Date(user.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                            </td>
+                            <td className="px-4 py-3.5 text-right">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedUser(user);
+                                }}
+                                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                                  isSelected
+                                    ? "bg-sky-600 text-white"
+                                    : "bg-slate-100 text-slate-700 hover:bg-sky-100 hover:text-sky-800"
+                                }`}
+                              >
+                                <FaEye className="text-[11px]" /> Inspect
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+
+            {/* Pagination Controls */}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
               <p>
                 {matchingUserCount === 0
                   ? "No matching users"
                   : `Showing ${currentPage * USER_PAGE_SIZE + 1}–${Math.min(
-                    (currentPage + 1) * USER_PAGE_SIZE,
-                    matchingUserCount,
-                  )} of ${matchingUserCount} users`}
+                      (currentPage + 1) * USER_PAGE_SIZE,
+                      matchingUserCount,
+                    )} of ${matchingUserCount} users`}
               </p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setCurrentPage((page) => Math.max(0, page - 1))}
                   disabled={currentPage === 0 || loading}
-                  className="rounded-xl border border-slate-200 px-3 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-bold shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Previous
                 </button>
-                <span>Page {currentPage + 1} of {pageCount}</span>
+                <span className="font-semibold text-slate-700">Page {currentPage + 1} of {pageCount}</span>
                 <button
                   type="button"
                   onClick={() => setCurrentPage((page) => Math.min(pageCount - 1, page + 1))}
                   disabled={currentPage >= pageCount - 1 || loading}
-                  className="rounded-xl border border-slate-200 px-3 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-bold shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -496,94 +648,148 @@ function UserManagement() {
             </div>
           </div>
 
-          <aside className="glass-card rounded-[2rem] border border-white/70 p-8 shadow-[0_20px_45px_-30px_rgba(6,182,212,0.7)] ring-1 ring-cyan-100/80">
-            <div className="flex items-center justify-between gap-4">
+          {/* Profile Inspector Aside */}
+          <aside className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(6,182,212,0.4)] ring-1 ring-cyan-100/90 sm:p-7">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-500">User Profile</p>
-                <h2 className="mt-3 text-2xl font-semibold text-slate-950">
-                  {selectedUserWithPresence
-                    ? selectedUserWithPresence.full_name || selectedUserWithPresence.email
-                    : "Select a user"}
-                </h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Inspector</p>
+                <h3 className="text-lg font-bold text-slate-950">Profile Details</h3>
               </div>
               {selectedUserWithPresence && (
                 <span
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${
-                    selectedUserWithPresence.is_online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+                    selectedUserWithPresence.is_online
+                      ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300"
+                      : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  <span className={`h-2 w-2 rounded-full ${selectedUserWithPresence.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
-                  {selectedUserWithPresence.is_online
-                    ? `Online${selectedUserWithPresence.connection_count > 1 ? ` · ${selectedUserWithPresence.connection_count} connections` : ""}`
-                    : "Offline"}
+                  <span className={`h-2 w-2 rounded-full ${selectedUserWithPresence.is_online ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                  {selectedUserWithPresence.is_online ? "Active Now" : "Offline"}
                 </span>
               )}
             </div>
 
             {selectedUserWithPresence ? (
-              <div className="mt-8 grid gap-6">
-                <div className="rounded-3xl bg-gradient-to-br from-sky-50 to-cyan-50 p-6 shadow-inner shadow-sky-100">
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Full Name</p>
-                  <p className="mt-3 text-lg font-semibold text-slate-900">{selectedUserWithPresence.full_name || "Unnamed User"}</p>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
-                    <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Account Created</p>
-                    <p className="mt-3 text-base font-semibold text-slate-900">{new Date(selectedUserWithPresence.created_at).toLocaleString()}</p>
+              <div className="mt-6 flex flex-col gap-6">
+                {/* User Identity Card */}
+                <div className="flex items-center gap-4 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/70 p-4 shadow-sm ring-1 ring-sky-200/50">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-xl font-extrabold text-white shadow-md shadow-sky-500/30">
+                    {getInitials(selectedUserWithPresence.full_name)}
                   </div>
-                  <div className="rounded-3xl bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
-                    <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Last Online</p>
-                    <p className="mt-3 text-base font-semibold text-slate-900">
-                      {selectedUserWithPresence.last_online_at ? new Date(selectedUserWithPresence.last_online_at).toLocaleString() : "Unavailable"}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="truncate text-base font-bold text-slate-950">{selectedUserWithPresence.full_name}</h4>
+                    <p className="truncate text-xs font-medium text-slate-600">{selectedUserWithPresence.email}</p>
+                    <span className="mt-1 inline-block rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
+                      Candidate
+                    </span>
                   </div>
                 </div>
 
-                <div className="rounded-3xl bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">User ID</p>
-                  <p className="mt-3 break-all text-sm text-slate-700">{selectedUserWithPresence.id}</p>
+                {/* Details Grid */}
+                <div className="space-y-3 text-xs">
+                  {/* User ID with Copy */}
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Profile ID</p>
+                      <p className="truncate font-mono text-[11px] font-semibold text-slate-700 max-w-[180px]">{selectedUserWithPresence.id}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(selectedUserWithPresence.id)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
+                      title="Copy User ID"
+                    >
+                      {copiedId ? <FaCheck className="text-emerald-600" /> : <FaCopy />}
+                      <span>{copiedId ? "Copied" : "Copy"}</span>
+                    </button>
+                  </div>
+
+                  {/* Registered At */}
+                  <div className="flex items-center gap-3 rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
+                    <FaCalendarAlt className="text-slate-400 text-sm" />
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Account Created</p>
+                      <p className="font-semibold text-slate-800">
+                        {new Date(selectedUserWithPresence.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Last Online */}
+                  <div className="flex items-center gap-3 rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
+                    <FaClock className="text-slate-400 text-sm" />
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Last Seen Activity</p>
+                      <p className="font-semibold text-slate-800">
+                        {selectedUserWithPresence.last_online_at
+                          ? new Date(selectedUserWithPresence.last_online_at).toLocaleString()
+                          : "No recent activity recorded"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
+                {/* Management Actions */}
+                <div className="space-y-2.5 border-t border-slate-100 pt-5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Account Controls</p>
+
                   <button
+                    type="button"
                     onClick={() => toggleActiveState(selectedUserWithPresence)}
                     disabled={actionLoading}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_15px_24px_-18px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-bold transition shadow-sm ${
+                      selectedUserWithPresence.is_active
+                        ? "bg-slate-100 text-slate-800 hover:bg-slate-200"
+                        : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/30"
+                    } disabled:opacity-50`}
                   >
-                    {selectedUserWithPresence.is_active ? <FaToggleOff /> : <FaToggleOn />}
-                    {selectedUserWithPresence.is_active ? "Deactivate Account" : "Activate Account"}
+                    {selectedUserWithPresence.is_active ? <FaToggleOff className="text-sm" /> : <FaToggleOn className="text-sm" />}
+                    <span>{selectedUserWithPresence.is_active ? "Deactivate Account" : "Activate Account"}</span>
                   </button>
+
                   <button
+                    type="button"
                     onClick={() => confirmDeleteUser(selectedUserWithPresence)}
                     disabled={actionLoading}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-rose-500 to-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_15px_24px_-18px_rgba(244,63,94,0.9)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100 disabled:opacity-50"
                   >
-                    <FaTrash /> Delete User
+                    <FaTrash className="text-xs" />
+                    <span>Delete User Account</span>
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 bg-slate-50/80 p-10 text-center text-slate-500">
-                Select a user from the table to view profile details and manage the account.
+              <div className="mt-12 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <FaUserCircle className="text-2xl" />
+                </div>
+                <p className="text-xs font-bold text-slate-700">No Candidate Selected</p>
+                <p className="mt-1 text-[11px] text-slate-500 max-w-[200px]">
+                  Click on any user in the table to inspect details or adjust access privileges.
+                </p>
               </div>
             )}
           </aside>
         </section>
       </main>
 
+      {/* Delete User Modal */}
       {deleteUserTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] glass-card border border-white/70 bg-white/90 p-6 shadow-2xl ring-1 ring-slate-200/70 fade-in-up">
-            <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Confirm delete</p>
-            <h3 className="mt-3 text-2xl font-semibold text-slate-950">Delete this user?</h3>
-            <p className="mt-4 text-slate-600">This will permanently delete the user's account and related data. This action cannot be undone.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+              <FaTrash className="text-lg" />
+            </div>
+            <h3 className="mt-4 text-xl font-extrabold text-slate-950">Delete candidate profile?</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">
+              This will permanently remove <strong>{deleteUserTarget.full_name}</strong> from the database including mock interview scores and session history.
+            </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={() => setDeleteUserTarget(null)}
-                className="rounded-3xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
               >
                 Cancel
               </button>
@@ -591,30 +797,33 @@ function UserManagement() {
                 type="button"
                 onClick={deleteUser}
                 disabled={actionLoading}
-                className="rounded-3xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-600/30 transition hover:bg-rose-700 disabled:opacity-60"
               >
-                {actionLoading ? "Deleting..." : "Delete"}
+                {actionLoading ? "Deleting Profile..." : "Confirm Delete"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-        {successMessage && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-10 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-[2rem] glass-card border border-white/70 bg-white/95 p-8 text-center shadow-2xl ring-1 ring-emerald-200/80 fade-in-up">
-              <p className="text-sm uppercase tracking-[0.3em] text-emerald-600">Success</p>
-              <h3 className="mt-3 text-2xl font-semibold text-slate-950">{successMessage}</h3>
-              <button
-                type="button"
-                onClick={() => setSuccessMessage("")}
-                className="mt-6 rounded-3xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-              >
-                OK
-              </button>
+      {/* Success Notification Modal */}
+      {successMessage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-10 backdrop-blur-md">
+          <div className="w-full max-w-sm rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white p-7 text-center shadow-2xl ring-1 ring-emerald-200 fade-in-up">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <FaCheck className="text-lg" />
             </div>
+            <h3 className="mt-4 text-lg font-extrabold text-slate-950">{successMessage}</h3>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage("")}
+              className="mt-6 w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:bg-emerald-700"
+            >
+              Continue
+            </button>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

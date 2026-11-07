@@ -1,13 +1,13 @@
 import { useRef, useState } from "react";
-import { FaDownload, FaUpload } from "react-icons/fa";
+import { FaDownload, FaUpload, FaDatabase, FaFileCode, FaCheck, FaExclamationTriangle } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
 const backupOptions = [
-  { key: "profiles", label: "User Management" },
-  { key: "questions", label: "Questions" },
-  { key: "interview_results", label: "Interview Results" },
-  { key: "staff", label: "Staff Account" },
+  { key: "profiles", label: "User Profiles & Accounts", desc: "Candidate metadata and registration records" },
+  { key: "questions", label: "Question Bank", desc: "Curated technical, behavioral, and HR questions" },
+  { key: "interview_results", label: "Interview Results & Transcripts", desc: "Evaluation metrics, AI feedback, and answers" },
+  { key: "staff", label: "Staff Accounts", desc: "Supervisor credentials and department assignments" },
 ];
 const format = "prepmate-admin-backup";
 const pageSize = 500;
@@ -37,6 +37,14 @@ function BackupRestore() {
       ...current,
       [key]: !current[key],
     }));
+  }
+
+  function selectAll() {
+    setSelectedTables(Object.fromEntries(backupOptions.map(({ key }) => [key, true])));
+  }
+
+  function deselectAll() {
+    setSelectedTables(Object.fromEntries(backupOptions.map(({ key }) => [key, false])));
   }
 
   async function createBackup() {
@@ -77,7 +85,7 @@ function BackupRestore() {
     link.download = `prepmate-admin-backup-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-    setSuccessMessage("Backup downloaded. Store the file somewhere secure.");
+    setSuccessMessage("Backup downloaded successfully. Keep the JSON snapshot safe.");
     setWorking(false);
   }
 
@@ -89,7 +97,7 @@ function BackupRestore() {
       backup = JSON.parse(await file.text());
     } catch (error) {
       console.error("Invalid backup JSON:", error);
-      setErrorMessage("The selected file is not valid JSON.");
+      setErrorMessage("The selected file is not a valid JSON document.");
       return;
     }
 
@@ -99,17 +107,17 @@ function BackupRestore() {
       !backup.tables ||
       Object.keys(backup.tables).length === 0
     ) {
-      setErrorMessage("This is not a valid supported PrepMate admin backup.");
+      setErrorMessage("This file is not a recognized Prepmate AI admin backup.");
       return;
     }
 
     const invalidTable = Object.entries(backup.tables).find(([, rows]) => !Array.isArray(rows));
     if (invalidTable) {
-      setErrorMessage(`Backup table "${invalidTable[0]}" is invalid.`);
+      setErrorMessage(`Backup table "${invalidTable[0]}" contains corrupt or non-array data.`);
       return;
     }
 
-    if (!window.confirm("Restore this backup? Selected data will be replaced in the app. Authentication accounts are not included.")) return;
+    if (!window.confirm("Restore this backup? Existing records in matching tables will be overwritten. Authentication logins are preserved.")) return;
 
     setWorking(true);
     setErrorMessage("");
@@ -130,7 +138,7 @@ function BackupRestore() {
       data?.staff !== undefined ? `staff: ${data.staff}` : null,
     ].filter(Boolean).join(", ");
 
-    setSuccessMessage(`Backup restored. ${summary}.`);
+    setSuccessMessage(`Database snapshot restored successfully. ${summary}.`);
     setFile(null);
     if (fileRef.current) fileRef.current.value = "";
     setWorking(false);
@@ -138,40 +146,167 @@ function BackupRestore() {
 
   return (
     <div className="page-shell min-h-screen text-slate-900">
-      <div className="float-orb orb-one" /><div className="float-orb orb-two" /><div className="float-orb orb-three" />
-      <AdminSidebar />
-      <main className="relative ml-20 max-w-5xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
-        <section className="glass-card rounded-[2rem] border border-white/70 p-8 shadow-xl ring-1 ring-sky-100/80">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-sky-700">Administration</p><h1 className="mt-3 text-4xl font-semibold">Backup &amp; Restore</h1>
-          <p className="mt-3 text-slate-600">Choose which app data to include in your backup and restore. User authentication accounts are never included.</p>
-        </section>
-        {(errorMessage || successMessage) && <p role="status" className={`mt-6 rounded-2xl border p-4 text-sm ${errorMessage ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{errorMessage || successMessage}</p>}
-        <section className="glass-card mt-6 grid gap-6 rounded-[2rem] border border-white/70 p-7 shadow-xl ring-1 ring-sky-100/80 lg:grid-cols-2">
-          <div className="rounded-2xl border border-sky-100 bg-white/70 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white"><FaDownload /></div>
-            <h2 className="mt-5 text-2xl font-semibold">Create a backup</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Select the data sets you want to export as JSON.</p>
-            <div className="mt-5 space-y-3">
-              {backupOptions.map(({ key, label }) => (
-                <label key={key} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={!!selectedTables[key]}
-                    onChange={() => toggleTable(key)}
-                    className="h-4 w-4 accent-sky-600"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-            <button type="button" disabled={working} onClick={createBackup} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 to-cyan-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"><FaDownload />{working ? "Working..." : "Download backup"}</button>
+      <div className="float-orb orb-one" />
+      <div className="float-orb orb-two" />
+      <div className="float-orb orb-three" />
+
+      <AdminSidebar adminName="Administrator" />
+
+      <main className="relative ml-20 max-w-6xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
+        {/* Banner Hero */}
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 fade-in-up sm:p-9">
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-emerald-400/15 via-teal-400/12 to-cyan-400/10" />
+
+          <div className="relative">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-emerald-800 shadow-sm">
+              <FaDatabase className="text-emerald-600 text-[11px]" />
+              Data Security &amp; Continuity
+            </span>
+            <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+              Backup &amp; Restore
+            </h1>
+            <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+              Export encrypted application data snapshots or restore previous backups with atomic verification.
+            </p>
           </div>
-          <div className="rounded-2xl border border-rose-100 bg-white/70 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white"><FaUpload /></div>
-            <h2 className="mt-5 text-2xl font-semibold">Restore a backup</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Restoring replaces only the data included in the selected backup file.</p>
-            <label className="mt-5 block text-sm font-medium">Backup JSON file<input ref={fileRef} type="file" accept=".json,application/json" onChange={(e) => { setFile(e.target.files?.[0] || null); setErrorMessage(""); }} className="mt-2 block w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm" /></label>
-            <button type="button" disabled={!file || working} onClick={restoreBackup} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"><FaUpload />{working ? "Working..." : "Restore backup"}</button>
+        </section>
+
+        {/* Notifications */}
+        {(errorMessage || successMessage) && (
+          <div
+            role="status"
+            className={`mt-6 flex items-center gap-3 rounded-2xl border p-4 text-xs font-bold shadow-sm ${
+              errorMessage
+                ? "border-rose-200 bg-rose-50/90 text-rose-800"
+                : "border-emerald-200 bg-emerald-50/90 text-emerald-800"
+            }`}
+          >
+            {errorMessage ? <FaExclamationTriangle className="text-sm shrink-0" /> : <FaCheck className="text-sm shrink-0" />}
+            <span>{errorMessage || successMessage}</span>
+          </div>
+        )}
+
+        {/* Action Panels */}
+        <section className="mt-8 grid gap-7 lg:grid-cols-2">
+          {/* Create Backup */}
+          <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-white/80 p-7 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-8">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-lg text-white shadow-md shadow-sky-500/30">
+                  <FaDownload />
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={selectAll}
+                    className="text-[11px] font-bold text-sky-700 hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-slate-300">·</span>
+                  <button
+                    type="button"
+                    onClick={deselectAll}
+                    className="text-[11px] font-bold text-slate-500 hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <h2 className="mt-5 text-xl font-bold text-slate-950">Export System Snapshot</h2>
+              <p className="mt-1.5 text-xs text-slate-600">Choose tables to bundle into a timestamped JSON backup archive.</p>
+
+              <div className="mt-5 space-y-2.5">
+                {backupOptions.map(({ key, label, desc }) => {
+                  const isChecked = !!selectedTables[key];
+                  return (
+                    <label
+                      key={key}
+                      className={`flex cursor-pointer items-center justify-between rounded-2xl border p-3.5 transition-all ${
+                        isChecked
+                          ? "border-sky-300 bg-sky-50/70 shadow-sm ring-1 ring-sky-200/50"
+                          : "border-slate-200/80 bg-white/70 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="min-w-0 pr-3">
+                        <p className="text-xs font-bold text-slate-900">{label}</p>
+                        <p className="text-[11px] text-slate-500">{desc}</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleTable(key)}
+                        className="h-4 w-4 rounded accent-sky-600"
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={working}
+              onClick={createBackup}
+              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 py-3.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
+            >
+              <FaDownload className="text-xs" />
+              <span>{working ? "Bundling Database..." : "Download JSON Snapshot"}</span>
+            </button>
+          </div>
+
+          {/* Restore Backup */}
+          <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-white/80 p-7 shadow-[0_20px_45px_-25px_rgba(245,158,11,0.3)] ring-1 ring-amber-100/90 sm:p-8">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-lg text-white shadow-md shadow-amber-500/30">
+                  <FaUpload />
+                </span>
+                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-800 ring-1 ring-amber-200">
+                  Cautionary Action
+                </span>
+              </div>
+
+              <h2 className="mt-5 text-xl font-bold text-slate-950">Restore from File</h2>
+              <p className="mt-1.5 text-xs text-slate-600">
+                Overwrites table data with contents from an existing backup snapshot.
+              </p>
+
+              {/* File Dropzone */}
+              <div className="mt-5 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-6 text-center transition hover:border-amber-300 hover:bg-amber-50/30">
+                <FaFileCode className="mx-auto mb-2 text-2xl text-slate-400" />
+                <p className="text-xs font-bold text-slate-700">Select Backup Archive</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Only .json files created by Prepmate are supported</p>
+
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={(e) => {
+                    setFile(e.target.files?.[0] || null);
+                    setErrorMessage("");
+                  }}
+                  className="mt-4 block w-full text-xs text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-amber-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-amber-800 hover:file:bg-amber-200"
+                />
+
+                {file && (
+                  <p className="mt-3 truncate rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                    Ready to restore: {file.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={!file || working}
+              onClick={restoreBackup}
+              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 py-3.5 text-xs font-bold text-white shadow-md shadow-orange-600/30 transition hover:shadow-orange-600/50 disabled:opacity-50"
+            >
+              <FaUpload className="text-xs" />
+              <span>{working ? "Restoring Database..." : "Execute Database Restore"}</span>
+            </button>
           </div>
         </section>
       </main>
