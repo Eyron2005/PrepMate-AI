@@ -17,11 +17,18 @@ import {
   FaExclamationTriangle,
   FaArrowRight,
   FaTrash,
+  FaGraduationCap,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 import { usePresence } from "../contexts/presenceContext";
 import { isPresenceRecentlyOnline, ONLINE_THRESHOLD_MS } from "../services/presence";
+import {
+  getEriClassification,
+  fetchStudentEriHistory,
+} from "../services/eri";
+import EriProgressRing from "../components/EriProgressRing";
+import EriHistoryChart from "../components/EriHistoryChart";
 
 const USER_PAGE_SIZE = 50;
 
@@ -76,6 +83,10 @@ function UserManagement() {
   // Success message modal state
   const [successMessage, setSuccessMessage] = useState("");
   const [copiedId, setCopiedId] = useState(false);
+
+  // Student ERI state
+  const [studentEriHistory, setStudentEriHistory] = useState([]);
+  const [loadingEriHistory, setLoadingEriHistory] = useState(false);
 
   const requestId = useRef(0);
   const requestController = useRef(null);
@@ -140,17 +151,24 @@ function UserManagement() {
             lastOnlineDate && Number.isFinite(lastOnlineDate.getTime())
               ? lastOnlineDate.toISOString()
               : null;
+          const status = row.account_status || "active";
           return {
             ...row,
             full_name: row.full_name || row.email || "Unnamed Candidate",
             email: row.email || "",
-            account_status: row.account_status || "active",
-            is_active: (row.account_status || "active") === "active",
+            account_status: status,
+            is_active: status === "active",
             presence_user_id: row.auth_user_id || row.id,
             presence_managed: false,
             legacy_is_online: isPresenceRecentlyOnline(lastOnlineAt),
             created_at: row.created_at || new Date().toISOString(),
             last_online_at: lastOnlineAt,
+            latest_eri:
+              row.latest_eri !== null && row.latest_eri !== undefined
+                ? Number(row.latest_eri)
+                : null,
+            latest_eri_date: row.latest_eri_date || null,
+            completed_assessments_count: Number(row.completed_assessments_count || 0),
           };
         });
       } else {
@@ -197,6 +215,12 @@ function UserManagement() {
             legacy_is_online: isPresenceRecentlyOnline(lastOnlineAt),
             created_at: row.created_at || new Date().toISOString(),
             last_online_at: lastOnlineAt,
+            latest_eri:
+              row.latest_eri !== null && row.latest_eri !== undefined
+                ? Number(row.latest_eri)
+                : null,
+            latest_eri_date: row.latest_eri_date || null,
+            completed_assessments_count: Number(row.completed_assessments_count || 0),
           };
         });
       }
@@ -305,6 +329,39 @@ function UserManagement() {
       window.clearInterval(intervalId);
     };
   }, [loadAccountCounts, refreshOnlineStatuses]);
+
+  // Load selected candidate's detailed ERI assessment history
+  useEffect(() => {
+    let isMounted = true;
+
+    const frameId = requestAnimationFrame(async () => {
+      if (!selectedUser?.id) {
+        if (isMounted) {
+          setStudentEriHistory([]);
+          setLoadingEriHistory(false);
+        }
+        return;
+      }
+
+      setLoadingEriHistory(true);
+      try {
+        const history = await fetchStudentEriHistory(selectedUser.id);
+        if (isMounted) {
+          setStudentEriHistory(history || []);
+        }
+      } catch (err) {
+        console.error("Failed to load student ERI assessment history:", err);
+        if (isMounted) setStudentEriHistory([]);
+      } finally {
+        if (isMounted) setLoadingEriHistory(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      cancelAnimationFrame(frameId);
+    };
+  }, [selectedUser?.id]);
 
   const usersWithPresence = useMemo(
     () =>
@@ -698,6 +755,7 @@ function UserManagement() {
                     <tr>
                       <th className="px-5 py-3.5">Candidate</th>
                       <th className="px-4 py-3.5">Account Status</th>
+                      <th className="px-4 py-3.5">Employment Readiness (ERI)</th>
                       <th className="px-4 py-3.5">Presence</th>
                       <th className="px-4 py-3.5">Registered</th>
                       <th className="px-4 py-3.5 text-right">Action</th>
@@ -706,20 +764,20 @@ function UserManagement() {
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-14 text-center text-slate-400">
+                        <td colSpan="6" className="px-6 py-14 text-center text-slate-400">
                           <FaSyncAlt className="mx-auto mb-2 animate-spin text-base text-sky-600" />
                           Loading candidate profiles...
                         </td>
                       </tr>
                     ) : loadError && displayedUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-14 text-center text-rose-600">
+                        <td colSpan="6" className="px-6 py-14 text-center text-rose-600">
                           {loadError}
                         </td>
                       </tr>
                     ) : displayedUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-14 text-center text-slate-400">
+                        <td colSpan="6" className="px-6 py-14 text-center text-slate-400">
                           No student accounts match the selected criteria.
                         </td>
                       </tr>
@@ -772,6 +830,37 @@ function UserManagement() {
                                 />
                                 {isDeactivated ? "Deactivated" : "Active"}
                               </span>
+                            </td>
+
+                            {/* Employment Readiness Index (ERI) */}
+                            <td className="px-4 py-3.5">
+                              {user.latest_eri !== null && user.latest_eri !== undefined ? (
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-extrabold text-slate-900 text-xs">
+                                      {user.latest_eri}%
+                                    </span>
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${
+                                        getEriClassification(user.latest_eri).badgeClass
+                                      }`}
+                                    >
+                                      {getEriClassification(user.latest_eri).label}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">
+                                    {user.completed_assessments_count > 0
+                                      ? `${user.completed_assessments_count} session${
+                                          user.completed_assessments_count > 1 ? "s" : ""
+                                        }`
+                                      : "Latest evaluation"}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
+                                  Not Yet Available
+                                </span>
+                              )}
                             </td>
 
                             {/* Presence Status */}
@@ -994,6 +1083,94 @@ function UserManagement() {
                       </p>
                     </div>
                   </div>
+                </div>
+
+                {/* Employment Readiness Index (ERI) Section */}
+                <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 via-white to-cyan-50/60 p-4 shadow-sm ring-1 ring-sky-200/50">
+                  <div className="flex items-center justify-between border-b border-sky-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-600 text-white shadow-sm shadow-sky-600/30">
+                        <FaGraduationCap className="text-xs" />
+                      </span>
+                      <div>
+                        <h5 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                          Employment Readiness (ERI)
+                        </h5>
+                        <p className="text-[10px] text-slate-500">
+                          Multimodal Mock Interview Index
+                        </p>
+                      </div>
+                    </div>
+                    {selectedUserWithPresence.latest_eri !== null && selectedUserWithPresence.latest_eri !== undefined ? (
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ring-1 ${
+                          getEriClassification(selectedUserWithPresence.latest_eri).badgeClass
+                        }`}
+                      >
+                        {getEriClassification(selectedUserWithPresence.latest_eri).label}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                        Pending Assessment
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedUserWithPresence.latest_eri !== null && selectedUserWithPresence.latest_eri !== undefined ? (
+                    <div className="mt-4 space-y-4">
+                      {/* Metric Ring & Quick Highlights */}
+                      <div className="flex items-center justify-around gap-4 rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
+                        <EriProgressRing
+                          score={selectedUserWithPresence.latest_eri}
+                          size={88}
+                          strokeWidth={7}
+                          showLabel={false}
+                          classification={getEriClassification(selectedUserWithPresence.latest_eri)}
+                        />
+                        <div className="flex-1 space-y-2 text-xs">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Latest Assessment
+                            </span>
+                            <p className="font-semibold text-slate-800">
+                              {selectedUserWithPresence.latest_eri_date
+                                ? new Date(selectedUserWithPresence.latest_eri_date).toLocaleDateString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
+                                : "Recent"}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Completed Evaluations
+                            </span>
+                            <p className="font-semibold text-slate-800">
+                              {selectedUserWithPresence.completed_assessments_count || studentEriHistory.length || 1} interview session(s)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ERI History Trend Chart & Chronological List */}
+                      {loadingEriHistory ? (
+                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-6 text-center text-xs text-slate-400">
+                          <FaSyncAlt className="mx-auto mb-1 animate-spin text-sm text-sky-600" />
+                          Loading historical assessments...
+                        </div>
+                      ) : (
+                        <EriHistoryChart history={studentEriHistory} />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center">
+                      <p className="text-xs font-bold text-slate-700">Not Yet Available</p>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        This student has not completed any mock interview evaluations on PrepMate AI yet.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Account Status Information Card if Deactivated */}

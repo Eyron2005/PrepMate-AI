@@ -1,7 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl =
+  typeof import.meta !== "undefined" && typeof import.meta.env !== "undefined"
+    ? import.meta.env.VITE_SUPABASE_URL
+    : "https://gfwlgojgpotnpmhtdrtz.supabase.co";
+const supabaseKey =
+  typeof import.meta !== "undefined" && typeof import.meta.env !== "undefined"
+    ? import.meta.env.VITE_SUPABASE_ANON_KEY
+    : "sb_publishable_SVXgxHIajmtB_jqOPdw3mg_8yCL4lo2";
 const authTabId = typeof window === "undefined"
   ? "server"
   : window.sessionStorage.getItem("prepmate-auth-tab-id") || window.crypto.randomUUID();
