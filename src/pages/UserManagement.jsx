@@ -166,7 +166,7 @@ function UserManagement() {
 
         if (debouncedSearchTerm) {
           const search = escapeSearchValue(debouncedSearchTerm);
-          query = query.ilike("full_name", `%${search}%`);
+          query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
         }
 
         if (accountStatusFilter === "active") {

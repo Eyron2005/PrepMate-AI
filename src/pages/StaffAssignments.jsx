@@ -64,7 +64,7 @@ function StaffAssignments() {
           .order("full_name"),
         supabase
           .from("profiles")
-          .select("id, auth_user_id, full_name")
+          .select("id, auth_user_id, full_name, email")
           .order("full_name"),
         supabase
           .from("staff_student_assignments")
@@ -85,6 +85,7 @@ function StaffAssignments() {
           .map((profile) => ({
             userId: profile.auth_user_id || profile.id,
             name: profile.full_name || "Unnamed student",
+            email: profile.email || "",
           }))
           .filter((profile) => profile.userId)
       );
@@ -181,6 +182,10 @@ function StaffAssignments() {
     return new Map(staff.map((person) => [person.id, person]));
   }, [staff]);
 
+  const studentMap = useMemo(() => {
+    return new Map(students.map((student) => [student.userId, student]));
+  }, [students]);
+
   const studentNames = useMemo(() => {
     return Object.fromEntries(students.map((student) => [student.userId, student.name]));
   }, [students]);
@@ -197,15 +202,22 @@ function StaffAssignments() {
       const query = searchTerm.trim().toLowerCase();
       result = result.filter((a) => {
         const staffObj = staffMap.get(a.staff_id);
+        const studentObj = studentMap.get(a.student_user_id);
         const staffName = staffObj?.full_name?.toLowerCase() || "";
-        const studentName = (studentNames[a.student_user_id] || "").toLowerCase();
+        const studentName = (studentObj?.name || "").toLowerCase();
+        const studentEmail = (studentObj?.email || "").toLowerCase();
         const dept = staffObj?.department?.toLowerCase() || "";
-        return staffName.includes(query) || studentName.includes(query) || dept.includes(query);
+        return (
+          staffName.includes(query) ||
+          studentName.includes(query) ||
+          studentEmail.includes(query) ||
+          dept.includes(query)
+        );
       });
     }
 
     return result;
-  }, [assignments, staffFilter, searchTerm, staffMap, studentNames]);
+  }, [assignments, staffFilter, searchTerm, staffMap, studentMap]);
 
   // Statistics
   const activeStaffCount = useMemo(() => {
@@ -417,6 +429,7 @@ function StaffAssignments() {
                 {students.map((student) => (
                   <option key={student.userId} value={student.userId}>
                     {student.name}
+                    {student.email ? ` (${student.email})` : ""}
                   </option>
                 ))}
               </select>
@@ -561,8 +574,10 @@ function StaffAssignments() {
                   ) : (
                     filteredAssignments.map((assignment) => {
                       const staffMember = staffMap.get(assignment.staff_id);
+                      const studentObj = studentMap.get(assignment.student_user_id);
                       const staffName = staffMember?.full_name || "Staff Supervisor";
-                      const studentName = studentNames[assignment.student_user_id] || "Student Candidate";
+                      const studentName = studentObj?.name || "Student Candidate";
+                      const studentEmail = studentObj?.email || "No email on record";
 
                       return (
                         <tr
@@ -592,9 +607,9 @@ function StaffAssignments() {
                               </div>
                               <div className="min-w-0">
                                 <p className="truncate font-bold text-slate-900">{studentName}</p>
-                                <span className="inline-block rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
-                                  Candidate
-                                </span>
+                                <p className="truncate text-[11px] text-slate-500">
+                                  {studentEmail}
+                                </p>
                               </div>
                             </div>
                           </td>
