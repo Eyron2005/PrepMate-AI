@@ -65,6 +65,11 @@ function UserManagement() {
   const [deactivateDetails, setDeactivateDetails] = useState("");
   const [deactivateError, setDeactivateError] = useState("");
 
+  // Direct Reactivate modal state
+  const [reactivateTarget, setReactivateTarget] = useState(null);
+  const [reactivateRemarks, setReactivateRemarks] = useState("");
+  const [reactivateError, setReactivateError] = useState("");
+
   // Permanent Delete modal state
   const [deleteUserTarget, setDeleteUserTarget] = useState(null);
 
@@ -340,6 +345,13 @@ function UserManagement() {
     setDeactivateError("");
   }
 
+  // Open Direct Reactivate Confirmation Modal
+  function initiateReactivate(user) {
+    setReactivateTarget(user);
+    setReactivateRemarks("");
+    setReactivateError("");
+  }
+
   // Execute Deactivation via Backend Edge Function
   async function handleConfirmDeactivation() {
     if (!deactivateTarget) return;
@@ -381,6 +393,45 @@ function UserManagement() {
     } catch (err) {
       console.error("DEACTIVATE ERROR:", err);
       setDeactivateError(err.message || "Failed to deactivate student account.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Execute Direct Administrator Reactivation via Backend Edge Function
+  async function handleConfirmReactivation() {
+    if (!reactivateTarget) return;
+
+    setActionLoading(true);
+    setReactivateError("");
+
+    try {
+      const userId = reactivateTarget.id;
+      const { data, error } = await supabase.functions.invoke("admin-reactivate-account", {
+        body: {
+          userId,
+          adminRemarks: reactivateRemarks.trim(),
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Reactivation service call failed.");
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || data?.message || "Student reactivation failed.");
+      }
+
+      // Close modal and notify
+      setReactivateTarget(null);
+      setReactivateRemarks("");
+      setSuccessMessage("Student account successfully reactivated.");
+
+      // Refresh directory and counts immediately
+      await Promise.all([loadUsers(), loadAccountCounts()]);
+    } catch (err) {
+      console.error("REACTIVATE ERROR:", err);
+      setReactivateError(err.message || "Failed to reactivate student account.");
     } finally {
       setActionLoading(false);
     }
@@ -750,19 +801,34 @@ function UserManagement() {
                             </td>
 
                             <td className="px-4 py-3.5 text-right">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedUser(user);
-                                }}
-                                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                                  isSelected
-                                    ? "bg-sky-600 text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-sky-100 hover:text-sky-800"
-                                }`}
-                              >
-                                <FaEye className="text-[11px]" /> Inspect
-                              </button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                {isDeactivated && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      initiateReactivate(user);
+                                    }}
+                                    disabled={actionLoading}
+                                    title="Reactivate Student Account"
+                                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-50"
+                                  >
+                                    <FaUserCheck className="text-[11px]" /> Reactivate
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedUser(user);
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                                    isSelected
+                                      ? "bg-sky-600 text-white"
+                                      : "bg-slate-100 text-slate-700 hover:bg-sky-100 hover:text-sky-800"
+                                  }`}
+                                >
+                                  <FaEye className="text-[11px]" /> Inspect
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -933,12 +999,18 @@ function UserManagement() {
                 {/* Account Status Information Card if Deactivated */}
                 {selectedUserWithPresence.account_status === "deactivated" ? (
                   <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/90 via-white to-amber-50/60 p-4 ring-1 ring-rose-300/40">
-                    <div className="flex items-center gap-2">
-                      <FaBan className="text-rose-600 text-base" />
-                      <h5 className="font-bold text-rose-950 text-xs uppercase tracking-wider">
-                        Account Suspended
-                      </h5>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FaBan className="text-rose-600 text-base" />
+                        <h5 className="font-bold text-rose-950 text-xs uppercase tracking-wider">
+                          Account Suspended
+                        </h5>
+                      </div>
+                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold uppercase text-rose-800">
+                        Deactivated
+                      </span>
                     </div>
+
                     <div className="mt-3 space-y-2 text-xs">
                       <div>
                         <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
@@ -970,17 +1042,42 @@ function UserManagement() {
                       )}
                     </div>
 
-                    <div className="mt-4 border-t border-rose-100 pt-3">
-                      <p className="text-[11px] leading-relaxed text-slate-600">
-                        Reactivation is managed through student-submitted reactivation requests.
+                    {/* Account Controls for Deactivated Student */}
+                    <div className="mt-5 border-t border-rose-100 pt-4 space-y-2.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Account Access Controls
                       </p>
+
+                      {/* REACTIVATE ACCOUNT BUTTON - Direct Administrator Reactivation */}
+                      <button
+                        type="button"
+                        onClick={() => initiateReactivate(selectedUserWithPresence)}
+                        disabled={actionLoading}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
+                      >
+                        <FaUserCheck className="text-sm" />
+                        <span>Reactivate Account</span>
+                      </button>
+
+                      {/* View Reactivation Requests Link */}
                       <button
                         type="button"
                         onClick={() => navigate("/reactivation-requests")}
-                        className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800"
                       >
                         <span>View Reactivation Requests</span>
                         <FaArrowRight className="text-[10px]" />
+                      </button>
+
+                      {/* Optional Permanent Delete (Purge) */}
+                      <button
+                        type="button"
+                        onClick={() => setDeleteUserTarget(selectedUserWithPresence)}
+                        disabled={actionLoading}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-50 px-4 py-2 text-[11px] font-medium text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                      >
+                        <FaTrash className="text-[10px]" />
+                        <span>Permanent Delete (Purge)</span>
                       </button>
                     </div>
                   </div>
@@ -1156,6 +1253,118 @@ function UserManagement() {
                   <>
                     <FaBan className="text-xs" />
                     <span>Confirm Deactivation</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reactivate Student Account Confirmation Modal (Direct Admin Reactivation) */}
+      {reactivateTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-emerald-200/80">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+              <FaUserCheck className="text-xl" />
+            </div>
+
+            <h3 className="mt-4 text-2xl font-extrabold text-slate-950">
+              Reactivate Student Account
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">
+              Are you sure you want to reactivate this student&apos;s account? This will restore the student&apos;s access to PrepMate AI even if they have not submitted a reactivation request.
+            </p>
+
+            {/* Target Information Card */}
+            <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 ring-1 ring-emerald-200/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Student Name
+                  </p>
+                  <p className="font-bold text-slate-900 truncate">{reactivateTarget.full_name}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Registered Email
+                  </p>
+                  <p className="font-semibold text-slate-700 truncate">
+                    {reactivateTarget.email || "No email on record"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Current Status
+                  </p>
+                  <span className="inline-flex items-center gap-1 font-bold text-rose-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                    Deactivated
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Profile Identifier
+                  </p>
+                  <p className="font-mono text-[11px] text-slate-500 truncate">{reactivateTarget.id}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Optional Administrative Remarks Form */}
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800">
+                  Administrative Remarks <span className="font-normal text-slate-400">(Optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={reactivateRemarks}
+                  onChange={(e) => setReactivateRemarks(e.target.value)}
+                  placeholder="e.g. Issue resolved with administration, direct verification completed, disciplinary hold lifted..."
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  These remarks will be recorded in the audit log and attached to any pending request as the resolution rationale.
+                </p>
+              </div>
+
+              {reactivateError && (
+                <p className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold text-rose-600">
+                  {reactivateError}
+                </p>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setReactivateTarget(null);
+                  setReactivateRemarks("");
+                  setReactivateError("");
+                }}
+                disabled={actionLoading}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReactivation}
+                disabled={actionLoading}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
+              >
+                {actionLoading ? (
+                  <>
+                    <FaSyncAlt className="animate-spin text-xs" />
+                    <span>Reactivating...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaUserCheck className="text-xs" />
+                    <span>Confirm Reactivation</span>
                   </>
                 )}
               </button>
