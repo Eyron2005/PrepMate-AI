@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaEye,
   FaSearch,
-  FaTrash,
-  FaToggleOff,
-  FaToggleOn,
   FaUserCircle,
   FaSyncAlt,
   FaCopy,
@@ -13,6 +11,12 @@ import {
   FaShieldAlt,
   FaCalendarAlt,
   FaClock,
+  FaBan,
+  FaUserCheck,
+  FaUserSlash,
+  FaExclamationTriangle,
+  FaArrowRight,
+  FaTrash,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
@@ -20,32 +24,9 @@ import { usePresence } from "../contexts/presenceContext";
 import { isPresenceRecentlyOnline, ONLINE_THRESHOLD_MS } from "../services/presence";
 
 const USER_PAGE_SIZE = 50;
-const PROFILE_COLUMNS = "id, auth_user_id, full_name, email, is_active, created_at, last_online";
-
-function getAccountIsActive(row) {
-  const activeValue = row.is_active ?? row.active;
-
-  if (typeof activeValue === "boolean") return activeValue;
-  if (typeof activeValue === "string") {
-    return ["true", "1", "active", "enabled"].includes(activeValue.trim().toLowerCase());
-  }
-  if (activeValue != null) return Boolean(activeValue);
-
-  if (typeof row.status === "string" && row.status.trim()) {
-    return row.status.trim().toLowerCase() === "active";
-  }
-
-  return true;
-}
 
 function escapeSearchValue(value) {
   return value.replace(/[\\%_,()"]/g, "\\$&");
-}
-
-function isMissingColumnError(error) {
-  return error?.code === "42703"
-    || error?.code === "PGRST204"
-    || /column .* does not exist|could not find .* column/i.test(error?.message || "");
 }
 
 function getInitials(name) {
@@ -58,22 +39,36 @@ function getInitials(name) {
 }
 
 function UserManagement() {
+  const navigate = useNavigate();
   const { connectionCounts } = usePresence();
   const [mounted, setMounted] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'online' | 'offline'
+  const [accountStatusFilter, setAccountStatusFilter] = useState("all"); // 'all' | 'active' | 'deactivated'
+  const [presenceOnlyOnline, setPresenceOnlyOnline] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [matchingUserCount, setMatchingUserCount] = useState(0);
   const [totalUserCount, setTotalUserCount] = useState(null);
+  const [activeUserCount, setActiveUserCount] = useState(null);
+  const [deactivatedUserCount, setDeactivatedUserCount] = useState(null);
   const [onlineCount, setOnlineCount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
+
+  // Deactivate modal state
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [deactivateReason, setDeactivateReason] = useState("Violation of Terms of Service");
+  const [deactivateDetails, setDeactivateDetails] = useState("");
+  const [deactivateError, setDeactivateError] = useState("");
+
+  // Permanent Delete modal state
   const [deleteUserTarget, setDeleteUserTarget] = useState(null);
+
+  // Success message modal state
   const [successMessage, setSuccessMessage] = useState("");
   const [copiedId, setCopiedId] = useState(false);
 
@@ -108,35 +103,33 @@ function UserManagement() {
     setLoadError(null);
 
     try {
-      const buildQuery = (columns) => {
-        let query = supabase
-          .from("profiles")
-          .select(columns, { count: "exact" })
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .range(currentPage * USER_PAGE_SIZE, (currentPage + 1) * USER_PAGE_SIZE - 1)
-          .abortSignal(controller.signal);
+      const pageOffset = currentPage * USER_PAGE_SIZE;
 
-        if (debouncedSearchTerm) {
-          const search = escapeSearchValue(debouncedSearchTerm);
-          query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+      // 1. Try secure RPC that joins auth.users for reliable email & account status
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "get_admin_profiles_with_email",
+        {
+          search_term: debouncedSearchTerm || null,
+          status_filter: accountStatusFilter,
+          page_limit: USER_PAGE_SIZE,
+          page_offset: pageOffset,
         }
-        return query;
-      };
+      );
 
-      let result = await buildQuery(PROFILE_COLUMNS);
-      if (result.error && isMissingColumnError(result.error) && !controller.signal.aborted) {
-        console.warn("The profiles table has a different column set; retrying with its available fields.");
-        result = await buildQuery("*");
-      }
+      let profileUsers = [];
+      let totalCount = 0;
 
-      const { data, error, count } = result;
-      if (error) throw error;
-      if (currentRequestId !== requestId.current) return;
+      if (!rpcError && Array.isArray(rpcData)) {
+        const { data: countData, error: countError } = await supabase.rpc(
+          "get_admin_profiles_count",
+          {
+            search_term: debouncedSearchTerm || null,
+            status_filter: accountStatusFilter,
+          }
+        );
+        totalCount = !countError && countData != null ? Number(countData) : rpcData.length;
 
-      const profileUsers = (data || [])
-        .filter((row) => row.id)
-        .map((row) => {
+        profileUsers = rpcData.map((row) => {
           const lastOnlineDate = row.last_online ? new Date(row.last_online) : null;
           const lastOnlineAt =
             lastOnlineDate && Number.isFinite(lastOnlineDate.getTime())
@@ -144,12 +137,10 @@ function UserManagement() {
               : null;
           return {
             ...row,
-            _sourceTable: "profiles",
-            _idColumn: "id",
-            _idValue: row.id,
-            full_name: row.full_name || row.email || "Unnamed User",
+            full_name: row.full_name || row.email || "Unnamed Candidate",
             email: row.email || "",
-            is_active: getAccountIsActive(row),
+            account_status: row.account_status || "active",
+            is_active: (row.account_status || "active") === "active",
             presence_user_id: row.auth_user_id || row.id,
             presence_managed: false,
             legacy_is_online: isPresenceRecentlyOnline(lastOnlineAt),
@@ -157,9 +148,58 @@ function UserManagement() {
             last_online_at: lastOnlineAt,
           };
         });
+      } else {
+        // Fallback to direct profiles table query if RPC is temporarily unavailable
+        console.warn("Direct query fallback in effect:", rpcError?.message);
+        let query = supabase
+          .from("profiles")
+          .select("*", { count: "exact" })
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(pageOffset, pageOffset + USER_PAGE_SIZE - 1)
+          .abortSignal(controller.signal);
+
+        if (debouncedSearchTerm) {
+          const search = escapeSearchValue(debouncedSearchTerm);
+          query = query.ilike("full_name", `%${search}%`);
+        }
+
+        if (accountStatusFilter === "active") {
+          query = query.or("account_status.is.null,account_status.eq.active");
+        } else if (accountStatusFilter === "deactivated") {
+          query = query.eq("account_status", "deactivated");
+        }
+
+        const { data, count, error } = await query;
+        if (error) throw error;
+
+        totalCount = count || 0;
+        profileUsers = (data || []).map((row) => {
+          const lastOnlineDate = row.last_online ? new Date(row.last_online) : null;
+          const lastOnlineAt =
+            lastOnlineDate && Number.isFinite(lastOnlineDate.getTime())
+              ? lastOnlineDate.toISOString()
+              : null;
+          const status = row.account_status || "active";
+          return {
+            ...row,
+            full_name: row.full_name || "Unnamed Candidate",
+            email: row.email || "",
+            account_status: status,
+            is_active: status === "active",
+            presence_user_id: row.auth_user_id || row.id,
+            presence_managed: false,
+            legacy_is_online: isPresenceRecentlyOnline(lastOnlineAt),
+            created_at: row.created_at || new Date().toISOString(),
+            last_online_at: lastOnlineAt,
+          };
+        });
+      }
+
+      if (currentRequestId !== requestId.current) return;
 
       setUsers(profileUsers);
-      setMatchingUserCount(count || 0);
+      setMatchingUserCount(totalCount);
       setSelectedUser((previous) => {
         if (!previous) return null;
         return profileUsers.find((user) => user.id === previous.id) || previous;
@@ -168,25 +208,29 @@ function UserManagement() {
     } catch (error) {
       if (currentRequestId !== requestId.current || controller.signal.aborted) return;
       console.error("Error querying user profiles:", error);
-      setLoadError("Unable to load users. Please try again later.");
+      setLoadError("Unable to load candidates. Please try again later.");
     } finally {
       if (currentRequestId === requestId.current) {
         setLoading(false);
         setRefreshing(false);
       }
     }
-  }, [currentPage, debouncedSearchTerm]);
+  }, [currentPage, debouncedSearchTerm, accountStatusFilter]);
 
   const loadAccountCounts = useCallback(async () => {
     try {
-      const { count, error } = await supabase
-        .from("profiles")
-        .select("id", { count: "exact", head: true });
-
-      if (error) {
-        console.error("Unable to load total user count:", error);
+      const { data, error } = await supabase.rpc("get_admin_account_status_counts");
+      if (!error && Array.isArray(data) && data[0]) {
+        setTotalUserCount(Number(data[0].total_count) || 0);
+        setActiveUserCount(Number(data[0].active_count) || 0);
+        setDeactivatedUserCount(Number(data[0].deactivated_count) || 0);
       } else {
-        setTotalUserCount(count || 0);
+        const { count, error: countErr } = await supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true });
+        if (!countErr) {
+          setTotalUserCount(count || 0);
+        }
       }
     } catch (error) {
       console.error("Unable to load user account counts:", error);
@@ -217,19 +261,21 @@ function UserManagement() {
 
       setOnlineCount(count || 0);
       const now = Date.now();
-      setUsers((currentUsers) => currentUsers.map((user) => {
-        const lastOnline =
-          latestOnlineAt.get(user.id) ||
-          latestOnlineAt.get(user.presence_user_id) ||
-          user.last_online_at;
-        const isOnline = isPresenceRecentlyOnline(lastOnline, now);
-        if (lastOnline === user.last_online_at && isOnline === user.legacy_is_online) return user;
-        return {
-          ...user,
-          last_online_at: lastOnline,
-          legacy_is_online: isOnline,
-        };
-      }));
+      setUsers((currentUsers) =>
+        currentUsers.map((user) => {
+          const lastOnline =
+            latestOnlineAt.get(user.id) ||
+            latestOnlineAt.get(user.presence_user_id) ||
+            user.last_online_at;
+          const isOnline = isPresenceRecentlyOnline(lastOnline, now);
+          if (lastOnline === user.last_online_at && isOnline === user.legacy_is_online) return user;
+          return {
+            ...user,
+            last_online_at: lastOnline,
+            legacy_is_online: isOnline,
+          };
+        })
+      );
     } catch (error) {
       console.error("Unable to refresh online user statuses:", error);
     }
@@ -257,87 +303,102 @@ function UserManagement() {
 
   const usersWithPresence = useMemo(
     () =>
-      users.map((user) => ({
-        ...user,
-        connection_count: connectionCounts[user.presence_user_id] || 0,
-        is_online: user.presence_managed
-          ? (connectionCounts[user.presence_user_id] || 0) > 0
-          : user.legacy_is_online,
-      })).sort((a, b) => {
-        if (a.is_online !== b.is_online) return Number(b.is_online) - Number(a.is_online);
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }),
-    [connectionCounts, users],
+      users
+        .map((user) => ({
+          ...user,
+          connection_count: connectionCounts[user.presence_user_id] || 0,
+          is_online: user.presence_managed
+            ? (connectionCounts[user.presence_user_id] || 0) > 0
+            : user.legacy_is_online,
+        }))
+        .sort((a, b) => {
+          if (a.is_online !== b.is_online) return Number(b.is_online) - Number(a.is_online);
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }),
+    [connectionCounts, users]
   );
 
-  const filteredUsers = useMemo(() => {
-    if (statusFilter === "online") {
-      return usersWithPresence.filter((u) => u.is_online);
-    }
-    if (statusFilter === "offline") {
-      return usersWithPresence.filter((u) => !u.is_online);
-    }
-    return usersWithPresence;
-  }, [statusFilter, usersWithPresence]);
+  const displayedUsers = useMemo(() => {
+    if (!presenceOnlyOnline) return usersWithPresence;
+    return usersWithPresence.filter((u) => u.is_online);
+  }, [presenceOnlyOnline, usersWithPresence]);
 
   const pageCount = Math.max(1, Math.ceil(matchingUserCount / USER_PAGE_SIZE));
 
   const selectedUserWithPresence = selectedUser
     ? {
         ...selectedUser,
-        ...usersWithPresence.find((user) => user.presence_user_id === selectedUser.presence_user_id),
+        ...usersWithPresence.find((u) => u.id === selectedUser.id),
       }
     : null;
 
-  const offlineCount =
-    totalUserCount === null || onlineCount === null
-      ? null
-      : Math.max(0, totalUserCount - onlineCount);
+  // Open Deactivate Confirmation Modal
+  function initiateDeactivate(user) {
+    setDeactivateTarget(user);
+    setDeactivateReason("Violation of Terms of Service");
+    setDeactivateDetails("");
+    setDeactivateError("");
+  }
 
-  async function toggleActiveState(user) {
-    setActionLoading(true);
-    const sourceTable = user._sourceTable || "admins";
-    const idColumn = user._idColumn || "id";
-    const idValue = user._idValue || user.id;
+  // Execute Deactivation via Backend Edge Function
+  async function handleConfirmDeactivation() {
+    if (!deactivateTarget) return;
 
-    const { error } = await supabase
-      .from(sourceTable)
-      .update({ is_active: !user.is_active })
-      .eq(idColumn, idValue);
-
-    if (error) {
-      console.error("Error updating user status:", error);
-      alert("Could not update user status.");
-      setActionLoading(false);
+    if (!deactivateDetails.trim()) {
+      setDeactivateError("Please provide administrative remarks or details for this deactivation.");
       return;
     }
 
-    await Promise.all([loadUsers(), loadAccountCounts()]);
-    setActionLoading(false);
+    setActionLoading(true);
+    setDeactivateError("");
+
+    try {
+      const userId = deactivateTarget.id;
+      const { data, error } = await supabase.functions.invoke("deactivate-account", {
+        body: {
+          userId,
+          reason: deactivateReason,
+          details: deactivateDetails.trim(),
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Deactivation service call failed.");
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || data?.message || "Student deactivation failed.");
+      }
+
+      // Close modal and notify
+      setDeactivateTarget(null);
+      setDeactivateReason("Violation of Terms of Service");
+      setDeactivateDetails("");
+      setSuccessMessage("Student account successfully deactivated.");
+
+      // Refresh directory and counts immediately
+      await Promise.all([loadUsers(), loadAccountCounts()]);
+    } catch (err) {
+      console.error("DEACTIVATE ERROR:", err);
+      setDeactivateError(err.message || "Failed to deactivate student account.");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
-  function confirmDeleteUser(user) {
-    setDeleteUserTarget(user);
-  }
-
-  async function deleteUser() {
+  // Handle Permanent Delete User (Fallback administrative purge)
+  async function handleDeleteUser() {
     if (!deleteUserTarget) return;
 
     setActionLoading(true);
-
     try {
       const userId = deleteUserTarget.id;
-
-      if (!userId) {
-        throw new Error("User ID is missing.");
-      }
-
       const { data, error } = await supabase.functions.invoke("delete-user", {
         body: { userId },
       });
 
       if (error) {
-        throw new Error(error.message || "Edge Function failed.");
+        throw new Error(error.message || "Delete service call failed.");
       }
 
       if (!data?.success) {
@@ -347,11 +408,11 @@ function UserManagement() {
       setSelectedUser(null);
       setDeleteUserTarget(null);
       await Promise.all([loadUsers(), loadAccountCounts()]);
-      setActionLoading(false);
       setSuccessMessage("User account deleted successfully.");
-    } catch (error) {
-      console.error("DELETE USER ERROR:", error);
-      alert(`Failed to delete user.\n\n${error?.message || "Unknown error occurred."}`);
+    } catch (err) {
+      console.error("DELETE USER ERROR:", err);
+      alert(`Failed to delete user.\n\n${err?.message || "Unknown error occurred."}`);
+    } finally {
       setActionLoading(false);
     }
   }
@@ -397,7 +458,7 @@ function UserManagement() {
                 User Management
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Search profiles, monitor real-time user presence, inspect metadata, and manage active account access.
+                Search candidate profiles, monitor real-time presence, inspect student records, and securely manage account activation status.
               </p>
             </div>
 
@@ -413,50 +474,82 @@ function UserManagement() {
           </div>
 
           {/* Stats Bar */}
-          <div className="relative mt-8 grid gap-4 sm:grid-cols-3">
-            {/* Total Users */}
-            <div className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-6 text-white shadow-[0_18px_35px_-20px_rgba(37,99,235,0.85)] ring-1 ring-white/30 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
+          <div className="relative mt-8 grid gap-4 sm:grid-cols-4">
+            {/* Total Students */}
+            <div
+              className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-5 text-white shadow-[0_18px_35px_-20px_rgba(37,99,235,0.85)] ring-1 ring-white/30 transition duration-500 ${
+                mounted ? "scale-100" : "scale-95"
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-100">Total Users</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-100">Total Students</p>
                 <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
               </div>
-              <p className="mt-4 text-4xl font-extrabold tracking-tight">{totalUserCount ?? "—"}</p>
-              <p className="mt-2 text-xs text-sky-100/90">Registered candidate profiles in database</p>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight">{totalUserCount ?? "—"}</p>
+              <p className="mt-1.5 text-xs text-sky-100/90">Registered candidates in system</p>
             </div>
 
-            {/* Online Users */}
-            <div className={`stat-card rounded-[1.75rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-cyan-200/50 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
+            {/* Active Accounts */}
+            <div
+              className={`stat-card rounded-[1.75rem] border border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 p-5 shadow-[0_18px_35px_-22px_rgba(16,185,129,0.35)] ring-1 ring-emerald-200/50 transition duration-500 ${
+                mounted ? "scale-100" : "scale-95"
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Online Users</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">Active</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                  <FaUserCheck className="text-[10px]" /> OK
+                </span>
+              </div>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{activeUserCount ?? "—"}</p>
+              <p className="mt-1.5 text-xs text-slate-500">Unrestricted app login access</p>
+            </div>
+
+            {/* Deactivated Accounts */}
+            <div
+              className={`stat-card rounded-[1.75rem] border border-rose-100/80 bg-gradient-to-br from-rose-50/70 via-white to-amber-50/50 p-5 shadow-[0_18px_35px_-22px_rgba(225,29,72,0.3)] ring-1 ring-rose-200/50 transition duration-500 ${
+                mounted ? "scale-100" : "scale-95"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-800">Deactivated</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold text-rose-800">
+                  <FaUserSlash className="text-[10px]" /> HOLD
+                </span>
+              </div>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{deactivatedUserCount ?? "—"}</p>
+              <p className="mt-1.5 text-xs text-slate-500">Banned from signing in</p>
+            </div>
+
+            {/* Realtime Online */}
+            <div
+              className={`stat-card rounded-[1.75rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 p-5 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.3)] ring-1 ring-cyan-200/50 transition duration-500 ${
+                mounted ? "scale-100" : "scale-95"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Online Now</p>
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 </span>
               </div>
-              <p className="mt-4 text-4xl font-extrabold tracking-tight text-slate-950">{onlineCount ?? "—"}</p>
-              <p className="mt-2 text-xs text-slate-500">Active or connected in last 5 minutes</p>
-            </div>
-
-            {/* Offline Users */}
-            <div className={`stat-card rounded-[1.75rem] border border-violet-100/80 bg-gradient-to-br from-violet-50/70 via-white to-indigo-50/50 p-6 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-violet-200/50 transition duration-500 ${mounted ? "scale-100" : "scale-95"}`}>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Offline Users</p>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">AWAY</span>
-              </div>
-              <p className="mt-4 text-4xl font-extrabold tracking-tight text-slate-950">{offlineCount ?? "—"}</p>
-              <p className="mt-2 text-xs text-slate-500">Not currently detected in active session</p>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{onlineCount ?? "—"}</p>
+              <p className="mt-1.5 text-xs text-slate-500">Active in the last 5 minutes</p>
             </div>
           </div>
         </section>
 
         {/* Content Layout: Table & Profile Inspector */}
         <section className="grid gap-7 xl:grid-cols-[1.55fr_1fr]">
-          {/* Users Table Card */}
+          {/* Candidates Table Card */}
           <div className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-950">Candidate Profiles</h2>
-                <p className="mt-1 text-xs text-slate-500">Search and select a user to review complete details.</p>
+                <h2 className="text-xl font-bold text-slate-950">Student Directory</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Select a student profile to inspect metadata or modify account status.
+                </p>
               </div>
 
               {/* Search Bar */}
@@ -465,7 +558,7 @@ function UserManagement() {
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name or email..."
+                  placeholder="Search by student name or email..."
                   className="w-full rounded-2xl border border-slate-200/90 bg-slate-50/80 pl-10 pr-9 py-2.5 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                 />
                 {searchTerm && (
@@ -479,42 +572,65 @@ function UserManagement() {
               </div>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="mt-5 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4">
-              <button
-                type="button"
-                onClick={() => setStatusFilter("all")}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                  statusFilter === "all"
-                    ? "bg-sky-600 text-white shadow-sm shadow-sky-600/30"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                All Users ({matchingUserCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter("online")}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                  statusFilter === "online"
-                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                Online ({onlineCount ?? 0})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter("offline")}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                  statusFilter === "offline"
-                    ? "bg-slate-700 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                Offline ({offlineCount ?? 0})
-              </button>
+            {/* Filter Tabs: Account Status */}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountStatusFilter("all");
+                    setCurrentPage(0);
+                  }}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                    accountStatusFilter === "all"
+                      ? "bg-sky-600 text-white shadow-sm shadow-sky-600/30"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  All Students {totalUserCount !== null && `(${totalUserCount})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountStatusFilter("active");
+                    setCurrentPage(0);
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                    accountStatusFilter === "active"
+                      ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Active {activeUserCount !== null && `(${activeUserCount})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountStatusFilter("deactivated");
+                    setCurrentPage(0);
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                    accountStatusFilter === "deactivated"
+                      ? "bg-rose-600 text-white shadow-sm shadow-rose-600/30"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+                  Deactivated {deactivatedUserCount !== null && `(${deactivatedUserCount})`}
+                </button>
+              </div>
+
+              {/* Online Only Filter Toggle */}
+              <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600 select-none">
+                <input
+                  type="checkbox"
+                  checked={presenceOnlyOnline}
+                  onChange={(e) => setPresenceOnlyOnline(e.target.checked)}
+                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                />
+                <span>Online Only ({onlineCount ?? 0})</span>
+              </label>
             </div>
 
             {loadError && users.length > 0 && (
@@ -530,6 +646,7 @@ function UserManagement() {
                   <thead className="bg-slate-50/90 text-left uppercase tracking-wider text-[11px] font-bold text-slate-500">
                     <tr>
                       <th className="px-5 py-3.5">Candidate</th>
+                      <th className="px-4 py-3.5">Account Status</th>
                       <th className="px-4 py-3.5">Presence</th>
                       <th className="px-4 py-3.5">Registered</th>
                       <th className="px-4 py-3.5 text-right">Action</th>
@@ -538,26 +655,28 @@ function UserManagement() {
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
                       <tr>
-                        <td colSpan="4" className="px-6 py-14 text-center text-slate-400">
+                        <td colSpan="5" className="px-6 py-14 text-center text-slate-400">
                           <FaSyncAlt className="mx-auto mb-2 animate-spin text-base text-sky-600" />
                           Loading candidate profiles...
                         </td>
                       </tr>
-                    ) : loadError && filteredUsers.length === 0 ? (
+                    ) : loadError && displayedUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="px-6 py-14 text-center text-rose-600">
+                        <td colSpan="5" className="px-6 py-14 text-center text-rose-600">
                           {loadError}
                         </td>
                       </tr>
-                    ) : filteredUsers.length === 0 ? (
+                    ) : displayedUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="px-6 py-14 text-center text-slate-400">
-                          No candidate profiles match the current criteria.
+                        <td colSpan="5" className="px-6 py-14 text-center text-slate-400">
+                          No student accounts match the selected criteria.
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map((user) => {
+                      displayedUsers.map((user) => {
                         const isSelected = selectedUser?.id === user.id;
+                        const isDeactivated = user.account_status === "deactivated";
+
                         return (
                           <tr
                             key={user.id}
@@ -568,30 +687,68 @@ function UserManagement() {
                           >
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+                                <div
+                                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm ${
+                                    isDeactivated
+                                      ? "bg-gradient-to-br from-slate-400 to-slate-600"
+                                      : "bg-gradient-to-br from-sky-500 to-blue-600"
+                                  }`}
+                                >
                                   {getInitials(user.full_name)}
                                 </div>
                                 <div className="min-w-0">
                                   <p className="truncate font-bold text-slate-900">{user.full_name}</p>
-                                  <p className="truncate text-[11px] text-slate-500">{user.email || "No email"}</p>
+                                  <p className="truncate text-[11px] text-slate-500">
+                                    {user.email || "No email on record"}
+                                  </p>
                                 </div>
                               </div>
                             </td>
+
+                            {/* Authoritative Account Status Badge */}
+                            <td className="px-4 py-3.5">
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                                  isDeactivated
+                                    ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                                    : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                }`}
+                              >
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    isDeactivated ? "bg-rose-500" : "bg-emerald-500"
+                                  }`}
+                                />
+                                {isDeactivated ? "Deactivated" : "Active"}
+                              </span>
+                            </td>
+
+                            {/* Presence Status */}
                             <td className="px-4 py-3.5">
                               <span
                                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                                   user.is_online
-                                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                    ? "bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200"
                                     : "bg-slate-100 text-slate-600"
                                 }`}
                               >
-                                <span className={`h-1.5 w-1.5 rounded-full ${user.is_online ? "bg-emerald-500" : "bg-slate-400"}`} />
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    user.is_online ? "bg-cyan-500 animate-pulse" : "bg-slate-400"
+                                  }`}
+                                />
                                 {user.is_online ? "Online" : "Offline"}
                               </span>
                             </td>
+
                             <td className="px-4 py-3.5 text-slate-500">
-                              {new Date(user.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                              {new Date(user.created_at).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
                             </td>
+
                             <td className="px-4 py-3.5 text-right">
                               <button
                                 onClick={(e) => {
@@ -620,11 +777,11 @@ function UserManagement() {
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
               <p>
                 {matchingUserCount === 0
-                  ? "No matching users"
+                  ? "No matching students"
                   : `Showing ${currentPage * USER_PAGE_SIZE + 1}–${Math.min(
                       (currentPage + 1) * USER_PAGE_SIZE,
-                      matchingUserCount,
-                    )} of ${matchingUserCount} users`}
+                      matchingUserCount
+                    )} of ${matchingUserCount} students`}
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -635,7 +792,9 @@ function UserManagement() {
                 >
                   Previous
                 </button>
-                <span className="font-semibold text-slate-700">Page {currentPage + 1} of {pageCount}</span>
+                <span className="font-semibold text-slate-700">
+                  Page {currentPage + 1} of {pageCount}
+                </span>
                 <button
                   type="button"
                   onClick={() => setCurrentPage((page) => Math.min(pageCount - 1, page + 1))}
@@ -653,17 +812,21 @@ function UserManagement() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Inspector</p>
-                <h3 className="text-lg font-bold text-slate-950">Profile Details</h3>
+                <h3 className="text-lg font-bold text-slate-950">Student Details</h3>
               </div>
               {selectedUserWithPresence && (
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
                     selectedUserWithPresence.is_online
-                      ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300"
+                      ? "bg-cyan-100 text-cyan-800 ring-1 ring-cyan-300"
                       : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  <span className={`h-2 w-2 rounded-full ${selectedUserWithPresence.is_online ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      selectedUserWithPresence.is_online ? "bg-cyan-500 animate-pulse" : "bg-slate-400"
+                    }`}
+                  />
                   {selectedUserWithPresence.is_online ? "Active Now" : "Offline"}
                 </span>
               )}
@@ -673,15 +836,45 @@ function UserManagement() {
               <div className="mt-6 flex flex-col gap-6">
                 {/* User Identity Card */}
                 <div className="flex items-center gap-4 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/70 p-4 shadow-sm ring-1 ring-sky-200/50">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-xl font-extrabold text-white shadow-md shadow-sky-500/30">
+                  <div
+                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-extrabold text-white shadow-md ${
+                      selectedUserWithPresence.account_status === "deactivated"
+                        ? "bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20"
+                        : "bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/30"
+                    }`}
+                  >
                     {getInitials(selectedUserWithPresence.full_name)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="truncate text-base font-bold text-slate-950">{selectedUserWithPresence.full_name}</h4>
-                    <p className="truncate text-xs font-medium text-slate-600">{selectedUserWithPresence.email}</p>
-                    <span className="mt-1 inline-block rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
-                      Candidate
-                    </span>
+                    <h4 className="truncate text-base font-bold text-slate-950">
+                      {selectedUserWithPresence.full_name}
+                    </h4>
+                    <p className="truncate text-xs font-medium text-slate-600">
+                      {selectedUserWithPresence.email || "No email on record"}
+                    </p>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="inline-block rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
+                        Student
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                          selectedUserWithPresence.account_status === "deactivated"
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            selectedUserWithPresence.account_status === "deactivated"
+                              ? "bg-rose-500"
+                              : "bg-emerald-500"
+                          }`}
+                        />
+                        {selectedUserWithPresence.account_status === "deactivated"
+                          ? "Deactivated"
+                          : "Active"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -690,8 +883,12 @@ function UserManagement() {
                   {/* User ID with Copy */}
                   <div className="flex items-center justify-between rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Profile ID</p>
-                      <p className="truncate font-mono text-[11px] font-semibold text-slate-700 max-w-[180px]">{selectedUserWithPresence.id}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Profile Identifier
+                      </p>
+                      <p className="truncate font-mono text-[11px] font-semibold text-slate-700 max-w-[180px]">
+                        {selectedUserWithPresence.id}
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -708,7 +905,9 @@ function UserManagement() {
                   <div className="flex items-center gap-3 rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
                     <FaCalendarAlt className="text-slate-400 text-sm" />
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Account Created</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Account Created
+                      </p>
                       <p className="font-semibold text-slate-800">
                         {new Date(selectedUserWithPresence.created_at).toLocaleString()}
                       </p>
@@ -719,7 +918,9 @@ function UserManagement() {
                   <div className="flex items-center gap-3 rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
                     <FaClock className="text-slate-400 text-sm" />
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Last Seen Activity</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Last Seen Activity
+                      </p>
                       <p className="font-semibold text-slate-800">
                         {selectedUserWithPresence.last_online_at
                           ? new Date(selectedUserWithPresence.last_online_at).toLocaleString()
@@ -729,34 +930,90 @@ function UserManagement() {
                   </div>
                 </div>
 
-                {/* Management Actions */}
-                <div className="space-y-2.5 border-t border-slate-100 pt-5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Account Controls</p>
+                {/* Account Status Information Card if Deactivated */}
+                {selectedUserWithPresence.account_status === "deactivated" ? (
+                  <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/90 via-white to-amber-50/60 p-4 ring-1 ring-rose-300/40">
+                    <div className="flex items-center gap-2">
+                      <FaBan className="text-rose-600 text-base" />
+                      <h5 className="font-bold text-rose-950 text-xs uppercase tracking-wider">
+                        Account Suspended
+                      </h5>
+                    </div>
+                    <div className="mt-3 space-y-2 text-xs">
+                      <div>
+                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                          Deactivation Reason:
+                        </span>
+                        <p className="font-semibold text-rose-900">
+                          {selectedUserWithPresence.deactivation_reason || "Administrative Hold"}
+                        </p>
+                      </div>
+                      {selectedUserWithPresence.deactivation_details && (
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                            Administrative Remarks:
+                          </span>
+                          <p className="text-slate-700 italic">
+                            &ldquo;{selectedUserWithPresence.deactivation_details}&rdquo;
+                          </p>
+                        </div>
+                      )}
+                      {selectedUserWithPresence.deactivated_at && (
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                            Deactivated On:
+                          </span>
+                          <p className="font-medium text-slate-600">
+                            {new Date(selectedUserWithPresence.deactivated_at).toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => toggleActiveState(selectedUserWithPresence)}
-                    disabled={actionLoading}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-bold transition shadow-sm ${
-                      selectedUserWithPresence.is_active
-                        ? "bg-slate-100 text-slate-800 hover:bg-slate-200"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/30"
-                    } disabled:opacity-50`}
-                  >
-                    {selectedUserWithPresence.is_active ? <FaToggleOff className="text-sm" /> : <FaToggleOn className="text-sm" />}
-                    <span>{selectedUserWithPresence.is_active ? "Deactivate Account" : "Activate Account"}</span>
-                  </button>
+                    <div className="mt-4 border-t border-rose-100 pt-3">
+                      <p className="text-[11px] leading-relaxed text-slate-600">
+                        Reactivation is managed through student-submitted reactivation requests.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/reactivation-requests")}
+                        className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800"
+                      >
+                        <span>View Reactivation Requests</span>
+                        <FaArrowRight className="text-[10px]" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Active Account Controls */
+                  <div className="space-y-2.5 border-t border-slate-100 pt-5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Account Access Controls
+                    </p>
 
-                  <button
-                    type="button"
-                    onClick={() => confirmDeleteUser(selectedUserWithPresence)}
-                    disabled={actionLoading}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100 disabled:opacity-50"
-                  >
-                    <FaTrash className="text-xs" />
-                    <span>Delete User Account</span>
-                  </button>
-                </div>
+                    {/* DEACTIVATE ACCOUNT BUTTON - invokes deactivate-account Edge Function */}
+                    <button
+                      type="button"
+                      onClick={() => initiateDeactivate(selectedUserWithPresence)}
+                      disabled={actionLoading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
+                    >
+                      <FaBan className="text-sm" />
+                      <span>Deactivate Account</span>
+                    </button>
+
+                    {/* Optional Permanent Delete (for testing or complete cleanup) */}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteUserTarget(selectedUserWithPresence)}
+                      disabled={actionLoading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-[11px] font-medium text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                    >
+                      <FaTrash className="text-[10px]" />
+                      <span>Permanent Delete (Purge)</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="mt-12 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
@@ -765,7 +1022,7 @@ function UserManagement() {
                 </div>
                 <p className="text-xs font-bold text-slate-700">No Candidate Selected</p>
                 <p className="mt-1 text-[11px] text-slate-500 max-w-[200px]">
-                  Click on any user in the table to inspect details or adjust access privileges.
+                  Click on any candidate row in the table to inspect details or manage access.
                 </p>
               </div>
             )}
@@ -773,16 +1030,152 @@ function UserManagement() {
         </section>
       </main>
 
-      {/* Delete User Modal */}
+      {/* Deactivate Student Account Confirmation Modal */}
+      {deactivateTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-rose-200/80">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+              <FaExclamationTriangle className="text-xl" />
+            </div>
+
+            <h3 className="mt-4 text-2xl font-extrabold text-slate-950">
+              Deactivate Student Account
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">
+              Are you sure you want to deactivate this student&apos;s PrepMate AI account? The student will lose access to the application until an administrator approves a reactivation request.
+            </p>
+
+            {/* Target Information Card */}
+            <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50/60 p-4 ring-1 ring-rose-200/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Student Name
+                  </p>
+                  <p className="font-bold text-slate-900 truncate">{deactivateTarget.full_name}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Registered Email
+                  </p>
+                  <p className="font-semibold text-slate-700 truncate">
+                    {deactivateTarget.email || "No email on record"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Current Status
+                  </p>
+                  <span className="inline-flex items-center gap-1 font-bold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Active
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Profile Identifier
+                  </p>
+                  <p className="font-mono text-[11px] text-slate-500 truncate">{deactivateTarget.id}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Deactivation Reason & Remarks Form */}
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800">
+                  Deactivation Reason <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  value={deactivateReason}
+                  onChange={(e) => setDeactivateReason(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                >
+                  <option value="Violation of Terms of Service">Violation of Terms of Service</option>
+                  <option value="Academic Integrity / Policy Violation">
+                    Academic Integrity / Policy Violation
+                  </option>
+                  <option value="Suspicious or Unauthorized Activity">
+                    Suspicious or Unauthorized Activity
+                  </option>
+                  <option value="Administrative Disciplinary Hold">
+                    Administrative Disciplinary Hold
+                  </option>
+                  <option value="Student Voluntary Request">Student Voluntary Request</option>
+                  <option value="Other">Other Reason (describe below)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800">
+                  Administrative Remarks & Notes <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={deactivateDetails}
+                  onChange={(e) => setDeactivateDetails(e.target.value)}
+                  placeholder="Provide detailed context or explanation for why this student account is being deactivated..."
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                />
+              </div>
+
+              {deactivateError && (
+                <p className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold text-rose-600">
+                  {deactivateError}
+                </p>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeactivateTarget(null);
+                  setDeactivateReason("Violation of Terms of Service");
+                  setDeactivateDetails("");
+                  setDeactivateError("");
+                }}
+                disabled={actionLoading}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeactivation}
+                disabled={actionLoading || !deactivateDetails.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-600/30 transition hover:bg-rose-700 disabled:opacity-50"
+              >
+                {actionLoading ? (
+                  <>
+                    <FaSyncAlt className="animate-spin text-xs" />
+                    <span>Deactivating...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaBan className="text-xs" />
+                    <span>Confirm Deactivation</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Modal (Purge) */}
       {deleteUserTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
-          <div className="w-full max-w-md rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up">
+          <div className="w-full max-w-md rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
               <FaTrash className="text-lg" />
             </div>
-            <h3 className="mt-4 text-xl font-extrabold text-slate-950">Delete candidate profile?</h3>
+            <h3 className="mt-4 text-xl font-extrabold text-slate-950">
+              Permanently purge candidate record?
+            </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              This will permanently remove <strong>{deleteUserTarget.full_name}</strong> from the database including mock interview scores and session history.
+              This will permanently delete <strong>{deleteUserTarget.full_name}</strong> and all associated interview sessions. (Note: To temporarily suspend access without losing data, use <em>Deactivate Account</em> instead).
             </p>
 
             <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:justify-end">
@@ -795,11 +1188,11 @@ function UserManagement() {
               </button>
               <button
                 type="button"
-                onClick={deleteUser}
+                onClick={handleDeleteUser}
                 disabled={actionLoading}
                 className="rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-600/30 transition hover:bg-rose-700 disabled:opacity-60"
               >
-                {actionLoading ? "Deleting Profile..." : "Confirm Delete"}
+                {actionLoading ? "Purging..." : "Confirm Purge"}
               </button>
             </div>
           </div>
@@ -809,7 +1202,7 @@ function UserManagement() {
       {/* Success Notification Modal */}
       {successMessage && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 px-4 py-10 backdrop-blur-md">
-          <div className="w-full max-w-sm rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white p-7 text-center shadow-2xl ring-1 ring-emerald-200 fade-in-up">
+          <div className="w-full max-w-sm rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white p-7 text-center shadow-2xl ring-1 ring-emerald-200">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
               <FaCheck className="text-lg" />
             </div>

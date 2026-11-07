@@ -15,6 +15,7 @@ import {
   FaShieldAlt,
   FaPlus,
   FaServer,
+  FaUserClock,
 } from "react-icons/fa";
 
 function AdminDashboard() {
@@ -25,6 +26,7 @@ function AdminDashboard() {
   const [adminName, setAdminName] = useState("Administrator");
   const [totalUsers, setTotalUsers] = useState(null);
   const [totalQuestions, setTotalQuestions] = useState(null);
+  const [pendingRequests, setPendingRequests] = useState(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -50,9 +52,10 @@ function AdminDashboard() {
     }
 
     async function loadDashboard() {
-      const [userResult, questionResult] = await Promise.all([
+      const [userResult, questionResult, requestsResult] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("questions").select("id", { count: "exact", head: true }),
+        supabase.from("account_reactivation_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       ]);
       if (!active) return;
 
@@ -65,6 +68,11 @@ function AdminDashboard() {
         console.error("Unable to load the question count:", questionResult.error);
       } else {
         setTotalQuestions(questionResult.count || 0);
+      }
+      if (requestsResult.error) {
+        console.warn("Unable to load pending requests count:", requestsResult.error);
+      } else {
+        setPendingRequests(requestsResult.count || 0);
       }
     }
 
@@ -105,6 +113,17 @@ function AdminDashboard() {
       countLabel: "Registered Profiles",
     },
     {
+      title: "Reactivation Requests",
+      badge: "Review Queue",
+      description: "Review reactivation appeals from deactivated students and approve or reject access requests.",
+      href: "/reactivation-requests",
+      icon: FaUserClock,
+      color: "from-amber-500 to-orange-600",
+      surface: "border-amber-100/90",
+      count: pendingRequests ?? "—",
+      countLabel: "Pending Appeals",
+    },
+    {
       title: "Question Management",
       badge: "Question Bank",
       description: "Curate mock interview questions across Technical, Behavioral, Situational, and HR tracks.",
@@ -143,8 +162,8 @@ function AdminDashboard() {
       description: "Inspect student interview sessions, AI score rubrics, detailed feedback, and performance trends.",
       href: "/interview-results",
       icon: FaFileAlt,
-      color: "from-amber-500 to-orange-600",
-      surface: "border-amber-100/90",
+      color: "from-indigo-500 to-purple-600",
+      surface: "border-indigo-100/90",
       count: null,
       countLabel: null,
     },
@@ -212,7 +231,7 @@ function AdminDashboard() {
                 </span>
               </div>
               <p className="text-[11px] font-medium text-slate-500">
-                Connected · 7 Edge Functions Active
+                Connected · 11 Edge Functions Active
               </p>
             </div>
           </div>
@@ -220,6 +239,12 @@ function AdminDashboard() {
           {/* Quick Command Actions */}
           <div className="relative mt-7 flex flex-wrap items-center gap-2.5 border-t border-slate-100 pt-5 text-xs">
             <span className="font-bold uppercase tracking-wider text-slate-500">Quick Shortcuts:</span>
+            <Link
+              to="/reactivation-requests"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3 py-1.5 font-semibold text-amber-700 transition hover:bg-amber-100/80 hover:text-amber-900"
+            >
+              <FaUserClock className="text-[10px]" /> Review Requests ({pendingRequests ?? 0})
+            </Link>
             <Link
               to="/question-management"
               className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-sky-50/80 px-3 py-1.5 font-semibold text-sky-700 transition hover:bg-sky-100/80 hover:text-sky-900"
@@ -234,15 +259,9 @@ function AdminDashboard() {
             </Link>
             <Link
               to="/interview-results"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3 py-1.5 font-semibold text-amber-700 transition hover:bg-amber-100/80 hover:text-amber-900"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200/80 bg-purple-50/80 px-3 py-1.5 font-semibold text-purple-700 transition hover:bg-purple-100/80 hover:text-purple-900"
             >
               <FaFileAlt className="text-[10px]" /> View Results
-            </Link>
-            <Link
-              to="/backup-restore"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200/80 bg-emerald-50/80 px-3 py-1.5 font-semibold text-emerald-700 transition hover:bg-emerald-100/80 hover:text-emerald-900"
-            >
-              <FaDatabase className="text-[10px]" /> Backup Data
             </Link>
           </div>
         </section>
@@ -265,7 +284,6 @@ function AdminDashboard() {
                 to={href}
                 className={`glass-card group relative flex min-h-68 flex-col justify-between overflow-hidden rounded-[2rem] border ${surface} p-6 shadow-[0_15px_35px_-20px_rgba(14,116,144,0.3)] ring-1 ring-white/80 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_50px_-20px_rgba(37,99,235,0.4)] hover:ring-sky-200`}
               >
-                {/* Subtle top card glow */}
                 <div className="absolute -top-16 -right-16 h-36 w-36 rounded-full bg-sky-200/20 blur-2xl transition duration-500 group-hover:scale-125" />
 
                 <div>
@@ -314,7 +332,7 @@ function AdminDashboard() {
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900">Infrastructure &amp; Access Controls</h4>
-                <p className="text-xs text-slate-600">Row-level security policies and real-time presence active on linked Supabase backend.</p>
+                <p className="text-xs text-slate-600">Row-level security policies, account deactivation restrictions, and real-time presence active on linked Supabase backend.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-xs font-semibold text-sky-700">

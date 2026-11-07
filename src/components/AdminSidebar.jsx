@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   FaUserCog,
@@ -9,12 +10,40 @@ import {
   FaUserCheck,
   FaFileAlt,
   FaShieldAlt,
+  FaUserClock,
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 import { clearProfileOnlineStatus } from "../services/profilePresence";
 
 export default function AdminSidebar({ adminName = "Administrator" }) {
   const navigate = useNavigate();
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function loadPendingCount() {
+      try {
+        const { count, error } = await supabase
+          .from("account_reactivation_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending");
+
+        if (!error && active && count !== null) {
+          setPendingRequestsCount(count);
+        }
+      } catch (err) {
+        console.warn("Unable to load pending reactivation requests count:", err);
+      }
+    }
+
+    loadPendingCount();
+    const intervalId = window.setInterval(loadPendingCount, 45_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   async function handleLogout() {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -40,7 +69,7 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
   }
 
   const navLinkClass = ({ isActive }) =>
-    `group relative flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold transition-all duration-200 md:px-4 ${
+    `group relative flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-semibold transition-all duration-200 md:px-4 ${
       isActive
         ? "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 text-white shadow-lg shadow-sky-500/25 ring-1 ring-white/20"
         : "text-slate-600 hover:bg-gradient-to-r hover:from-sky-50/90 hover:to-cyan-50/50 hover:text-sky-700 hover:translate-x-0.5"
@@ -72,38 +101,64 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
       {/* Navigation */}
       <nav className="mt-8 flex flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
         <NavLink to="/dashboard" title="Dashboard" aria-label="Dashboard" className={navLinkClass}>
-          <FaUserCog className="shrink-0 text-base transition-transform group-hover:scale-110" />
-          <span className="hidden md:inline">Dashboard</span>
+          <div className="flex items-center gap-3">
+            <FaUserCog className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Dashboard</span>
+          </div>
         </NavLink>
 
         <NavLink to="/user-management" title="User Management" aria-label="User Management" className={navLinkClass}>
-          <FaUsers className="shrink-0 text-base transition-transform group-hover:scale-110" />
-          <span className="hidden md:inline">User Management</span>
+          <div className="flex items-center gap-3">
+            <FaUsers className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">User Management</span>
+          </div>
+        </NavLink>
+
+        <NavLink to="/reactivation-requests" title="Reactivation Requests" aria-label="Reactivation Requests" className={navLinkClass}>
+          <div className="flex items-center gap-3">
+            <FaUserClock className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Reactivation Requests</span>
+          </div>
+          {pendingRequestsCount > 0 && (
+            <span className="hidden md:inline-flex rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm shadow-amber-500/50">
+              {pendingRequestsCount}
+            </span>
+          )}
         </NavLink>
 
         <NavLink to="/question-management" title="Question Management" aria-label="Question Management" className={navLinkClass}>
-          <FaQuestionCircle className="shrink-0 text-base transition-transform group-hover:scale-110" />
-          <span className="hidden md:inline">Question Management</span>
+          <div className="flex items-center gap-3">
+            <FaQuestionCircle className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Question Management</span>
+          </div>
         </NavLink>
 
         <NavLink to="/staff-management" title="Staff Management" aria-label="Staff Management" className={navLinkClass}>
-          <FaUserTie className="shrink-0 text-base transition-transform group-hover:scale-110" />
-          <span className="hidden md:inline">Staff Management</span>
+          <div className="flex items-center gap-3">
+            <FaUserTie className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Staff Management</span>
+          </div>
         </NavLink>
 
         <NavLink to="/staff-assignments" title="Staff Assignments" aria-label="Staff Assignments" className={navLinkClass}>
-          <FaUserCheck className="shrink-0 text-base transition-transform group-hover:scale-110" />
-          <span className="hidden md:inline">Staff Assignments</span>
+          <div className="flex items-center gap-3">
+            <FaUserCheck className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Staff Assignments</span>
+          </div>
         </NavLink>
 
         <NavLink to="/interview-results" title="Interview Results" aria-label="Interview Results" className={navLinkClass}>
-          <FaFileAlt className="shrink-0 text-base transition-transform group-hover:scale-110" />
-          <span className="hidden md:inline">Interview Results</span>
+          <div className="flex items-center gap-3">
+            <FaFileAlt className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Interview Results</span>
+          </div>
         </NavLink>
 
         <NavLink to="/backup-restore" title="Backup and Restore" aria-label="Backup and Restore" className={navLinkClass}>
-          <FaDatabase className="shrink-0 text-base transition-transform group-hover:scale-110" />
-          <span className="hidden md:inline">Backup &amp; Restore</span>
+          <div className="flex items-center gap-3">
+            <FaDatabase className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Backup &amp; Restore</span>
+          </div>
         </NavLink>
       </nav>
 

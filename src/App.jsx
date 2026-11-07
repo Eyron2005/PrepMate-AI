@@ -11,6 +11,7 @@ const UserManagement = lazy(() => import("./pages/UserManagement"));
 const QuestionManagement = lazy(() => import("./pages/QuestionManagement"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
 const BackupRestore = lazy(() => import("./pages/BackupRestore"));
+const ReactivationRequests = lazy(() => import("./pages/ReactivationRequests"));
 const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
 const StaffStudentRecords = lazy(() => import("./pages/StaffStudentRecords"));
 const AdminInterviewResults = lazy(() => import("./pages/AdminInterviewResults"));
@@ -40,6 +41,7 @@ function App() {
                 path="/user-management"
                 element={<PresenceProvider><UserManagement /></PresenceProvider>}
               />
+              <Route path="/reactivation-requests" element={<ReactivationRequests />} />
               <Route path="/question-management" element={<QuestionManagement />} />
               <Route path="/staff-management" element={<StaffManagement />} />
               <Route path="/staff-assignments" element={<StaffAssignments />} />
