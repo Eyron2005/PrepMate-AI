@@ -51,8 +51,6 @@ function UserManagement() {
   const [currentPage, setCurrentPage] = useState(0);
   const [matchingUserCount, setMatchingUserCount] = useState(0);
   const [totalUserCount, setTotalUserCount] = useState(null);
-  const [activeUserCount, setActiveUserCount] = useState(null);
-  const [inactiveUserCount, setInactiveUserCount] = useState(null);
   const [onlineCount, setOnlineCount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,36 +160,14 @@ function UserManagement() {
 
   const loadAccountCounts = useCallback(async () => {
     try {
-      const [totalResult, activeResult, inactiveResult] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("id", { count: "exact", head: true })
-          .or("is_active.is.null,is_active.eq.true"),
-        supabase.from("profiles").select("id", { count: "exact", head: true })
-          .eq("is_active", false),
-      ]);
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true });
 
-      if (totalResult.error) {
-        console.error("Unable to load total user count:", totalResult.error);
+      if (error) {
+        console.error("Unable to load total user count:", error);
       } else {
-        setTotalUserCount(totalResult.count || 0);
-      }
-      const statusColumnUnavailable =
-        isMissingColumnError(activeResult.error) || isMissingColumnError(inactiveResult.error);
-      if (statusColumnUnavailable && !totalResult.error) {
-        console.warn("No profile activation column is available; treating registered profiles as active.");
-        setActiveUserCount(totalResult.count || 0);
-        setInactiveUserCount(0);
-        return;
-      }
-      if (activeResult.error) {
-        console.error("Unable to load active user count:", activeResult.error);
-      } else {
-        setActiveUserCount(activeResult.count || 0);
-      }
-      if (inactiveResult.error) {
-        console.error("Unable to load inactive user count:", inactiveResult.error);
-      } else {
-        setInactiveUserCount(inactiveResult.count || 0);
+        setTotalUserCount(count || 0);
       }
     } catch (error) {
       console.error("Unable to load user account counts:", error);

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { FaFilter, FaPlus, FaSearch, FaTrash, FaEdit } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
@@ -8,7 +7,6 @@ const categories = ["Technical", "Behavioral", "Situational", "HR"];
 const difficulties = ["Easy", "Medium", "Hard"];
 
 function QuestionManagement() {
-  const navigate = useNavigate();
 
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
