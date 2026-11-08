@@ -10,12 +10,21 @@ import {
   FaLayerGroup,
   FaSignal,
   FaSyncAlt,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaTimesCircle,
+  FaShieldAlt,
+  FaLightbulb,
+  FaMagic,
+  FaUndo,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
-
-const categories = ["Technical", "Behavioral", "Situational", "HR"];
-const difficulties = ["Easy", "Medium", "Hard"];
+import {
+  VALID_CATEGORIES as categories,
+  VALID_DIFFICULTIES as difficulties,
+  validateQuestionWithAiOrRules,
+} from "../services/questionValidator";
 
 function getDifficultyBadge(difficulty) {
   switch (difficulty) {
@@ -49,6 +58,12 @@ function QuestionManagement() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+  const [validationAttempted, setValidationAttempted] = useState(false);
+  const [validationError, setValidationError] = useState("");
+  const [originalQuestion, setOriginalQuestion] = useState(null);
+  const [correctionNotice, setCorrectionNotice] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("");
@@ -110,6 +125,11 @@ function QuestionManagement() {
   function resetForm() {
     setFormState({ question: "", category: "", difficulty: "" });
     setEditingQuestion(null);
+    setValidationResult(null);
+    setValidationAttempted(false);
+    setValidationError("");
+    setOriginalQuestion(null);
+    setCorrectionNotice("");
   }
 
   function openAddForm() {
@@ -124,13 +144,137 @@ function QuestionManagement() {
       category: question.category,
       difficulty: question.difficulty,
     });
+    setValidationResult(null);
+    setValidationAttempted(false);
+    setValidationError("");
+    setOriginalQuestion(null);
+    setCorrectionNotice("");
     setIsFormOpen(true);
   }
 
+  async function handleValidate(allowAutoCorrect = true) {
+    if (!formState.question.trim()) {
+      alert("Please provide the question prompt text before validating.");
+      return null;
+    }
+
+    setIsValidating(true);
+    setValidationError("");
+    try {
+      const result = await validateQuestionWithAiOrRules({
+        question: formState.question,
+        category: formState.category || "Technical",
+        difficulty: formState.difficulty || "Medium",
+        currentQuestionId: editingQuestion?.id,
+      });
+
+      if (!result || result.success === false) {
+        const errorMsg = result?.error || "AI validation could not be completed. Please check service status.";
+        setValidationError(errorMsg);
+        setValidationResult(null);
+        setValidationAttempted(false);
+        return null;
+      }
+
+      // Automatic grammar and spelling correction application
+      if (
+        allowAutoCorrect &&
+        result.wasCorrected &&
+        result.correctedText &&
+        result.correctedText !== formState.question.trim()
+      ) {
+        const prevText = formState.question;
+        setOriginalQuestion(prevText);
+        setFormState((prev) => ({ ...prev, question: result.correctedText }));
+        setCorrectionNotice("Grammar and spelling automatically corrected.");
+      }
+
+      setValidationResult(result);
+      setValidationAttempted(true);
+      return result;
+    } catch (err) {
+      console.error("Validation error:", err);
+      const message = err?.message || "Failed to contact Gemini AI validation service.";
+      setValidationError(message);
+      setValidationResult(null);
+      setValidationAttempted(false);
+      return null;
+    } finally {
+      setIsValidating(false);
+    }
+  }
+
+  function handleUndoCorrection() {
+    if (originalQuestion) {
+      const reverted = originalQuestion;
+      setFormState((prev) => ({ ...prev, question: reverted }));
+      setOriginalQuestion(null);
+      setCorrectionNotice("");
+      setValidationResult(null);
+      setValidationAttempted(false);
+    }
+  }
+
+  function handleApplySuggestion() {
+    if (validationResult?.suggestedQuestion) {
+      const improved = validationResult.suggestedQuestion;
+      setFormState((prev) => ({ ...prev, question: improved }));
+      setValidationResult(null);
+
+      setTimeout(() => {
+        handleValidate(false);
+      }, 50);
+    }
+  }
+
   async function handleSaveQuestion() {
-    if (!formState.question.trim() || !formState.category || !formState.difficulty) {
-      alert("Please fill in the question text, category, and difficulty.");
+    if (actionLoading || isValidating) return;
+
+    if (!formState.question.trim()) {
+      alert("Please provide the question prompt text.");
       return;
+    }
+
+    if (!formState.category) {
+      alert("Please select a Category Track before creating the question.");
+      return;
+    }
+
+    if (!formState.difficulty) {
+      alert("Please select a Difficulty Tier before creating the question.");
+      return;
+    }
+
+    if (!validationAttempted || !validationResult) {
+      alert("Please click 'Validate Question' to verify grammar, relevance, and suitability before creating.");
+      return;
+    }
+
+    if (validationResult.status === "invalid") {
+      alert(
+        `Cannot save question:\n\n${
+          validationResult?.overallFeedback || "The question fails mandatory validation checks. Please correct the flagged issues."
+        }`
+      );
+      return;
+    }
+
+    const failedChecks = Object.entries(validationResult.checks || {})
+      .filter(([, c]) => c.status === "fail")
+      .map(([, c]) => `• ${c.title}: ${c.message}`);
+
+    if (failedChecks.length > 0) {
+      alert(`Cannot save question. The following required criteria failed:\n\n${failedChecks.join("\n")}\n\nPlease revise the question before saving.`);
+      return;
+    }
+
+    if (validationResult.status === "needs_revision") {
+      const proceed = window.confirm(
+        `This question has quality warnings:\n\n${validationResult.overallFeedback}\n\nDo you want to proceed and save anyway?`
+      );
+      if (!proceed) {
+        return;
+      }
     }
 
     setActionLoading(true);
@@ -200,7 +344,7 @@ function QuestionManagement() {
       <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Banner Hero */}
         <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 fade-in-up sm:p-9">
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-cyan-400/15 via-sky-400/12 to-indigo-400/10" />
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-cyan-400/15 via-sky-400/12 to-indigo-400/10 pointer-events-none" />
 
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -212,7 +356,7 @@ function QuestionManagement() {
                 Question Management
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Create, customize, and refine candidate mock interview prompts across technical specializations and HR behavioral tracks.
+                Create, customize, and validate candidate mock interview prompts across technical specializations and HR behavioral tracks.
               </p>
             </div>
 
@@ -404,15 +548,16 @@ function QuestionManagement() {
         </section>
       </main>
 
-      {/* Add / Edit Question Modal */}
+      {/* Add / Edit Question Modal with Automatic Grammar Correction */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
-          <div className="w-full max-w-2xl rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up sm:p-9">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 shadow-2xl ring-1 ring-slate-200/80 fade-in-up">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-7 py-5 sm:px-9">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700">Question Bank</p>
-                <h3 className="mt-1 text-2xl font-extrabold text-slate-950">
-                  {editingQuestion ? "Edit Question" : "Add New Question"}
+                <h3 className="mt-0.5 text-2xl font-extrabold text-slate-950">
+                  {editingQuestion ? "Edit Interview Question" : "Add New Interview Question"}
                 </h3>
               </div>
               <button
@@ -427,28 +572,124 @@ function QuestionManagement() {
               </button>
             </div>
 
-            <div className="mt-6 space-y-5">
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto px-7 py-5 sm:px-9 space-y-5">
+              {/* Question Text Area & Validation Action */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  Question Prompt Text
-                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Question Prompt Text
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[11px] font-bold ${
+                      formState.question.trim().length === 0
+                        ? "text-slate-400"
+                        : formState.question.trim().length < 15 || formState.question.trim().length > 500
+                          ? "text-rose-600"
+                          : "text-emerald-600"
+                    }`}>
+                      {formState.question.trim().length} / 500 chars
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleValidate(true)}
+                      disabled={isValidating || !formState.question.trim()}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-800 shadow-sm transition hover:bg-sky-100 disabled:opacity-50"
+                    >
+                      {isValidating ? (
+                        <>
+                          <FaSyncAlt className="animate-spin text-[10px]" /> Checking...
+                        </>
+                      ) : (
+                        <>
+                          <FaShieldAlt className="text-[10px] text-sky-600" /> Validate Question
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
                 <textarea
                   value={formState.question}
-                  onChange={(e) => setFormState({ ...formState, question: e.target.value })}
-                  rows={4}
+                  onChange={(e) => {
+                    setFormState({ ...formState, question: e.target.value });
+                    if (validationResult) setValidationResult(null);
+                    if (validationAttempted) setValidationAttempted(false);
+                    if (validationError) setValidationError("");
+                    if (correctionNotice && !originalQuestion) setCorrectionNotice("");
+                  }}
+                  rows={3}
                   placeholder="e.g., Can you describe a challenging technical project you worked on and how you resolved unexpected roadblocks?"
                   className="w-full rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                 />
+
+                {/* AI Error Notification */}
+                {validationError && (
+                  <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-rose-300 bg-rose-50/95 p-3 text-xs text-rose-950 shadow-sm animate-fadeIn">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-rose-200 text-rose-700 mt-0.5">
+                      <FaTimesCircle className="text-xs" />
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-bold">Validation Error</p>
+                      <p className="mt-0.5 text-rose-800 text-[11px] leading-relaxed">{validationError}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Automatic Grammar Correction Notification with Side-by-Side Comparison */}
+                {originalQuestion && formState.question !== originalQuestion && (
+                  <div className="mt-2.5 rounded-xl border border-sky-200 bg-sky-50/90 p-3.5 text-xs font-semibold text-sky-900 shadow-sm space-y-2 animate-fadeIn">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-sky-200 text-sky-700 text-xs">
+                          ✨
+                        </span>
+                        <span className="font-bold">{correctionNotice || "Grammar and spelling automatically corrected."}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleUndoCorrection}
+                        className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-sky-700 ring-1 ring-sky-300 hover:bg-sky-100 transition shadow-sm"
+                        title="Revert to your original uncorrected question"
+                      >
+                        <FaUndo className="text-[9px]" /> Undo Correction
+                      </button>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2 pt-1 border-t border-sky-200/60 text-[11px]">
+                      <div className="rounded-lg bg-white/70 p-2 border border-sky-100">
+                        <span className="block font-bold text-slate-500 uppercase tracking-wider text-[9px]">Original Input</span>
+                        <span className="font-mono text-slate-700 text-xs break-words">{originalQuestion}</span>
+                      </div>
+                      <div className="rounded-lg bg-white/95 p-2 border border-sky-300 ring-1 ring-sky-400/20">
+                        <span className="block font-bold text-emerald-700 uppercase tracking-wider text-[9px]">Corrected by AI</span>
+                        <span className="font-semibold text-slate-900 text-xs break-words">{formState.question}</span>
+                      </div>
+                    </div>
+
+                    {validationResult?.changes && validationResult.changes.length > 0 && (
+                      <div className="pt-1 text-[11px] text-sky-800">
+                        <span className="font-bold">Changes Made: </span>
+                        {validationResult.changes.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
+              {/* Category and Difficulty Selectors */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Category Track
+                    Category Track <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={formState.category}
-                    onChange={(e) => setFormState({ ...formState, category: e.target.value })}
+                    onChange={(e) => {
+                      setFormState({ ...formState, category: e.target.value });
+                      if (validationResult) setValidationResult(null);
+                      if (validationAttempted) setValidationAttempted(false);
+                    }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
                     <option value="">Select Category Track</option>
@@ -460,11 +701,15 @@ function QuestionManagement() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Difficulty Tier
+                    Difficulty Tier <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={formState.difficulty}
-                    onChange={(e) => setFormState({ ...formState, difficulty: e.target.value })}
+                    onChange={(e) => {
+                      setFormState({ ...formState, difficulty: e.target.value });
+                      if (validationResult) setValidationResult(null);
+                      if (validationAttempted) setValidationAttempted(false);
+                    }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
                     <option value="">Select Difficulty Tier</option>
@@ -475,22 +720,169 @@ function QuestionManagement() {
                 </div>
               </div>
 
-              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:justify-end border-t border-slate-100 pt-5">
+              {/* Validation Results Panel */}
+              {validationResult && (
+                <div className={`rounded-2xl border p-4 sm:p-5 transition-all ${
+                  validationResult.status === "valid"
+                    ? "border-emerald-200 bg-emerald-50/70"
+                    : validationResult.status === "needs_revision"
+                      ? "border-amber-200 bg-amber-50/70"
+                      : "border-rose-200 bg-rose-50/70"
+                }`}>
+                  {/* Overall Status Banner */}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      {validationResult.status === "valid" ? (
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                          <FaCheckCircle className="text-sm" />
+                        </span>
+                      ) : validationResult.status === "needs_revision" ? (
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
+                          <FaExclamationTriangle className="text-sm" />
+                        </span>
+                      ) : (
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
+                          <FaTimesCircle className="text-sm" />
+                        </span>
+                      )}
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                          {validationResult.status === "valid"
+                            ? "Question Validated Successfully"
+                            : validationResult.status === "needs_revision"
+                              ? "Question Needs Revision"
+                              : "Question Validation Failed"}
+                        </h4>
+                        <p className="text-[11px] font-medium text-slate-600 mt-0.5">
+                          {validationResult.overallFeedback}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                      validationResult.status === "valid"
+                        ? "bg-emerald-200/80 text-emerald-900"
+                        : validationResult.status === "needs_revision"
+                          ? "bg-amber-200/80 text-amber-900"
+                          : "bg-rose-200/80 text-rose-900"
+                    }`}>
+                      Score: {validationResult.score}%
+                    </span>
+                  </div>
+
+                  {/* Suggested Improvement if generated */}
+                  {validationResult.suggestedQuestion && (
+                    <div className="mt-4 rounded-xl border border-sky-200/80 bg-white/95 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-sky-900">
+                          <FaLightbulb className="text-amber-500 text-xs" />
+                          Suggested Improved Version:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleApplySuggestion}
+                          className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm transition hover:bg-sky-700"
+                        >
+                          <FaMagic className="text-[10px]" /> Apply Suggestion
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-800 italic">
+                        &ldquo;{validationResult.suggestedQuestion}&rdquo;
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 5 Distinct Validation Indicators */}
+                  <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                    {Object.entries(validationResult.checks).map(([key, check]) => {
+                      const isPass = check.status === "pass";
+                      const isWarn = check.status === "warn";
+                      return (
+                        <div
+                          key={key}
+                          className={`rounded-xl border p-2.5 text-xs transition-colors ${
+                            isPass
+                              ? "border-emerald-100 bg-white/80"
+                              : isWarn
+                                ? "border-amber-200 bg-amber-50/50"
+                                : "border-rose-200 bg-rose-50/80"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="font-bold text-slate-800 text-[11px]">{check.title}</span>
+                            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                              isPass
+                                ? "bg-emerald-100 text-emerald-800"
+                                : isWarn
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-rose-100 text-rose-800"
+                            }`}>
+                              {isPass ? "Pass" : isWarn ? "Warning" : "Failed"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 leading-snug">{check.message}</p>
+                          {check.matches && check.matches.length > 0 && (
+                            <div className="mt-2 space-y-1 border-t border-slate-200/50 pt-1.5">
+                              <p className="text-[10px] font-bold text-slate-700">Matching Question Bank Item:</p>
+                              {check.matches.slice(0, 2).map((match, idx) => (
+                                <p key={idx} className="text-[10px] text-slate-600 truncate">
+                                  • &ldquo;{match.question}&rdquo; ({match.similarity ? `${match.similarity}% similar` : "Exact match"})
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-100 px-7 py-4 sm:px-9 bg-slate-50/60 rounded-b-[2.25rem]">
+              <div className="text-[11px] font-medium text-slate-500">
+                {!validationAttempted ? (
+                  <span className="text-amber-700 font-semibold flex items-center gap-1.5">
+                    <FaShieldAlt className="text-amber-500 text-xs" /> Click &ldquo;Validate Question&rdquo; before saving.
+                  </span>
+                ) : validationResult?.status === "invalid" ? (
+                  <span className="text-rose-600 font-semibold flex items-center gap-1.5">
+                    <FaTimesCircle className="text-rose-500 text-xs" /> Question failed validation and cannot be saved.
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                    <FaCheckCircle className="text-emerald-500 text-xs" /> Validation passed. Ready to save.
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2.5 justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     resetForm();
                     setIsFormOpen(false);
                   }}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveQuestion}
-                  disabled={actionLoading}
-                  className="rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
+                  disabled={
+                    actionLoading ||
+                    isValidating ||
+                    !formState.question.trim() ||
+                    !formState.category ||
+                    !formState.difficulty ||
+                    !validationAttempted ||
+                    validationResult?.status === "invalid"
+                  }
+                  className={`rounded-xl px-6 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                    !validationAttempted || validationResult?.status === "invalid" || !formState.category || !formState.difficulty
+                      ? "bg-slate-400"
+                      : "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 shadow-sky-500/30 hover:shadow-sky-500/50"
+                  }`}
                 >
                   {actionLoading ? "Saving Question..." : editingQuestion ? "Update Question" : "Create Question"}
                 </button>
