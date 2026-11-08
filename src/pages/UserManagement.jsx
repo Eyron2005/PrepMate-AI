@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   FaEye,
   FaSearch,
-  FaUserCircle,
   FaSyncAlt,
   FaCopy,
   FaCheck,
@@ -50,7 +49,6 @@ function UserManagement() {
   const { connectionCounts } = usePresence();
   const [mounted, setMounted] = useState(false);
   const [users, setUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [accountStatusFilter, setAccountStatusFilter] = useState("all"); // 'all' | 'active' | 'deactivated'
@@ -79,6 +77,9 @@ function UserManagement() {
 
   // Permanent Delete modal state
   const [deleteUserTarget, setDeleteUserTarget] = useState(null);
+
+  // Full Student Details Modal state
+  const [modalUser, setModalUser] = useState(null);
 
   // Success message modal state
   const [successMessage, setSuccessMessage] = useState("");
@@ -229,7 +230,7 @@ function UserManagement() {
 
       setUsers(profileUsers);
       setMatchingUserCount(totalCount);
-      setSelectedUser((previous) => {
+      setModalUser((previous) => {
         if (!previous) return null;
         return profileUsers.find((user) => user.id === previous.id) || previous;
       });
@@ -330,12 +331,13 @@ function UserManagement() {
     };
   }, [loadAccountCounts, refreshOnlineStatuses]);
 
-  // Load selected candidate's detailed ERI assessment history
+  // Load selected or modal candidate's detailed ERI assessment history
   useEffect(() => {
     let isMounted = true;
 
     const frameId = requestAnimationFrame(async () => {
-      if (!selectedUser?.id) {
+      const targetUserId = modalUser?.id;
+      if (!targetUserId) {
         if (isMounted) {
           setStudentEriHistory([]);
           setLoadingEriHistory(false);
@@ -345,7 +347,7 @@ function UserManagement() {
 
       setLoadingEriHistory(true);
       try {
-        const history = await fetchStudentEriHistory(selectedUser.id);
+        const history = await fetchStudentEriHistory(targetUserId);
         if (isMounted) {
           setStudentEriHistory(history || []);
         }
@@ -361,7 +363,7 @@ function UserManagement() {
       isMounted = false;
       cancelAnimationFrame(frameId);
     };
-  }, [selectedUser?.id]);
+  }, [modalUser?.id]);
 
   const usersWithPresence = useMemo(
     () =>
@@ -387,12 +389,14 @@ function UserManagement() {
 
   const pageCount = Math.max(1, Math.ceil(matchingUserCount / USER_PAGE_SIZE));
 
-  const selectedUserWithPresence = selectedUser
-    ? {
-        ...selectedUser,
-        ...usersWithPresence.find((u) => u.id === selectedUser.id),
-      }
-    : null;
+  const modalUserWithPresence = useMemo(() => {
+    if (!modalUser) return null;
+    const live = usersWithPresence.find((u) => u.id === modalUser.id);
+    return {
+      ...modalUser,
+      ...(live || {}),
+    };
+  }, [modalUser, usersWithPresence]);
 
   // Open Deactivate Confirmation Modal
   function initiateDeactivate(user) {
@@ -513,7 +517,7 @@ function UserManagement() {
         throw new Error(data?.error || data?.message || "User deletion failed.");
       }
 
-      setSelectedUser(null);
+      setModalUser(null);
       setDeleteUserTarget(null);
       await Promise.all([loadUsers(), loadAccountCounts()]);
       setSuccessMessage("User account deleted successfully.");
@@ -547,25 +551,25 @@ function UserManagement() {
 
       <AdminSidebar adminName="Administrator" />
 
-      <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
+      <main className="relative ml-20 flex max-w-7xl flex-col gap-6 px-4 py-5 md:ml-64 md:px-8 lg:py-6">
         {/* Header Hero */}
         <section
-          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-9 ${
+          className={`glass-card-elevated relative overflow-hidden rounded-[2rem] border border-white/80 p-5 shadow-[0_20px_50px_-25px_rgba(14,116,144,0.3)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-6 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"
           }`}
         >
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-sky-400/15 via-cyan-400/12 to-indigo-400/10" />
+          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-sky-400/15 via-cyan-400/12 to-indigo-400/10" />
 
-          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
-                <FaShieldAlt className="text-sky-600 text-[11px]" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-800 shadow-sm">
+                <FaShieldAlt className="text-sky-600 text-[10px]" />
                 Directory Management
               </span>
-              <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+              <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
                 User Management
               </h1>
-              <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
                 Search candidate profiles, monitor real-time presence, inspect student records, and securely manage account activation status.
               </p>
             </div>
@@ -574,7 +578,7 @@ function UserManagement() {
               type="button"
               onClick={handleRefreshAll}
               disabled={refreshing || loading}
-              className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-white/80 px-4 py-2.5 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-white/80 px-4 py-2 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
             >
               <FaSyncAlt className={`text-xs ${refreshing || loading ? "animate-spin" : ""}`} />
               <span>{refreshing ? "Refreshing..." : "Sync Directory"}</span>
@@ -582,74 +586,74 @@ function UserManagement() {
           </div>
 
           {/* Stats Bar */}
-          <div className="relative mt-8 grid gap-4 sm:grid-cols-4">
+          <div className="relative mt-5 grid gap-3.5 sm:grid-cols-4">
             {/* Total Students */}
             <div
-              className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-5 text-white shadow-[0_18px_35px_-20px_rgba(37,99,235,0.85)] ring-1 ring-white/30 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-4 text-white shadow-[0_18px_35px_-20px_rgba(37,99,235,0.85)] ring-1 ring-white/30 transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-100">Total Students</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-100">Total Students</p>
                 <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
               </div>
-              <p className="mt-3 text-3xl font-extrabold tracking-tight">{totalUserCount ?? "—"}</p>
-              <p className="mt-1.5 text-xs text-sky-100/90">Registered candidates in system</p>
+              <p className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">{totalUserCount ?? "—"}</p>
+              <p className="mt-1 text-[11px] text-sky-100/90">Registered candidates in system</p>
             </div>
 
             {/* Active Accounts */}
             <div
-              className={`stat-card rounded-[1.75rem] border border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 p-5 shadow-[0_18px_35px_-22px_rgba(16,185,129,0.35)] ring-1 ring-emerald-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] border border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 p-4 shadow-[0_18px_35px_-22px_rgba(16,185,129,0.35)] ring-1 ring-emerald-200/50 transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">Active</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-800">Active</p>
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
                   <FaUserCheck className="text-[10px]" /> OK
                 </span>
               </div>
-              <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{activeUserCount ?? "—"}</p>
-              <p className="mt-1.5 text-xs text-slate-500">Unrestricted app login access</p>
+              <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">{activeUserCount ?? "—"}</p>
+              <p className="mt-1 text-[11px] text-slate-500">Unrestricted app login access</p>
             </div>
 
             {/* Deactivated Accounts */}
             <div
-              className={`stat-card rounded-[1.75rem] border border-rose-100/80 bg-gradient-to-br from-rose-50/70 via-white to-amber-50/50 p-5 shadow-[0_18px_35px_-22px_rgba(225,29,72,0.3)] ring-1 ring-rose-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] border border-rose-100/80 bg-gradient-to-br from-rose-50/70 via-white to-amber-50/50 p-4 shadow-[0_18px_35px_-22px_rgba(225,29,72,0.3)] ring-1 ring-rose-200/50 transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-800">Deactivated</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-rose-800">Deactivated</p>
                 <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold text-rose-800">
                   <FaUserSlash className="text-[10px]" /> HOLD
                 </span>
               </div>
-              <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{deactivatedUserCount ?? "—"}</p>
-              <p className="mt-1.5 text-xs text-slate-500">Banned from signing in</p>
+              <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">{deactivatedUserCount ?? "—"}</p>
+              <p className="mt-1 text-[11px] text-slate-500">Banned from signing in</p>
             </div>
 
             {/* Realtime Online */}
             <div
-              className={`stat-card rounded-[1.75rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 p-5 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.3)] ring-1 ring-cyan-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 p-4 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.3)] ring-1 ring-cyan-200/50 transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Online Now</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-800">Online Now</p>
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 </span>
               </div>
-              <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{onlineCount ?? "—"}</p>
-              <p className="mt-1.5 text-xs text-slate-500">Active in the last 5 minutes</p>
+              <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">{onlineCount ?? "—"}</p>
+              <p className="mt-1 text-[11px] text-slate-500">Active in the last 5 minutes</p>
             </div>
           </div>
         </section>
 
-        {/* Content Layout: Table & Profile Inspector */}
-        <section className="grid gap-7 xl:grid-cols-[1.55fr_1fr]">
+        {/* Content Layout: Student Directory Table */}
+        <section className="w-full">
           {/* Candidates Table Card */}
           <div className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -783,16 +787,13 @@ function UserManagement() {
                       </tr>
                     ) : (
                       displayedUsers.map((user) => {
-                        const isSelected = selectedUser?.id === user.id;
                         const isDeactivated = user.account_status === "deactivated";
 
                         return (
                           <tr
                             key={user.id}
-                            onClick={() => setSelectedUser(user)}
-                            className={`cursor-pointer transition-colors hover:bg-sky-50/60 ${
-                              isSelected ? "bg-sky-50/90 ring-1 ring-inset ring-sky-300" : ""
-                            }`}
+                            onClick={() => setModalUser(user)}
+                            className="cursor-pointer transition-colors hover:bg-sky-50/60"
                           >
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-3">
@@ -891,8 +892,9 @@ function UserManagement() {
 
                             <td className="px-4 py-3.5 text-right">
                               <div className="flex items-center justify-end gap-1.5">
-                                {isDeactivated && (
+                                {isDeactivated ? (
                                   <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       initiateReactivate(user);
@@ -903,17 +905,28 @@ function UserManagement() {
                                   >
                                     <FaUserCheck className="text-[11px]" /> Reactivate
                                   </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      initiateDeactivate(user);
+                                    }}
+                                    disabled={actionLoading}
+                                    title="Deactivate Student Account"
+                                    className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100 disabled:opacity-50"
+                                  >
+                                    <FaBan className="text-[11px]" /> Deactivate
+                                  </button>
                                 )}
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedUser(user);
+                                    setModalUser(user);
                                   }}
-                                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                                    isSelected
-                                      ? "bg-sky-600 text-white"
-                                      : "bg-slate-100 text-slate-700 hover:bg-sky-100 hover:text-sky-800"
-                                  }`}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-sky-100 hover:text-sky-800"
+                                  title="Inspect Student Details"
                                 >
                                   <FaEye className="text-[11px]" /> Inspect
                                 </button>
@@ -961,153 +974,290 @@ function UserManagement() {
               </div>
             </div>
           </div>
+        </section>
+      </main>
 
-          {/* Profile Inspector Aside */}
-          <aside className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(6,182,212,0.4)] ring-1 ring-cyan-100/90 sm:p-7">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Inspector</p>
-                <h3 className="text-lg font-bold text-slate-950">Student Details</h3>
-              </div>
-              {selectedUserWithPresence && (
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
-                    selectedUserWithPresence.is_online
-                      ? "bg-cyan-100 text-cyan-800 ring-1 ring-cyan-300"
-                      : "bg-slate-100 text-slate-600"
+      {/* Full Student Details Inspection Modal */}
+      {modalUserWithPresence && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/65 px-4 py-6 backdrop-blur-md overflow-y-auto">
+          <div className="relative w-full max-w-4xl rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-6 sm:p-8 shadow-2xl ring-1 ring-slate-200/80 my-auto max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-5">
+              <div className="flex items-center gap-4">
+                <div
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-extrabold text-white shadow-md ${
+                    modalUserWithPresence.account_status === "deactivated"
+                      ? "bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20"
+                      : "bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/30"
                   }`}
                 >
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      selectedUserWithPresence.is_online ? "bg-cyan-500 animate-pulse" : "bg-slate-400"
-                    }`}
-                  />
-                  {selectedUserWithPresence.is_online ? "Active Now" : "Offline"}
-                </span>
-              )}
+                  {getInitials(modalUserWithPresence.full_name)}
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl font-extrabold text-slate-950">
+                      {modalUserWithPresence.full_name}
+                    </h3>
+                    <span className="inline-block rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
+                      Student
+                    </span>
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                        modalUserWithPresence.account_status === "deactivated"
+                          ? "bg-rose-100 text-rose-800 ring-1 ring-rose-200"
+                          : "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200"
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          modalUserWithPresence.account_status === "deactivated"
+                            ? "bg-rose-500"
+                            : "bg-emerald-500"
+                        }`}
+                      />
+                      {modalUserWithPresence.account_status === "deactivated"
+                        ? "Deactivated"
+                        : "Active"}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                        modalUserWithPresence.is_online
+                          ? "bg-cyan-100 text-cyan-800 ring-1 ring-cyan-300"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          modalUserWithPresence.is_online ? "bg-cyan-500 animate-pulse" : "bg-slate-400"
+                        }`}
+                      />
+                      {modalUserWithPresence.is_online ? "Active Now" : "Offline"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-medium text-slate-600">
+                    {modalUserWithPresence.email || "No email on record"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModalUser(null)}
+                className="rounded-xl border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                title="Close modal"
+              >
+                <FaTimes className="text-sm" />
+              </button>
             </div>
 
-            {selectedUserWithPresence ? (
-              <div className="mt-6 flex flex-col gap-6">
-                {/* User Identity Card */}
-                <div className="flex items-center gap-4 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/70 p-4 shadow-sm ring-1 ring-sky-200/50">
-                  <div
-                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-extrabold text-white shadow-md ${
-                      selectedUserWithPresence.account_status === "deactivated"
-                        ? "bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20"
-                        : "bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/30"
-                    }`}
-                  >
-                    {getInitials(selectedUserWithPresence.full_name)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="truncate text-base font-bold text-slate-950">
-                      {selectedUserWithPresence.full_name}
-                    </h4>
-                    <p className="truncate text-xs font-medium text-slate-600">
-                      {selectedUserWithPresence.email || "No email on record"}
-                    </p>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="inline-block rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
-                        Student
-                      </span>
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
-                          selectedUserWithPresence.account_status === "deactivated"
-                            ? "bg-rose-100 text-rose-800"
-                            : "bg-emerald-100 text-emerald-800"
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            selectedUserWithPresence.account_status === "deactivated"
-                              ? "bg-rose-500"
-                              : "bg-emerald-500"
-                          }`}
-                        />
-                        {selectedUserWithPresence.account_status === "deactivated"
-                          ? "Deactivated"
-                          : "Active"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Details Grid */}
-                <div className="space-y-3 text-xs">
-                  {/* User ID with Copy */}
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Profile Identifier
-                      </p>
-                      <p className="truncate font-mono text-[11px] font-semibold text-slate-700 max-w-[180px]">
-                        {selectedUserWithPresence.id}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(selectedUserWithPresence.id)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-                      title="Copy User ID"
-                    >
-                      {copiedId ? <FaCheck className="text-emerald-600" /> : <FaCopy />}
-                      <span>{copiedId ? "Copied" : "Copy"}</span>
-                    </button>
-                  </div>
-
-                  {/* Registered At */}
-                  <div className="flex items-center gap-3 rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
-                    <FaCalendarAlt className="text-slate-400 text-sm" />
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Account Created
-                      </p>
-                      <p className="font-semibold text-slate-800">
-                        {new Date(selectedUserWithPresence.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Last Online */}
-                  <div className="flex items-center gap-3 rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
-                    <FaClock className="text-slate-400 text-sm" />
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Last Seen Activity
-                      </p>
-                      <p className="font-semibold text-slate-800">
-                        {selectedUserWithPresence.last_online_at
-                          ? new Date(selectedUserWithPresence.last_online_at).toLocaleString()
-                          : "No recent activity recorded"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Employment Readiness Index (ERI) Section */}
-                <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 via-white to-cyan-50/60 p-4 shadow-sm ring-1 ring-sky-200/50">
-                  <div className="flex items-center justify-between border-b border-sky-100 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-600 text-white shadow-sm shadow-sky-600/30">
-                        <FaGraduationCap className="text-xs" />
-                      </span>
+            {/* Modal Body - Scrollable */}
+            <div className="mt-6 flex-1 overflow-y-auto pr-1 space-y-6">
+              {/* If Deactivated: Prominent Account Suspended Alert Banner */}
+              {modalUserWithPresence.account_status === "deactivated" && (
+                <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/90 via-white to-amber-50/60 p-5 ring-1 ring-rose-300/40">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <FaBan className="text-rose-600 text-lg" />
                       <div>
-                        <h5 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-                          Employment Readiness (ERI)
-                        </h5>
-                        <p className="text-[10px] text-slate-500">
-                          Multimodal Mock Interview Index
+                        <h4 className="font-extrabold text-rose-950 text-sm tracking-wide">
+                          Account Suspended (Deactivated)
+                        </h4>
+                        <p className="text-[11px] text-rose-700">
+                          This student is banned from logging into the mobile application.
                         </p>
                       </div>
                     </div>
-                    {selectedUserWithPresence.latest_eri !== null && selectedUserWithPresence.latest_eri !== undefined ? (
+                    <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-extrabold uppercase text-rose-800">
+                      Deactivated
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="rounded-xl bg-white/80 p-3 ring-1 ring-rose-200/50">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                        Deactivation Reason:
+                      </span>
+                      <p className="mt-1 font-semibold text-rose-900">
+                        {modalUserWithPresence.deactivation_reason || "Administrative Hold"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/80 p-3 ring-1 ring-rose-200/50">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                        Deactivated On:
+                      </span>
+                      <p className="mt-1 font-semibold text-slate-800">
+                        {modalUserWithPresence.deactivated_at
+                          ? new Date(modalUserWithPresence.deactivated_at).toLocaleString()
+                          : "Recorded during administrative hold"}
+                      </p>
+                    </div>
+
+                    {modalUserWithPresence.deactivation_details && (
+                      <div className="sm:col-span-2 rounded-xl bg-white/80 p-3.5 ring-1 ring-rose-200/50">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                          Administrative Remarks:
+                        </span>
+                        <p className="mt-1 font-medium italic text-slate-700">
+                          &ldquo;{modalUserWithPresence.deactivation_details}&rdquo;
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions for Deactivated Student inside banner */}
+                  <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-rose-100 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        initiateReactivate(modalUserWithPresence);
+                      }}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
+                    >
+                      <FaUserCheck className="text-xs" />
+                      <span>Reactivate Student Account</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalUser(null);
+                        navigate("/reactivation-requests");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800"
+                    >
+                      <span>View Reactivation Requests</span>
+                      <FaArrowRight className="text-[10px]" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2-Column Grid: Metadata & Employment Readiness */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column: Account Metadata */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Account & Profile Metadata
+                  </h4>
+
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 space-y-3.5 text-xs">
+                    {/* User ID */}
+                    <div className="flex items-center justify-between rounded-xl bg-white p-3 ring-1 ring-slate-100">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Profile Identifier
+                        </p>
+                        <p className="font-mono text-xs font-semibold text-slate-800 break-all">
+                          {modalUserWithPresence.id}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(modalUserWithPresence.id)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 shrink-0 ml-2"
+                        title="Copy User ID"
+                      >
+                        {copiedId ? <FaCheck className="text-emerald-600" /> : <FaCopy />}
+                        <span>{copiedId ? "Copied" : "Copy"}</span>
+                      </button>
+                    </div>
+
+                    {/* Registered Date */}
+                    <div className="flex items-center gap-3 rounded-xl bg-white p-3 ring-1 ring-slate-100">
+                      <FaCalendarAlt className="text-slate-400 text-sm" />
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Account Created
+                        </p>
+                        <p className="font-semibold text-slate-800">
+                          {new Date(modalUserWithPresence.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Last Online */}
+                    <div className="flex items-center gap-3 rounded-xl bg-white p-3 ring-1 ring-slate-100">
+                      <FaClock className="text-slate-400 text-sm" />
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Last Seen Activity
+                        </p>
+                        <p className="font-semibold text-slate-800">
+                          {modalUserWithPresence.last_online_at
+                            ? new Date(modalUserWithPresence.last_online_at).toLocaleString()
+                            : "No recent activity recorded"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Access Status Summary */}
+                    <div className="rounded-xl bg-white p-3 ring-1 ring-slate-100">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Application Access Status
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-800">
+                        {modalUserWithPresence.account_status === "deactivated"
+                          ? "Access restricted: Login banned by administrator."
+                          : "Full access: Active student can complete mock interviews."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Danger Zone Actions */}
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 space-y-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Administrative Actions
+                    </p>
+
+                    {modalUserWithPresence.account_status !== "deactivated" ? (
+                      <button
+                        type="button"
+                        onClick={() => initiateDeactivate(modalUserWithPresence)}
+                        disabled={actionLoading}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-2.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
+                      >
+                        <FaBan className="text-xs" />
+                        <span>Deactivate Student Account</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => initiateReactivate(modalUserWithPresence)}
+                        disabled={actionLoading}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
+                      >
+                        <FaUserCheck className="text-xs" />
+                        <span>Reactivate Student Account</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setDeleteUserTarget(modalUserWithPresence)}
+                      disabled={actionLoading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                    >
+                      <FaTrash className="text-[10px]" />
+                      <span>Permanent Delete (Purge Account)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column: Employment Readiness Index (ERI) */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Employment Readiness Index (ERI)
+                    </h4>
+                    {modalUserWithPresence.latest_eri !== null && modalUserWithPresence.latest_eri !== undefined ? (
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ring-1 ${
-                          getEriClassification(selectedUserWithPresence.latest_eri).badgeClass
+                          getEriClassification(modalUserWithPresence.latest_eri).badgeClass
                         }`}
                       >
-                        {getEriClassification(selectedUserWithPresence.latest_eri).label}
+                        {getEriClassification(modalUserWithPresence.latest_eri).label}
                       </span>
                     ) : (
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
@@ -1116,193 +1266,83 @@ function UserManagement() {
                     )}
                   </div>
 
-                  {selectedUserWithPresence.latest_eri !== null && selectedUserWithPresence.latest_eri !== undefined ? (
-                    <div className="mt-4 space-y-4">
-                      {/* Metric Ring & Quick Highlights */}
-                      <div className="flex items-center justify-around gap-4 rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
-                        <EriProgressRing
-                          score={selectedUserWithPresence.latest_eri}
-                          size={88}
-                          strokeWidth={7}
-                          showLabel={false}
-                          classification={getEriClassification(selectedUserWithPresence.latest_eri)}
-                        />
-                        <div className="flex-1 space-y-2 text-xs">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                              Latest Assessment
-                            </span>
-                            <p className="font-semibold text-slate-800">
-                              {selectedUserWithPresence.latest_eri_date
-                                ? new Date(selectedUserWithPresence.latest_eri_date).toLocaleDateString(undefined, {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })
-                                : "Recent"}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                              Completed Evaluations
-                            </span>
-                            <p className="font-semibold text-slate-800">
-                              {selectedUserWithPresence.completed_assessments_count || studentEriHistory.length || 1} interview session(s)
-                            </p>
+                  <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 via-white to-cyan-50/60 p-4 shadow-sm ring-1 ring-sky-200/50">
+                    {modalUserWithPresence.latest_eri !== null && modalUserWithPresence.latest_eri !== undefined ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-around gap-4 rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
+                          <EriProgressRing
+                            score={modalUserWithPresence.latest_eri}
+                            size={92}
+                            strokeWidth={8}
+                            showLabel={false}
+                            classification={getEriClassification(modalUserWithPresence.latest_eri)}
+                          />
+                          <div className="flex-1 space-y-2 text-xs">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Latest Assessment Date
+                              </span>
+                              <p className="font-semibold text-slate-800">
+                                {modalUserWithPresence.latest_eri_date
+                                  ? new Date(modalUserWithPresence.latest_eri_date).toLocaleDateString(undefined, {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })
+                                  : "Recent"}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Completed Mock Evaluations
+                              </span>
+                              <p className="font-semibold text-slate-800">
+                                {modalUserWithPresence.completed_assessments_count || studentEriHistory.length || 1} interview session(s)
+                              </p>
+                            </div>
                           </div>
                         </div>
+
+                        {/* ERI Historical Trend Chart */}
+                        {loadingEriHistory ? (
+                          <div className="rounded-xl border border-slate-100 bg-white/70 p-6 text-center text-xs text-slate-400">
+                            <FaSyncAlt className="mx-auto mb-1 animate-spin text-sm text-sky-600" />
+                            Loading historical assessments...
+                          </div>
+                        ) : (
+                          <EriHistoryChart history={studentEriHistory} />
+                        )}
                       </div>
-
-                      {/* ERI History Trend Chart & Chronological List */}
-                      {loadingEriHistory ? (
-                        <div className="rounded-2xl border border-slate-100 bg-white/70 p-6 text-center text-xs text-slate-400">
-                          <FaSyncAlt className="mx-auto mb-1 animate-spin text-sm text-sky-600" />
-                          Loading historical assessments...
-                        </div>
-                      ) : (
-                        <EriHistoryChart history={studentEriHistory} />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center">
-                      <p className="text-xs font-bold text-slate-700">Not Yet Available</p>
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        This student has not completed any mock interview evaluations on PrepMate AI yet.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Account Status Information Card if Deactivated */}
-                {selectedUserWithPresence.account_status === "deactivated" ? (
-                  <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/90 via-white to-amber-50/60 p-4 ring-1 ring-rose-300/40">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FaBan className="text-rose-600 text-base" />
-                        <h5 className="font-bold text-rose-950 text-xs uppercase tracking-wider">
-                          Account Suspended
-                        </h5>
-                      </div>
-                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold uppercase text-rose-800">
-                        Deactivated
-                      </span>
-                    </div>
-
-                    <div className="mt-3 space-y-2 text-xs">
-                      <div>
-                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
-                          Deactivation Reason:
-                        </span>
-                        <p className="font-semibold text-rose-900">
-                          {selectedUserWithPresence.deactivation_reason || "Administrative Hold"}
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center">
+                        <FaGraduationCap className="mx-auto mb-2 text-2xl text-slate-300" />
+                        <p className="text-xs font-bold text-slate-700">Not Yet Available</p>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          This student has not completed any mock interview evaluations on PrepMate AI yet.
                         </p>
                       </div>
-                      {selectedUserWithPresence.deactivation_details && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
-                            Administrative Remarks:
-                          </span>
-                          <p className="text-slate-700 italic">
-                            &ldquo;{selectedUserWithPresence.deactivation_details}&rdquo;
-                          </p>
-                        </div>
-                      )}
-                      {selectedUserWithPresence.deactivated_at && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
-                            Deactivated On:
-                          </span>
-                          <p className="font-medium text-slate-600">
-                            {new Date(selectedUserWithPresence.deactivated_at).toLocaleString()}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Account Controls for Deactivated Student */}
-                    <div className="mt-5 border-t border-rose-100 pt-4 space-y-2.5">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Account Access Controls
-                      </p>
-
-                      {/* REACTIVATE ACCOUNT BUTTON - Direct Administrator Reactivation */}
-                      <button
-                        type="button"
-                        onClick={() => initiateReactivate(selectedUserWithPresence)}
-                        disabled={actionLoading}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
-                      >
-                        <FaUserCheck className="text-sm" />
-                        <span>Reactivate Account</span>
-                      </button>
-
-                      {/* View Reactivation Requests Link */}
-                      <button
-                        type="button"
-                        onClick={() => navigate("/reactivation-requests")}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800"
-                      >
-                        <span>View Reactivation Requests</span>
-                        <FaArrowRight className="text-[10px]" />
-                      </button>
-
-                      {/* Optional Permanent Delete (Purge) */}
-                      <button
-                        type="button"
-                        onClick={() => setDeleteUserTarget(selectedUserWithPresence)}
-                        disabled={actionLoading}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-50 px-4 py-2 text-[11px] font-medium text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                      >
-                        <FaTrash className="text-[10px]" />
-                        <span>Permanent Delete (Purge)</span>
-                      </button>
-                    </div>
+                    )}
                   </div>
-                ) : (
-                  /* Active Account Controls */
-                  <div className="space-y-2.5 border-t border-slate-100 pt-5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Account Access Controls
-                    </p>
-
-                    {/* DEACTIVATE ACCOUNT BUTTON - invokes deactivate-account Edge Function */}
-                    <button
-                      type="button"
-                      onClick={() => initiateDeactivate(selectedUserWithPresence)}
-                      disabled={actionLoading}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
-                    >
-                      <FaBan className="text-sm" />
-                      <span>Deactivate Account</span>
-                    </button>
-
-                    {/* Optional Permanent Delete (for testing or complete cleanup) */}
-                    <button
-                      type="button"
-                      onClick={() => setDeleteUserTarget(selectedUserWithPresence)}
-                      disabled={actionLoading}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-[11px] font-medium text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                    >
-                      <FaTrash className="text-[10px]" />
-                      <span>Permanent Delete (Purge)</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="mt-12 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <FaUserCircle className="text-2xl" />
                 </div>
-                <p className="text-xs font-bold text-slate-700">No Candidate Selected</p>
-                <p className="mt-1 text-[11px] text-slate-500 max-w-[200px]">
-                  Click on any candidate row in the table to inspect details or manage access.
-                </p>
               </div>
-            )}
-          </aside>
-        </section>
-      </main>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
+              <span className="text-[11px] text-slate-400 font-medium">
+                PrepMate AI Administrative Console • Comprehensive Student Profile
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalUser(null)}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Deactivate Student Account Confirmation Modal */}
       {deactivateTarget && (

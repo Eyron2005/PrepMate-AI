@@ -38,7 +38,7 @@ Deno.serve(async (request) => {
   }
 
   try {
-    // 1. Verify caller identity using JWT
+    // 1. Authenticate caller identity using JWT
     const authClient = createClient(supabaseUrl, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -47,11 +47,24 @@ Deno.serve(async (request) => {
       return respond(401, { error: "Your session is invalid or expired. Please sign in again." });
     }
     const callerId = userResult.user.id;
+    const callerEmail = userResult.user.email || "";
 
-    // 2. Verify caller is an active administrator
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // 2. Parse request body safely (body is optional for student self-deactivation)
+    let body: Record<string, unknown> = {};
+    try {
+      const rawText = await request.text();
+      if (rawText && rawText.trim()) {
+        body = JSON.parse(rawText);
+      }
+    } catch {
+      return respond(400, { error: "The request body must be valid JSON." });
+    }
+
+    // 3. Determine if caller is an active administrator
     const { data: adminRecord, error: adminLookupError } = await adminClient
       .from("admins")
       .select("id, is_active, full_name")
@@ -60,83 +73,187 @@ Deno.serve(async (request) => {
 
     if (adminLookupError) {
       console.error("Database error looking up admin privileges:", adminLookupError);
-      return respond(500, { error: "Unable to verify administrator permissions." });
-    }
-    if (!adminRecord || adminRecord.is_active === false) {
-      return respond(403, { error: "Administrator privileges are required to deactivate student accounts." });
+      return respond(500, { error: "Unable to verify user permissions." });
     }
 
-    // 3. Parse and validate request body
-    let body: { userId?: string; reason?: string; details?: string };
-    try {
-      body = await request.json();
-    } catch {
-      return respond(400, { error: "The request body must be valid JSON." });
-    }
+    const isAdmin = Boolean(adminRecord && adminRecord.is_active !== false);
 
-    const { userId, reason, details } = body;
-
-    if (!userId || typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId)) {
-      return respond(400, { error: "A valid student user ID is required." });
-    }
-    if (!reason || typeof reason !== "string" || !reason.trim()) {
-      return respond(400, { error: "A deactivation reason is required." });
-    }
-
-    // 4. Security checks: prevent targeting self, other admins, or staff
-    if (userId === callerId) {
-      return respond(400, { error: "Administrators cannot deactivate their own account." });
-    }
-
-    const [adminCheck, staffCheck, profileCheck] = await Promise.all([
-      adminClient.from("admins").select("id").eq("id", userId).maybeSingle(),
-      adminClient.from("staff").select("id").eq("id", userId).maybeSingle(),
-      adminClient.from("profiles").select("id, full_name, account_status").eq("id", userId).maybeSingle(),
-    ]);
-
-    if (adminCheck.data) {
-      return respond(400, { error: "Administrator accounts cannot be deactivated through student management." });
-    }
-    if (staffCheck.data) {
-      return respond(400, { error: "Staff supervisor accounts cannot be deactivated through student management." });
-    }
-    if (!profileCheck.data) {
-      return respond(404, { error: "Student profile not found." });
-    }
-
-    const studentProfile = profileCheck.data;
-    if (studentProfile.account_status === "deactivated") {
-      return respond(400, { error: "This student account is already deactivated." });
-    }
-
-    const previousStatus = studentProfile.account_status || "active";
+    let targetUserId: string;
+    let targetProfile: {
+      id: string;
+      full_name: string | null;
+      email: string | null;
+      account_status: string | null;
+    };
+    let reason: string;
+    let details: string | null = null;
+    let isSelfDeactivation = false;
+    let performerRole: string;
+    let deactivationAgreed = false;
+    let deactivationAgreedAt: string | null = null;
     const deactivationTimestamp = new Date().toISOString();
 
-    // 5. Update profiles table
+    if (isAdmin) {
+      // ---------------------------------------------------------
+      // PATH A: Administrator-Initiated Student Deactivation
+      // ---------------------------------------------------------
+      const requestedUserId = typeof body.userId === "string" ? body.userId.trim() : "";
+      if (!requestedUserId || !/^[0-9a-f-]{36}$/i.test(requestedUserId)) {
+        return respond(400, { error: "A valid student user ID is required for administrative deactivation." });
+      }
+
+      if (requestedUserId.toLowerCase() === callerId.toLowerCase()) {
+        return respond(400, { error: "Administrators cannot deactivate their own account." });
+      }
+
+      // Security checks: target cannot be another administrator or staff supervisor
+      const [adminCheck, staffCheck, profileCheck] = await Promise.all([
+        adminClient.from("admins").select("id").eq("id", requestedUserId).maybeSingle(),
+        adminClient.from("staff").select("id").eq("id", requestedUserId).maybeSingle(),
+        adminClient.from("profiles").select("id, full_name, email, account_status").eq("id", requestedUserId).maybeSingle(),
+      ]);
+
+      if (adminCheck.data) {
+        return respond(400, { error: "Administrator accounts cannot be deactivated through student management." });
+      }
+      if (staffCheck.data) {
+        return respond(400, { error: "Staff supervisor accounts cannot be deactivated through student management." });
+      }
+      if (!profileCheck.data) {
+        return respond(404, { error: "Student profile not found." });
+      }
+
+      targetProfile = profileCheck.data;
+      if (targetProfile.account_status === "deactivated") {
+        return respond(400, { error: "This student account is already deactivated." });
+      }
+
+      targetUserId = targetProfile.id;
+      reason = typeof body.reason === "string" && body.reason.trim()
+        ? body.reason.trim()
+        : "Administrative Action";
+      details = typeof body.details === "string" && body.details.trim()
+        ? body.details.trim()
+        : null;
+      isSelfDeactivation = false;
+      performerRole = "admin";
+      deactivationAgreed = false;
+      deactivationAgreedAt = null;
+
+    } else {
+      // ---------------------------------------------------------
+      // PATH B: Student Self-Deactivation
+      // ---------------------------------------------------------
+      // Inactive admin check
+      if (adminRecord && adminRecord.is_active === false) {
+        return respond(403, { error: "Your administrator account has been disabled." });
+      }
+
+      // Staff accounts cannot self-deactivate through student deactivation
+      const { data: staffRecord } = await adminClient
+        .from("staff")
+        .select("id")
+        .eq("id", callerId)
+        .maybeSingle();
+
+      if (staffRecord) {
+        return respond(403, { error: "Staff supervisor accounts cannot be deactivated through student self-deactivation." });
+      }
+
+      // Locate the authenticated student's profile
+      let foundProfile = null;
+      const { data: profileById, error: profIdError } = await adminClient
+        .from("profiles")
+        .select("id, full_name, email, account_status, auth_user_id")
+        .eq("id", callerId)
+        .maybeSingle();
+
+      if (profIdError) {
+        console.error("Error retrieving profile by id:", profIdError);
+        return respond(500, { error: "Unable to verify student profile." });
+      }
+
+      if (profileById) {
+        foundProfile = profileById;
+      } else {
+        const { data: profileByAuth, error: profAuthError } = await adminClient
+          .from("profiles")
+          .select("id, full_name, email, account_status, auth_user_id")
+          .eq("auth_user_id", callerId)
+          .maybeSingle();
+
+        if (profAuthError) {
+          console.error("Error retrieving profile by auth_user_id:", profAuthError);
+          return respond(500, { error: "Unable to verify student profile." });
+        }
+        foundProfile = profileByAuth;
+      }
+
+      if (!foundProfile) {
+        return respond(404, { error: "No student profile found associated with your account." });
+      }
+
+      // Enforce: Prevent student from targeting any other account
+      if (typeof body.userId === "string" && body.userId.trim()) {
+        const requestedId = body.userId.trim().toLowerCase();
+        if (
+          requestedId !== callerId.toLowerCase() &&
+          requestedId !== foundProfile.id.toLowerCase()
+        ) {
+          return respond(403, { error: "Unauthorized. Students can only deactivate their own account." });
+        }
+      }
+
+      targetProfile = foundProfile;
+      targetUserId = foundProfile.id;
+
+      if (targetProfile.account_status === "deactivated") {
+        return respond(400, { error: "Your account is already deactivated." });
+      }
+
+      reason = typeof body.reason === "string" && body.reason.trim()
+        ? body.reason.trim()
+        : "Student requested self-deactivation";
+      details = typeof body.details === "string" && body.details.trim()
+        ? body.details.trim()
+        : typeof body.remarks === "string" && body.remarks.trim()
+        ? body.remarks.trim()
+        : null;
+
+      isSelfDeactivation = true;
+      performerRole = "student";
+      deactivationAgreed = true;
+      deactivationAgreedAt = deactivationTimestamp;
+    }
+
+    const previousStatus = targetProfile.account_status || "active";
+
+    // 4. Update profiles table
     const { error: profileUpdateError } = await adminClient
       .from("profiles")
       .update({
         account_status: "deactivated",
-        deactivation_reason: reason.trim(),
-        deactivation_details: details ? details.trim() : null,
+        deactivation_reason: reason,
+        deactivation_details: details,
         deactivated_at: deactivationTimestamp,
         deactivated_by: callerId,
+        deactivation_agreed: deactivationAgreed,
+        deactivation_agreed_at: deactivationAgreedAt,
       })
-      .eq("id", userId);
+      .eq("id", targetUserId);
 
     if (profileUpdateError) {
-      console.error("Failed to update student profile status:", profileUpdateError);
+      console.error("Failed to update profile status:", profileUpdateError);
       return respond(500, { error: `Database update failed: ${profileUpdateError.message}` });
     }
 
-    // 6. Apply Supabase Auth ban
-    const { error: authBanError } = await adminClient.auth.admin.updateUserById(userId, {
+    // 5. Apply Supabase Auth ban (enforce access restriction on auth sessions)
+    const { error: authBanError } = await adminClient.auth.admin.updateUserById(targetUserId, {
       ban_duration: "876000h", // 100 years
     });
 
     if (authBanError) {
       console.error("Auth ban failed! Rolling back profile update to prevent inconsistency:", authBanError);
-      // Rollback database update
       await adminClient
         .from("profiles")
         .update({
@@ -145,29 +262,33 @@ Deno.serve(async (request) => {
           deactivation_details: null,
           deactivated_at: null,
           deactivated_by: null,
+          deactivation_agreed: false,
+          deactivation_agreed_at: null,
         })
-        .eq("id", userId);
+        .eq("id", targetUserId);
 
       return respond(500, {
-        error: `Failed to restrict student authentication: ${authBanError.message}. The profile update was rolled back.`,
+        error: `Failed to restrict student authentication: ${authBanError.message}. Changes were rolled back.`,
       });
     }
 
-    // 7. Record account management audit log
+    // 6. Record in account_management_audit_logs
     const { error: auditError } = await adminClient
       .from("account_management_audit_logs")
       .insert({
-        user_id: userId,
-        action: "deactivate",
+        user_id: targetUserId,
+        action: isSelfDeactivation ? "student_self_deactivation" : "deactivate",
         previous_status: previousStatus,
         new_status: "deactivated",
         performed_by: callerId,
-        performer_role: "admin",
-        reason: reason.trim(),
-        admin_remarks: details ? details.trim() : null,
+        performer_role: performerRole,
+        reason: reason,
+        admin_remarks: details,
         metadata: {
-          student_name: studentProfile.full_name,
-          admin_name: adminRecord.full_name,
+          student_name: targetProfile.full_name,
+          student_email: targetProfile.email || callerEmail,
+          self_deactivated: isSelfDeactivation,
+          performed_by_name: isAdmin ? adminRecord?.full_name : targetProfile.full_name,
           timestamp: deactivationTimestamp,
         },
       });
@@ -178,10 +299,13 @@ Deno.serve(async (request) => {
 
     return respond(200, {
       success: true,
-      message: "Student account successfully deactivated.",
+      message: isSelfDeactivation
+        ? "Your account has been successfully deactivated."
+        : "Student account successfully deactivated.",
       account_status: "deactivated",
-      userId,
+      userId: targetUserId,
       deactivated_at: deactivationTimestamp,
+      self_deactivation: isSelfDeactivation,
     });
   } catch (error) {
     console.error("Unexpected error in deactivate-account Edge Function:", error);
