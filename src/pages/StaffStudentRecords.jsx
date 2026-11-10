@@ -21,15 +21,7 @@ import {
 } from "../services/staffAssignments";
 import EriProgressRing from "../components/EriProgressRing";
 import EriHistoryChart from "../components/EriHistoryChart";
-
-function getInitials(name) {
-  if (!name) return "S";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
+import StudentAvatar from "../components/StudentAvatar";
 
 function StaffStudentRecords() {
   const [students, setStudents] = useState([]);
@@ -53,28 +45,41 @@ function StaffStudentRecords() {
     setErrorMessage("");
 
     try {
-      // 1. Fetch explicit student assignments for the logged-in staff user
-      const assignedStudentIds = await fetchAssignedStudentIds();
+      let profiles = null;
+      const { data: rpcProfiles, error: rpcError } = await supabase.rpc("get_staff_assigned_students");
+      if (!rpcError && Array.isArray(rpcProfiles)) {
+        profiles = rpcProfiles;
+      } else {
+        // 1. Fetch explicit student assignments for the logged-in staff user
+        const assignedStudentIds = await fetchAssignedStudentIds();
 
-      if (assignedStudentIds.length === 0) {
+        if (assignedStudentIds.length === 0) {
+          setStudents([]);
+          setSelectedStudent(null);
+          return;
+        }
+
+        // 2. Fetch assigned student profiles only (defense-in-depth alongside RLS)
+        const quotedIds = assignedStudentIds.map((id) => `"${id}"`).join(",");
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, auth_user_id, full_name, email, avatar_url, created_at, last_online")
+          .or(`id.in.(${quotedIds}),auth_user_id.in.(${quotedIds})`)
+          .order("full_name");
+
+        if (profileError) throw profileError;
+
+        profiles = (profileData || []).filter((p) =>
+          isAssignedStudentProfile(p, assignedStudentIds)
+        );
+      }
+
+      if (!profiles || profiles.length === 0) {
         setStudents([]);
         setSelectedStudent(null);
         return;
       }
 
-      // 2. Fetch assigned student profiles only (defense-in-depth alongside RLS)
-      const quotedIds = assignedStudentIds.map((id) => `"${id}"`).join(",");
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, auth_user_id, full_name, email, created_at, last_online")
-        .or(`id.in.(${quotedIds}),auth_user_id.in.(${quotedIds})`)
-        .order("full_name");
-
-      if (profileError) throw profileError;
-
-      const profiles = (profileData || []).filter((p) =>
-        isAssignedStudentProfile(p, assignedStudentIds)
-      );
       const studentIds = [
         ...new Set(profiles.flatMap((p) => [p.id, p.auth_user_id]).filter(Boolean)),
       ];
@@ -315,9 +320,11 @@ function StaffStudentRecords() {
                           {/* Student Name & Avatar */}
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-sky-600 text-xs font-bold text-white shadow-sm shadow-indigo-500/20">
-                                {getInitials(student.full_name)}
-                              </div>
+                              <StudentAvatar
+                                avatarUrl={student.avatar_url}
+                                name={student.full_name}
+                                size="md"
+                              />
                               <div className="min-w-0">
                                 <p className="truncate font-bold text-slate-900">
                                   {student.full_name || "Unnamed student"}
@@ -433,9 +440,11 @@ function StaffStudentRecords() {
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-5">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-600 text-xl font-extrabold text-white shadow-md shadow-indigo-500/25">
-                  {getInitials(selectedStudent.full_name)}
-                </div>
+                <StudentAvatar
+                  avatarUrl={selectedStudent.avatar_url}
+                  name={selectedStudent.full_name}
+                  size="lg"
+                />
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-xl font-extrabold text-slate-950">

@@ -28,65 +28,12 @@ import {
 } from "../services/eri";
 import EriProgressRing from "../components/EriProgressRing";
 import EriHistoryChart from "../components/EriHistoryChart";
+import StudentAvatar from "../components/StudentAvatar";
 
 const USER_PAGE_SIZE = 50;
 
 function escapeSearchValue(value) {
   return value.replace(/[\\%_,()"]/g, "\\$&");
-}
-
-function getInitials(name) {
-  if (!name) return "U";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
-
-function StudentAvatar({
-  avatarUrl,
-  name,
-  isDeactivated = false,
-  size = "md",
-}) {
-  const [failedUrl, setFailedUrl] = useState(null);
-  const isLg = size === "lg";
-
-  const sizeClasses = isLg ? "h-14 w-14" : "h-9 w-9";
-  const badgeRadius = isLg ? "rounded-2xl" : "rounded-xl";
-  const textClasses = isLg ? "text-xl font-extrabold" : "text-xs font-bold";
-  const bgClasses = isDeactivated
-    ? "bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20"
-    : "bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/30";
-
-  const hasFailed = Boolean(avatarUrl && failedUrl === avatarUrl);
-
-  if (avatarUrl && !hasFailed) {
-    return (
-      <div
-        className={`relative shrink-0 overflow-hidden rounded-full ${sizeClasses} shadow-sm ring-2 ${
-          isDeactivated ? "ring-slate-300" : "ring-sky-200"
-        } bg-slate-100 flex items-center justify-center`}
-      >
-        <img
-          src={avatarUrl}
-          alt={name || "Student profile photo"}
-          onError={() => setFailedUrl(avatarUrl)}
-          className="h-full w-full object-cover rounded-full"
-          loading="lazy"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`flex shrink-0 items-center justify-center text-white shadow-sm ${sizeClasses} ${badgeRadius} ${textClasses} ${bgClasses}`}
-    >
-      {getInitials(name)}
-    </div>
-  );
 }
 
 function UserManagement() {

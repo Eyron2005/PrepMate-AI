@@ -24,6 +24,7 @@ import {
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import StaffSidebar from "../components/StaffSidebar";
+import StudentAvatar from "../components/StudentAvatar";
 import { useAuth } from "../contexts/authContext";
 import {
   EMAIL_TEMPLATES,
@@ -39,15 +40,6 @@ import {
   syncEmailStatuses,
   validateEmailDraft,
 } from "../services/emailCommunication";
-
-function getInitials(name) {
-  if (!name) return "S";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -664,13 +656,18 @@ function EmailCommunication({ isStaff = false }) {
                             : "border-slate-200/80 bg-white/90 hover:border-sky-300 hover:bg-sky-50/30"
                         }`}
                       >
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm ${
-                          isSelected
-                            ? "bg-gradient-to-br from-sky-500 to-blue-600"
-                            : "bg-gradient-to-br from-slate-500 to-slate-600"
-                        }`}>
-                          {isSelected && broadcastMode ? <FaCheck className="text-xs" /> : getInitials(student.full_name)}
-                        </div>
+                        {isSelected && broadcastMode ? (
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm bg-gradient-to-br from-sky-500 to-blue-600">
+                            <FaCheck className="text-xs" />
+                          </div>
+                        ) : (
+                          <StudentAvatar
+                            avatarUrl={student.avatar_url}
+                            name={student.full_name}
+                            isDeactivated={student.account_status === "deactivated"}
+                            size="md"
+                          />
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
                             <p className="truncate text-xs font-bold text-slate-900">
