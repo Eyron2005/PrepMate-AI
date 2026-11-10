@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   FaPlus,
   FaSearch,
@@ -340,120 +341,143 @@ export default function JobRoleManagerSection({
       </div>
 
       {/* Add / Edit Job Role Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-md">
-          <form
-            onSubmit={handleSave}
-            className="w-full max-w-lg rounded-[2rem] border border-white/80 bg-white p-7 shadow-2xl ring-1 ring-slate-200/80"
+      {modalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-md"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !saving) setModalOpen(false);
+            }}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Job Role Details</p>
-                <h3 className="mt-0.5 text-xl font-extrabold text-slate-950">
-                  {editing ? "Edit Job Role" : "Add New Job Role"}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="rounded-xl border border-slate-200 p-2 text-slate-400 hover:bg-slate-100"
-              >
-                <FaTimes className="text-xs" />
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              {formError && (
-                <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
-                  <FaExclamationTriangle className="mt-0.5 shrink-0 text-rose-600" />
-                  <span>{formError}</span>
+            <form
+              onSubmit={handleSave}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && !saving) setModalOpen(false);
+              }}
+              className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2rem] border border-white/80 bg-white p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up sm:p-8"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-600 text-base text-white shadow-md shadow-indigo-500/25">
+                    <FaBriefcase />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Job Role Details</p>
+                    <h3 className="mt-0.5 text-xl font-extrabold text-slate-950">
+                      {editing ? "Edit Job Role" : "Add New Job Role"}
+                    </h3>
+                  </div>
                 </div>
-              )}
-
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Industry <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={formState.industry_id}
-                  onChange={(e) => {
-                    setFormState((prev) => ({ ...prev, industry_id: e.target.value }));
-                    setFormError("");
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  disabled={saving}
+                  aria-label="Close modal"
+                  className="rounded-xl border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
                 >
-                  <option value="">Choose an industry...</option>
-                  {selectableIndustries.map((ind) => (
-                    <option key={ind.id} value={ind.id}>
-                      {ind.name}
-                      {!ind.is_active ? " (Inactive)" : ""}
-                    </option>
-                  ))}
-                </select>
+                  <FaTimes className="text-xs" />
+                </button>
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Job Role Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formState.name}
-                  onChange={(e) => {
-                    setFormState((prev) => ({ ...prev, name: e.target.value }));
-                    setFormError("");
-                  }}
-                  placeholder="e.g., Full Stack Developer"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
-                />
-              </div>
+              <div className="mt-5 space-y-4">
+                {formError && (
+                  <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+                    <FaExclamationTriangle className="mt-0.5 shrink-0 text-rose-600" />
+                    <span>{formError}</span>
+                  </div>
+                )}
 
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Description
-                </label>
-                <textarea
-                  rows={3}
-                  value={formState.description}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Short note about what this job role does (optional)."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
-                />
-              </div>
-
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Show in Mobile App (Active)</p>
-                  <p className="text-[11px] text-slate-500">Students can pick this job role when starting an interview.</p>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Industry <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={formState.industry_id}
+                    onChange={(e) => {
+                      setFormState((prev) => ({ ...prev, industry_id: e.target.value }));
+                      setFormError("");
+                    }}
+                    className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
+                  >
+                    <option value="">Choose an industry...</option>
+                    {selectableIndustries.map((ind) => (
+                      <option key={ind.id} value={ind.id}>
+                        {ind.name}
+                        {!ind.is_active ? " (Inactive)" : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={formState.is_active}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, is_active: e.target.checked }))}
-                  className="h-4 w-4 accent-sky-600"
-                />
-              </label>
-            </div>
 
-            <div className="mt-6 flex justify-end gap-2.5 border-t border-slate-100 pt-4">
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:opacity-95 disabled:opacity-60"
-              >
-                {saving ? "Saving..." : editing ? "Save Changes" : "Add Job Role"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Job Role Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={formState.name}
+                    onChange={(e) => {
+                      setFormState((prev) => ({ ...prev, name: e.target.value }));
+                      setFormError("");
+                    }}
+                    placeholder="e.g., Full Stack Developer"
+                    className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Description
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formState.description}
+                    onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Short note about what this job role does (optional)."
+                    className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 p-3 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
+                  />
+                </div>
+
+                <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3.5 transition hover:border-sky-200 hover:bg-sky-50/40">
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Show in Mobile App (Active)</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">Students can pick this job role when starting an interview.</p>
+                  </div>
+                  <div className="relative inline-flex shrink-0 items-center">
+                    <input
+                      type="checkbox"
+                      checked={formState.is_active}
+                      onChange={(e) => setFormState((prev) => ({ ...prev, is_active: e.target.checked }))}
+                      className="peer sr-only"
+                    />
+                    <div className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-sky-600 peer-focus:ring-4 peer-focus:ring-sky-500/20" />
+                    <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+                  </div>
+                </label>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-2.5 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  disabled={saving}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/25 transition hover:shadow-sky-500/40 disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : editing ? "Save Changes" : "Add Job Role"}
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body
+        )}
     </section>
   );
 }

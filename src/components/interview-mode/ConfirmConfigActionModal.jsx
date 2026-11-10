@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { FaExclamationTriangle, FaPowerOff, FaArchive, FaTrash, FaTimes } from "react-icons/fa";
 
 export default function ConfirmConfigActionModal({ pendingAction, loading, onCancel, onConfirm }) {
@@ -28,13 +29,18 @@ export default function ConfirmConfigActionModal({ pendingAction, loading, onCan
         ? "bg-slate-800 shadow-slate-700/25 hover:bg-slate-900"
         : "bg-amber-600 shadow-amber-600/30 hover:bg-amber-700";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8 backdrop-blur-md">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onCancel();
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-config-action-title"
-        className="w-full max-w-md rounded-[2rem] border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80"
+        className="w-full max-w-md rounded-[2rem] border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up"
       >
         <div className="flex items-start justify-between gap-3">
           <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconTone}`}>
@@ -75,6 +81,7 @@ export default function ConfirmConfigActionModal({ pendingAction, loading, onCan
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
