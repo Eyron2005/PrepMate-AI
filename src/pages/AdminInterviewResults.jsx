@@ -20,6 +20,7 @@ import {
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import StaffSidebar from "../components/StaffSidebar";
+import StudentAvatar from "../components/StudentAvatar";
 import { supabase } from "../services/supabase";
 import {
   classifyInterviewSession,
@@ -36,15 +37,6 @@ import {
 const SESSION_PAGE_SIZE = 20;
 const STUDENT_RESULT_LIMIT = 40;
 const SESSION_COLUMNS = "*";
-
-function getInitials(name) {
-  if (!name) return "ST";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
 
 function firstValue(record, keys) {
   for (const key of keys) {
@@ -307,7 +299,7 @@ async function loadSessionStudents(profileIds) {
   const filterValues = profileIds.map((id) => `"${id}"`).join(",");
   let result = await supabase
     .from("profiles")
-    .select("id, auth_user_id, full_name, email")
+    .select("id, auth_user_id, full_name, email, avatar_url")
     .or(`id.in.(${filterValues}),auth_user_id.in.(${filterValues})`);
 
   if (result.error && /column .* does not exist|could not find .* column/i.test(result.error.message || "")) {
@@ -549,9 +541,10 @@ function StudentPicker({ search, setSearch, students, selectedStudent, onSelect,
                       isSelected ? "bg-sky-50/90 ring-1 ring-sky-200" : "hover:bg-slate-50"
                     }`}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-xs font-bold text-white shadow-sm">
-                      {getInitials(student.full_name)}
-                    </div>
+                    <StudentAvatar
+                      avatarUrl={student.avatar_url}
+                      name={student.full_name}
+                    />
                     <div className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-slate-900">{student.full_name}</span>
                       <span className="block truncate text-xs text-slate-500">{student.email || "Email unavailable"}</span>
@@ -696,6 +689,7 @@ function SessionDetails({
   error,
   studentName = "Candidate",
   studentEmail = "",
+  studentAvatarUrl = null,
   onBack,
 }) {
   const evaluationRecords = getSessionEvaluation(session);
@@ -803,9 +797,11 @@ function SessionDetails({
       <section className="glass-card-elevated relative overflow-hidden rounded-[2rem] border border-slate-200 p-6 shadow-sm sm:p-7">
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-sky-500/25">
-              {getInitials(studentName)}
-            </div>
+            <StudentAvatar
+              avatarUrl={studentAvatarUrl}
+              name={studentName}
+              size="lg"
+            />
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-extrabold text-slate-950 sm:text-2xl">{studentName}</h2>
@@ -1060,7 +1056,7 @@ function AdminInterviewResults({ isStaff = false }) {
 
       let query = supabase
         .from("profiles")
-        .select("id, auth_user_id, full_name, email")
+        .select("id, auth_user_id, full_name, email, avatar_url")
         .order("full_name")
         .limit(STUDENT_RESULT_LIMIT);
 
@@ -1497,9 +1493,11 @@ function AdminInterviewResults({ isStaff = false }) {
                           {/* Candidate & Session Meta */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start gap-3.5">
-                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-bold text-white shadow-md shadow-sky-500/20">
-                                {getInitials(studentName)}
-                              </div>
+                              <StudentAvatar
+                                avatarUrl={student?.avatar_url}
+                                name={studentName}
+                                size="lg"
+                              />
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <h3 className="truncate text-base font-bold text-slate-950 transition group-hover:text-sky-800 sm:text-lg">
@@ -1619,6 +1617,12 @@ function AdminInterviewResults({ isStaff = false }) {
               || students.find((s) => s.sessionProfileId === selectedSession.profile_id)?.email
               || selectedStudent?.email
               || ""
+            }
+            studentAvatarUrl={
+              sessionStudents[selectedSession.profile_id]?.avatar_url
+              || students.find((s) => s.sessionProfileId === selectedSession.profile_id)?.avatar_url
+              || selectedStudent?.avatar_url
+              || null
             }
             onBack={() => {
               detailsRequest.current += 1;

@@ -97,7 +97,38 @@ test("validateEmailDraft enforces admin vs staff permissions and valid registere
     true
   );
 
-  // Staff blocked from sending multi-recipient broadcast announcements
+  const secondAssignedStudent = {
+    id: "44444444-4444-4444-4444-444444444444",
+    full_name: "Robert Tzy",
+    email: "robert@example.com",
+    is_assigned: true,
+  };
+
+  // Staff can multi-select and email assigned students
+  assert.equal(
+    validateEmailDraft({
+      recipients: [assignedStudent, secondAssignedStudent],
+      subject: "Assigned Group Update",
+      messageText: "Reminder for my assigned students.",
+      isAdmin: false,
+      canEmailUnassigned: false,
+    }).valid,
+    true
+  );
+
+  // Standard staff blocked from including unassigned students in multi-select
+  assert.equal(
+    validateEmailDraft({
+      recipients: [assignedStudent, unassignedStudent],
+      subject: "Assigned Group Update",
+      messageText: "Reminder",
+      isAdmin: false,
+      canEmailUnassigned: false,
+    }).valid,
+    false
+  );
+
+  // Staff with unassigned permission can multi-select students too
   assert.equal(
     validateEmailDraft({
       recipients: [assignedStudent, unassignedStudent],
@@ -106,7 +137,7 @@ test("validateEmailDraft enforces admin vs staff permissions and valid registere
       isAdmin: false,
       canEmailUnassigned: true,
     }).valid,
-    false
+    true
   );
 
   // Admin can send announcements to multiple students

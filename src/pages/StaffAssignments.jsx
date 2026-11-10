@@ -15,6 +15,7 @@ import {
   FaUsers,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
+import StudentAvatar from "../components/StudentAvatar";
 import { supabase } from "../services/supabase";
 
 function getInitials(name) {
@@ -64,7 +65,7 @@ function StaffAssignments() {
           .order("full_name"),
         supabase
           .from("profiles")
-          .select("id, auth_user_id, full_name, email")
+          .select("id, auth_user_id, full_name, email, avatar_url")
           .order("full_name"),
         supabase
           .from("staff_student_assignments")
@@ -86,6 +87,7 @@ function StaffAssignments() {
             userId: profile.auth_user_id || profile.id,
             name: profile.full_name || "Unnamed student",
             email: profile.email || "",
+            avatarUrl: profile.avatar_url || null,
           }))
           .filter((profile) => profile.userId)
       );
@@ -600,9 +602,10 @@ function StaffAssignments() {
                           {/* Student Cell */}
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-xs font-bold text-white shadow-sm">
-                                {getInitials(studentName)}
-                              </div>
+                              <StudentAvatar
+                                avatarUrl={studentObj?.avatarUrl}
+                                name={studentName}
+                              />
                               <div className="min-w-0">
                                 <p className="truncate font-bold text-slate-900">{studentName}</p>
                                 <p className="truncate text-[11px] text-slate-500">

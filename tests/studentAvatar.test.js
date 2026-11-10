@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getStudentInitials, resolveStudentAvatarUrl } from "../src/services/avatar.js";
+import {
+  buildAvatarMapFromRows,
+  fetchStudentAvatarMap,
+  getStudentInitials,
+  resolveStudentAvatarUrl,
+} from "../src/services/avatar.js";
 
 test("getStudentInitials generates clean initials from student names with fallback", () => {
   assert.equal(getStudentInitials("Mark Joseph Balatbat"), "MB");
@@ -28,4 +33,16 @@ test("resolveStudentAvatarUrl keeps HTTP URLs and resolves relative avatars buck
 
   assert.equal(resolveStudentAvatarUrl(""), "");
   assert.equal(resolveStudentAvatarUrl(null), "");
+});
+
+test("buildAvatarMapFromRows indexes id and auth_user_id and skips missing avatar_url", async () => {
+  const map = buildAvatarMapFromRows([
+    { id: "p-1", auth_user_id: "u-1", avatar_url: "https://example.com/a.jpg" },
+    { id: "p-2", auth_user_id: null, avatar_url: null },
+  ]);
+  assert.equal(map["p-1"], "https://example.com/a.jpg");
+  assert.equal(map["u-1"], "https://example.com/a.jpg");
+  assert.equal(map["p-2"], undefined);
+
+  assert.deepEqual(await fetchStudentAvatarMap([]), {});
 });

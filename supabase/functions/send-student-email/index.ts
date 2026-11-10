@@ -360,9 +360,6 @@ Deno.serve(async (request) => {
     if (recipientIds.length > MAX_RECIPIENTS) {
       return respond(400, { error: `Cannot send to more than ${MAX_RECIPIENTS} students in one request.` });
     }
-    if (!isAdmin && recipientIds.length > 1) {
-      return respond(403, { error: "Only administrators can send multi-student announcements. Staff may email one assigned student at a time." });
-    }
 
     const subject = typeof body.subject === "string" ? body.subject.trim() : "";
     const messageText = typeof body.messageText === "string" ? body.messageText.trim() : "";

@@ -187,7 +187,7 @@ function EmailCommunication({ isStaff = false }) {
 
   function handleSelectStudent(student) {
     setFormError("");
-    if (broadcastMode && isAdmin) {
+    if (broadcastMode) {
       setSelectedStudentIds((prev) =>
         prev.includes(student.id) ? prev.filter((id) => id !== student.id) : [...prev, student.id]
       );
@@ -215,9 +215,13 @@ function EmailCommunication({ isStaff = false }) {
   }
 
   function handleSelectAllFiltered() {
-    if (!isAdmin || !broadcastMode) return;
+    if (!broadcastMode) return;
     const eligibleIds = filteredStudents
-      .filter((s) => Boolean(s.email && s.email.trim()))
+      .filter(
+        (s) =>
+          Boolean(s.email && s.email.trim()) &&
+          (isAdmin || sender?.canEmailUnassigned || s.is_assigned !== false)
+      )
       .map((s) => s.id);
     setSelectedStudentIds((prev) => [...new Set([...prev, ...eligibleIds])]);
     setFormError("");
@@ -567,21 +571,19 @@ function EmailCommunication({ isStaff = false }) {
                   </p>
                 </div>
 
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => handleToggleBroadcastMode(!broadcastMode)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition border ${
-                      broadcastMode
-                        ? "border-sky-500 bg-sky-600 text-white shadow-sm"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                    title="Send announcement to multiple students"
-                  >
-                    <FaUsers className="text-[10px]" />
-                    {broadcastMode ? "Multi-Select On" : "Announcement"}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleToggleBroadcastMode(!broadcastMode)}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition border ${
+                    broadcastMode
+                      ? "border-sky-500 bg-sky-600 text-white shadow-sm"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  title="Select multiple students"
+                >
+                  <FaUsers className="text-[10px]" />
+                  {broadcastMode ? "Multi-Select On" : "Multi-Select"}
+                </button>
               </div>
 
               {/* Search Student Bar */}
@@ -596,7 +598,7 @@ function EmailCommunication({ isStaff = false }) {
                 />
               </div>
 
-              {isAdmin && broadcastMode && (
+              {broadcastMode && (
                 <div className="mt-2.5 flex items-center justify-between text-[11px]">
                   <span className="font-semibold text-slate-600">
                     {selectedRecipients.length} selected

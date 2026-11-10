@@ -10,6 +10,8 @@ import {
   FaInfoCircle,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
+import StudentAvatar from "../components/StudentAvatar";
+import { fetchStudentAvatarMap } from "../services/avatar";
 import { supabase } from "../services/supabase";
 
 function getStatusBadge(status) {
@@ -23,13 +25,6 @@ function getStatusBadge(status) {
     default:
       return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
   }
-}
-
-function getInitials(name) {
-  if (!name) return "S";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
 }
 
 function ReactivationRequests() {
@@ -77,13 +72,13 @@ function ReactivationRequests() {
         const fallback = await query;
         if (fallback.error) throw fallback.error;
 
-        // Populate student names
+        // Populate student names and profile photos
         const rows = fallback.data || [];
         const userIds = rows.map((r) => r.user_id).filter(Boolean);
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds);
+        const [{ data: profilesData }, avatarMap] = await Promise.all([
+          supabase.from("profiles").select("id, full_name").in("id", userIds),
+          fetchStudentAvatarMap(userIds),
+        ]);
 
         const nameMap = new Map((profilesData || []).map((p) => [p.id, p.full_name]));
 
@@ -91,10 +86,18 @@ function ReactivationRequests() {
           rows.map((r) => ({
             ...r,
             student_name: nameMap.get(r.user_id) || "Student Candidate",
+            avatar_url: avatarMap[r.user_id] || null,
           }))
         );
       } else {
-        setRequests(data || []);
+        const rows = data || [];
+        const avatarMap = await fetchStudentAvatarMap(rows.map((r) => r.user_id));
+        setRequests(
+          rows.map((r) => ({
+            ...r,
+            avatar_url: r.avatar_url || avatarMap[r.user_id] || null,
+          }))
+        );
       }
     } catch (err) {
       console.error("Error loading reactivation requests:", err);
@@ -406,9 +409,10 @@ function ReactivationRequests() {
                       <tr key={req.id} className="transition-colors hover:bg-sky-50/50">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-xs font-bold text-white shadow-sm">
-                              {getInitials(req.student_name)}
-                            </div>
+                            <StudentAvatar
+                              avatarUrl={req.avatar_url}
+                              name={req.student_name}
+                            />
                             <div className="min-w-0">
                               <p className="truncate font-bold text-slate-900">{req.student_name}</p>
                               <p className="truncate text-[11px] text-slate-500">{req.registered_email}</p>
@@ -503,9 +507,15 @@ function ReactivationRequests() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-10 backdrop-blur-md">
           <div className="w-full max-w-lg rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 fade-in-up">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Reactivation Submission</span>
-                <h3 className="text-lg font-bold text-slate-950">{inspectTarget.student_name}</h3>
+              <div className="flex items-center gap-3 min-w-0">
+                <StudentAvatar
+                  avatarUrl={inspectTarget.avatar_url}
+                  name={inspectTarget.student_name}
+                />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Reactivation Submission</span>
+                  <h3 className="truncate text-lg font-bold text-slate-950">{inspectTarget.student_name}</h3>
+                </div>
               </div>
               <button
                 type="button"

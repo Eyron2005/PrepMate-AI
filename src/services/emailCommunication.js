@@ -260,13 +260,6 @@ export function validateEmailDraft({
     return { valid: false, error: "Please select a student recipient." };
   }
 
-  if (!isAdmin && recipients.length > 1) {
-    return {
-      valid: false,
-      error: "Multi-student announcements are restricted to authorized administrators.",
-    };
-  }
-
   for (const recipient of recipients) {
     if (!recipient?.id) {
       return { valid: false, error: "One or more selected recipients are invalid." };
