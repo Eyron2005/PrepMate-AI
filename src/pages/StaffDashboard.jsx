@@ -13,7 +13,7 @@ const sections = [
     href: "/staff/student-records",
     icon: FaClipboardList,
     color: "bg-violet-600",
-    surface: "border-violet-100/90",
+    surface: "border-slate-200",
   },
   {
     title: "Interview Results",
@@ -22,7 +22,7 @@ const sections = [
     href: "/staff/interview-results",
     icon: FaFileAlt,
     color: "bg-emerald-600",
-    surface: "border-emerald-100/90",
+    surface: "border-slate-200",
   },
   {
     title: "Email Communication",
@@ -31,7 +31,7 @@ const sections = [
     href: "/staff/email-communication",
     icon: FaEnvelope,
     color: "bg-blue-600",
-    surface: "border-sky-100/90",
+    surface: "border-slate-200",
   },
 ];
 

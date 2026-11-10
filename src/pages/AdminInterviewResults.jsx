@@ -17,7 +17,6 @@ import {
   FaSyncAlt,
   FaTimes,
   FaUserGraduate,
-  FaVideo,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import StaffSidebar from "../components/StaffSidebar";
@@ -280,16 +279,6 @@ function getFollowUpText(answer) {
 function getIdealAnswer(answer, question) {
   return firstValue(answer, ["ideal_answer", "expected_answer", "model_answer"])
     || firstValue(question, ["ideal_answer", "expected_answer", "answer", "solution"]);
-}
-
-function getCameraNotes(answer) {
-  return getEvaluationValue(getAnswerEvaluation(answer), [
-    "camera_notes",
-    "camera_feedback",
-    "camera_evaluation",
-    "non_verbal_feedback",
-    "visual_feedback",
-  ]);
 }
 
 function getAnswerEvaluation(answer) {
@@ -615,14 +604,13 @@ function QuestionReview({ answer, question, index, isCompletedSession = true }) 
     "filler_feedback",
   ]) || firstValue(feedbackPayload, ["filler_feedback", "filler_words_analysis", "filler_word_analysis"]);
   const fillerWordCount = getEvaluationValue(evaluationRecords, ["filler_word_count", "filler_words_count"]);
-  const cameraNotes = getCameraNotes(answer);
   const questionNumber = firstValue(answer, ["question_number", "question_order", "order"])
     || firstValue(question, ["question_number", "question_order", "order"])
     || index + 1;
   const questionScore = firstValue(answer, ["ai_score", "score", "question_score", "answer_score"]);
 
   return (
-    <article className="glass-card overflow-hidden rounded-3xl border border-white/80 shadow-md ring-1 ring-sky-100/80 transition-shadow hover:shadow-lg">
+    <article className="glass-card overflow-hidden rounded-3xl border border-slate-200 shadow-sm transition-shadow hover:shadow-md">
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
@@ -681,9 +669,6 @@ function QuestionReview({ answer, question, index, isCompletedSession = true }) 
                 Score: N/A — Incomplete sessions do not assign official question evaluation scores.
               </p>
             )}
-          </ReviewSection>
-          <ReviewSection title="Camera & Visual Notes" className="sm:col-span-2">
-            <FeedbackContent value={cameraNotes} unavailable="Camera evaluation not available." />
           </ReviewSection>
           {questionId && !question && (
             <p className="text-xs text-slate-400 sm:col-span-2">The linked question database record is unavailable.</p>
@@ -760,32 +745,6 @@ function SessionDetails({
     "filler_feedback",
   ]) || firstValue(feedbackPayload, ["filler_feedback", "filler_words_analysis", "filler_word_analysis"]);
   const fillerWordCount = getEvaluationValue(evaluationRecords, ["filler_word_count", "filler_words_count"]);
-  const cameraEvaluationItems = [
-    {
-      label: "Non-verbal Behavior",
-      value: getEvaluationValue(evaluationRecords, ["non_verbal_behavior_feedback", "non_verbal_feedback"]),
-    },
-    {
-      label: "Face Detection",
-      value: getEvaluationValue(evaluationRecords, ["face_detection_observations", "face_detection_feedback"]),
-    },
-    {
-      label: "Camera Positioning",
-      value: getEvaluationValue(evaluationRecords, ["camera_positioning_observations", "camera_positioning_feedback"]),
-    },
-    {
-      label: "Visual Data Quality",
-      value: getEvaluationValue(evaluationRecords, ["visual_data_quality", "visual_quality_feedback"]),
-    },
-    {
-      label: "Recommendations",
-      value: getEvaluationValue(evaluationRecords, ["camera_recommendations", "camera_improvements"]),
-    },
-    {
-      label: "Camera Evaluation",
-      value: getEvaluationValue(evaluationRecords, ["camera_evaluation", "camera_feedback", "visual_feedback"]),
-    },
-  ].filter((item) => item.value !== null);
   const allocatedTime = getEvaluationValue(evaluationRecords, ["allocated_time", "time_allocated"]);
   const actualDuration = getEvaluationValue(evaluationRecords, [
     "actual_interview_duration",
@@ -871,7 +830,7 @@ function SessionDetails({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[36rem]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:w-[28rem]">
             <OverallScoreBadge
               score={sessionEri}
               prominent
@@ -884,14 +843,6 @@ function SessionDetails({
               icon={FaMicrophone}
               iconColor="text-blue-500"
               subtitle="Verbal score"
-              isCompleted={sessionInfo.isCompleted}
-            />
-            <MetricScoreBadge
-              label="Camera"
-              score={session.camera_score}
-              icon={FaVideo}
-              iconColor="text-indigo-500"
-              subtitle="Visual score"
               isCompleted={sessionInfo.isCompleted}
             />
             <QuestionsBadge sessionInfo={sessionInfo} fallbackCount={answers.length} />
@@ -943,7 +894,7 @@ function SessionDetails({
 
       {/* Overall Assessment Banner */}
       {hasSavedValue(overallAssessment) && (
-        <section className="glass-card rounded-3xl border border-white/80 p-6 shadow-md ring-1 ring-sky-100/80">
+        <section className="glass-card rounded-3xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-sky-100/80 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-800">
               <FaAward className="text-sky-600 text-[11px]" /> Overall Assessment
@@ -955,11 +906,11 @@ function SessionDetails({
         </section>
       )}
 
-      {/* Session Feedback & Camera Analysis */}
-      {(hasSessionFeedback || cameraEvaluationItems.length > 0 || hasTimeManagement) && (
-        <div className="grid gap-6 lg:grid-cols-2">
+      {/* Session Feedback & Time Management */}
+      {(hasSessionFeedback || hasTimeManagement) && (
+        <div className={`grid gap-6 ${hasSessionFeedback && hasTimeManagement ? "lg:grid-cols-2" : ""}`}>
           {hasSessionFeedback && (
-            <section className="glass-card rounded-3xl border border-white/80 p-6 shadow-md ring-1 ring-sky-100/80">
+            <section className="glass-card rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <FaBrain className="text-sky-600 text-sm" />
                 <h3 className="text-base font-bold text-slate-900">Overall Feedback</h3>
@@ -991,42 +942,23 @@ function SessionDetails({
             </section>
           )}
 
-          {cameraEvaluationItems.length > 0 && (
-            <section className="glass-card rounded-3xl border border-white/80 p-6 shadow-md ring-1 ring-sky-100/80">
+          {hasTimeManagement && (
+            <section className="glass-card rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
-                <FaVideo className="text-indigo-600 text-sm" />
-                <h3 className="text-base font-bold text-slate-900">Camera &amp; Body Language Notes</h3>
+                <FaClock className="text-amber-600 text-sm" />
+                <h3 className="text-base font-bold text-slate-900">Time Management Analysis</h3>
               </div>
-              <div className="space-y-3.5 text-sm">
-                {cameraEvaluationItems.map((item) => (
-                  <div key={item.label} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">{item.label}</p>
-                    <div className="text-slate-800">
-                      <FeedbackContent value={item.value} />
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {timeStats.map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-slate-200/80 bg-white p-3 text-center">
+                    <span className="block text-[11px] font-semibold text-slate-500">{label}</span>
+                    <span className="mt-0.5 block text-sm font-bold text-slate-900">{displayContent(value)}</span>
                   </div>
                 ))}
               </div>
-
-              {hasTimeManagement && (
-                <div className="mt-5 border-t border-slate-100 pt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <FaClock className="text-amber-600 text-sm" />
-                    <h4 className="text-sm font-bold text-slate-900">Time Management Analysis</h4>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {timeStats.map(([label, value]) => (
-                      <div key={label} className="rounded-xl border border-slate-200/80 bg-white p-3 text-center">
-                        <span className="block text-[11px] font-semibold text-slate-500">{label}</span>
-                        <span className="mt-0.5 block text-sm font-bold text-slate-900">{displayContent(value)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {hasSavedValue(timeManagementFeedback) && (
-                    <div className="mt-3 text-xs leading-relaxed text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <FeedbackContent value={timeManagementFeedback} />
-                    </div>
-                  )}
+              {hasSavedValue(timeManagementFeedback) && (
+                <div className="mt-3 text-xs leading-relaxed text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <FeedbackContent value={timeManagementFeedback} />
                 </div>
               )}
             </section>
@@ -1398,8 +1330,8 @@ function AdminInterviewResults({ isStaff = false }) {
                   </h1>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
                     {isStaff
-                      ? "See interview scores, speech and camera feedback, and answers for your assigned students."
-                      : "See interview scores, speech and camera feedback, and answers for all students."}
+                      ? "See interview scores, speech feedback, and answers for your assigned students."
+                      : "See interview scores, speech feedback, and answers for all students."}
                   </p>
                 </div>
 
@@ -1487,7 +1419,7 @@ function AdminInterviewResults({ isStaff = false }) {
             )}
 
             {/* Session History Section */}
-            <section className="glass-card relative z-0 rounded-[2rem] border border-white/80 p-5 shadow-xl ring-1 ring-sky-100/80 sm:p-7">
+            <section className="glass-card relative z-0 rounded-[2rem] border border-slate-200 p-5 shadow-sm sm:p-7">
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-sky-700">
@@ -1596,7 +1528,7 @@ function AdminInterviewResults({ isStaff = false }) {
                           </div>
 
                           {/* Scores Metric Badges */}
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[36rem]">
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:w-[28rem]">
                             <OverallScoreBadge
                               score={displaySessionEri}
                               isCompleted={sessionInfo.isCompleted}
@@ -1610,14 +1542,6 @@ function AdminInterviewResults({ isStaff = false }) {
                               subtitle="Verbal delivery"
                               isCompleted={sessionInfo.isCompleted}
                             />
-                            <MetricScoreBadge
-                              label="Camera"
-                              score={session.camera_score}
-                              icon={FaVideo}
-                              iconColor="text-indigo-500"
-                              subtitle="Visual presence"
-                              isCompleted={sessionInfo.isCompleted}
-                            />
                             <QuestionsBadge
                               sessionInfo={sessionInfo}
                               fallbackCount={recordedAnswersCount}
@@ -1629,7 +1553,7 @@ function AdminInterviewResults({ isStaff = false }) {
                         <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-3.5 text-xs font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                           <span className="flex items-center gap-1.5 text-slate-400">
                             <FaEye className="text-sky-500 text-xs" />
-                            Click to inspect question breakdowns, AI critique &amp; camera analysis
+                            Click to inspect question breakdowns &amp; AI feedback
                           </span>
                           <span className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-sky-700 ring-1 ring-sky-200/80 transition-all duration-200 group-hover:bg-blue-600 group-hover:text-white group-hover:ring-transparent group-hover:shadow-md group-hover:shadow-sky-500/25">
                             Review Session

@@ -197,7 +197,7 @@ export default function InterviewModeManagement() {
         )}
 
         {/* Section Tabs & Content Card */}
-        <section className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.35)] ring-1 ring-sky-100/90 sm:p-7">
+        <section className="glass-card rounded-[2.25rem] border border-slate-200 p-6 shadow-sm sm:p-7">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
             <div className="flex flex-wrap gap-2" role="tablist" aria-label="Industries and Job Roles Tabs">
               {TABS.map(({ key, label, icon: Icon }) => {

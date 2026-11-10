@@ -801,7 +801,7 @@ function QuestionManagement() {
         )}
 
         {/* Filters & Table Card */}
-        <section className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 fade-in-up sm:p-7">
+        <section className="glass-card rounded-[2.25rem] border border-slate-200 p-6 shadow-sm fade-in-up sm:p-7">
           {/* Filter Bar */}
           <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
             <div className="flex items-center gap-2 mb-3">

@@ -552,7 +552,7 @@ function EmailCommunication({ isStaff = false }) {
         {activeTab === "compose" && (
           <section className="mt-6 grid gap-6 lg:grid-cols-[360px_1fr]">
             {/* Left Column: Trusted Student Recipient Picker */}
-            <div className="glass-card rounded-[2rem] border border-white/80 p-5 sm:p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.35)] ring-1 ring-sky-100/90 flex flex-col max-h-[760px]">
+            <div className="glass-card rounded-[2rem] border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col max-h-[760px]">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
@@ -698,7 +698,7 @@ function EmailCommunication({ isStaff = false }) {
             {/* Right Column: Compose Form */}
             <form
               onSubmit={handleRequestSend}
-              className="glass-card rounded-[2rem] border border-white/80 p-6 sm:p-8 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.35)] ring-1 ring-sky-100/90 space-y-5"
+              className="glass-card rounded-[2rem] border border-slate-200 p-6 sm:p-8 shadow-sm space-y-5"
             >
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
@@ -977,7 +977,7 @@ function EmailCommunication({ isStaff = false }) {
 
         {/* TAB 2: EMAIL HISTORY & DELIVERY LOGS */}
         {activeTab === "history" && (
-          <section className="mt-6 glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
+          <section className="mt-6 glass-card rounded-[2.25rem] border border-slate-200 p-6 shadow-sm sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-950">Email History &amp; Delivery Logs</h2>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaCalendarAlt, FaCheckCircle, FaComments, FaVideo } from "react-icons/fa";
+import { FaCalendarAlt, FaCheckCircle, FaComments } from "react-icons/fa";
 import { formatEriScore } from "../services/eri";
 
 export default function EriHistoryChart({ history = [] }) {
@@ -161,12 +161,6 @@ export default function EriHistoryChart({ history = [] }) {
                   <span className="inline-flex items-center gap-1">
                     <FaComments className="text-[9px] text-sky-500" />
                     Speech: {formatEriScore(session.speech_score)}
-                  </span>
-                )}
-                {session.camera_score != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <FaVideo className="text-[9px] text-indigo-500" />
-                    Cam: {formatEriScore(session.camera_score)}
                   </span>
                 )}
               </div>

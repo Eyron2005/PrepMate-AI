@@ -168,7 +168,7 @@ function BackupRestore() {
         {/* Action Panels */}
         <section className="mt-8 grid gap-7 lg:grid-cols-2">
           {/* Create Backup */}
-          <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-white/80 p-7 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-8">
+          <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-slate-200 p-7 shadow-sm sm:p-8">
             <div>
               <div className="flex items-center justify-between">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-lg text-white shadow-md shadow-sky-500/30">
@@ -236,7 +236,7 @@ function BackupRestore() {
           </div>
 
           {/* Restore Backup */}
-          <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-white/80 p-7 shadow-[0_20px_45px_-25px_rgba(245,158,11,0.3)] ring-1 ring-amber-100/90 sm:p-8">
+          <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-slate-200 p-7 shadow-sm sm:p-8">
             <div>
               <div className="flex items-center justify-between">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-lg text-white shadow-md shadow-amber-500/30">

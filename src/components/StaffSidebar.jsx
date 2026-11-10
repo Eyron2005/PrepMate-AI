@@ -143,10 +143,7 @@ export default function StaffSidebar({ staffName }) {
           <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" title="System Online" />
         </div>
         <div className="hidden min-w-0 md:block">
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-lg font-bold tracking-tight text-slate-950">Prepmate</h1>
-            <span className="rounded-md bg-indigo-600 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">STAFF</span>
-          </div>
+          <h1 className="text-lg font-bold tracking-tight text-slate-950">Prepmate AI</h1>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-700">Staff Portal</p>
         </div>
       </div>

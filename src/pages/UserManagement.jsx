@@ -753,7 +753,7 @@ function UserManagement() {
         {/* Content Layout: Student Directory Table */}
         <section className="w-full">
           {/* Candidates Table Card */}
-          <div className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
+          <div className="glass-card rounded-[2.25rem] border border-slate-200 p-6 shadow-sm sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-bold text-slate-950">Student List</h2>

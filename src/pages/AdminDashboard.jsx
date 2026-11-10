@@ -99,7 +99,7 @@ function AdminDashboard() {
       href: "/user-management",
       icon: FaUsers,
       color: "bg-blue-600",
-      surface: "border-sky-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Reactivation Requests",
@@ -108,7 +108,7 @@ function AdminDashboard() {
       href: "/reactivation-requests",
       icon: FaUserClock,
       color: "bg-amber-500",
-      surface: "border-amber-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Question Management",
@@ -117,7 +117,7 @@ function AdminDashboard() {
       href: "/question-management",
       icon: FaQuestionCircle,
       color: "bg-teal-600",
-      surface: "border-cyan-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Industries & Job Roles",
@@ -126,7 +126,7 @@ function AdminDashboard() {
       href: "/interview-mode",
       icon: FaSlidersH,
       color: "bg-indigo-600",
-      surface: "border-sky-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Staff Management",
@@ -135,7 +135,7 @@ function AdminDashboard() {
       href: "/staff-management",
       icon: FaUserTie,
       color: "bg-violet-600",
-      surface: "border-violet-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Staff Assignments",
@@ -144,7 +144,7 @@ function AdminDashboard() {
       href: "/staff-assignments",
       icon: FaUserCheck,
       color: "bg-blue-600",
-      surface: "border-blue-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Interview Results",
@@ -153,7 +153,7 @@ function AdminDashboard() {
       href: "/interview-results",
       icon: FaFileAlt,
       color: "bg-indigo-600",
-      surface: "border-indigo-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Email Communication",
@@ -162,7 +162,7 @@ function AdminDashboard() {
       href: "/email-communication",
       icon: FaEnvelope,
       color: "bg-sky-600",
-      surface: "border-sky-100/90",
+      surface: "border-slate-200",
     },
     {
       title: "Backup & Restore",
@@ -171,7 +171,7 @@ function AdminDashboard() {
       href: "/backup-restore",
       icon: FaDatabase,
       color: "bg-emerald-600",
-      surface: "border-emerald-100/90",
+      surface: "border-slate-200",
     },
   ];
 

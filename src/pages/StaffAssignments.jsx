@@ -371,7 +371,7 @@ function StaffAssignments() {
         )}
 
         {/* Assign a Student Form Section */}
-        <section className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
+        <section className="glass-card rounded-[2.25rem] border border-slate-200 p-6 shadow-sm sm:p-7">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700">
@@ -468,7 +468,7 @@ function StaffAssignments() {
         </section>
 
         {/* Current Assignments Table Card */}
-        <section className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
+        <section className="glass-card rounded-[2.25rem] border border-slate-200 p-6 shadow-sm sm:p-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">

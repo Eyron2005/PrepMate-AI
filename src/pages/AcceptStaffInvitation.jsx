@@ -111,7 +111,7 @@ function AcceptStaffInvitation() {
       <div className="float-orb orb-one" />
       <div className="float-orb orb-two" />
       <div className="float-orb orb-three" />
-      <section className="glass-card relative w-full max-w-lg rounded-[2rem] border border-white/70 p-8 shadow-xl ring-1 ring-sky-100/80">
+      <section className="glass-card relative w-full max-w-lg rounded-[2rem] border border-slate-200 p-8 shadow-sm">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-sky-700">Prepmate Staff</p>
         <h1 className="mt-3 text-3xl font-semibold text-slate-950">Accept your invitation</h1>
 

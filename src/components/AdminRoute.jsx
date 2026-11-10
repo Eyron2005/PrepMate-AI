@@ -46,7 +46,7 @@ function AdminRoute() {
   }, [userId]);
 
   if (loading) {
-    return <div className="min-h-screen bg-slate-50" />;
+    return <div className="min-h-screen bg-white" />;
   }
 
   if (authError) {
@@ -62,7 +62,7 @@ function AdminRoute() {
   if (!session) return <Navigate to="/" replace />;
 
   if (status === "checking" || verifiedUserId !== userId) {
-    return <div className="min-h-screen bg-slate-50" />;
+    return <div className="min-h-screen bg-white" />;
   }
 
   if (status === "error") {
