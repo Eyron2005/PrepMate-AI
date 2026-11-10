@@ -1,3 +1,5 @@
+import { formatEriScore } from "../services/eri";
+
 export default function EriProgressRing({
   score,
   size = 100,
@@ -8,8 +10,8 @@ export default function EriProgressRing({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  const hasScore = score !== null && score !== undefined && Number.isFinite(Number(score));
-  const numericScore = hasScore ? Math.min(100, Math.max(0, Math.round(Number(score)))) : 0;
+  const hasScore = score !== null && score !== undefined && score !== "" && Number.isFinite(Number(score));
+  const numericScore = hasScore ? Math.min(100, Math.max(0, Number(score))) : 0;
   const strokeDashoffset = circumference - (numericScore / 100) * circumference;
 
   const color = classification?.progressColor || (hasScore ? "#0284c7" : "#94a3b8");
@@ -44,10 +46,10 @@ export default function EriProgressRing({
           )}
         </svg>
 
-        {/* Center Percentage */}
+        {/* Center Score */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
-            {hasScore ? `${numericScore}%` : "—"}
+          <span className="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl tabular-nums">
+            {hasScore ? formatEriScore(numericScore) : "N/A"}
           </span>
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             ERI

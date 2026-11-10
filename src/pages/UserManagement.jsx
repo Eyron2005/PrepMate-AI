@@ -16,18 +16,18 @@ import {
   FaExclamationTriangle,
   FaArrowRight,
   FaTrash,
-  FaGraduationCap,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 import { usePresence } from "../contexts/presenceContext";
 import { isPresenceRecentlyOnline, ONLINE_THRESHOLD_MS } from "../services/presence";
 import {
+  computeStudentEriSummary,
+  fetchStudentEriAnalytics,
+  formatEriScore,
   getEriClassification,
-  fetchStudentEriHistory,
 } from "../services/eri";
-import EriProgressRing from "../components/EriProgressRing";
-import EriHistoryChart from "../components/EriHistoryChart";
+import StudentEriPanel from "../components/StudentEriPanel";
 import StudentAvatar from "../components/StudentAvatar";
 
 const USER_PAGE_SIZE = 50;
@@ -78,7 +78,7 @@ function UserManagement() {
   const [copiedId, setCopiedId] = useState(false);
 
   // Student ERI state
-  const [studentEriHistory, setStudentEriHistory] = useState([]);
+  const [studentEriAnalytics, setStudentEriAnalytics] = useState(null);
   const [loadingEriHistory, setLoadingEriHistory] = useState(false);
 
   const requestId = useRef(0);
@@ -185,11 +185,28 @@ function UserManagement() {
                 ? Number(row.latest_eri)
                 : null,
             latest_eri_date: row.latest_eri_date || null,
+            hr_average:
+              row.hr_average !== null && row.hr_average !== undefined ? Number(row.hr_average) : null,
+            behavioral_average:
+              row.behavioral_average !== null && row.behavioral_average !== undefined
+                ? Number(row.behavioral_average)
+                : null,
+            situational_average:
+              row.situational_average !== null && row.situational_average !== undefined
+                ? Number(row.situational_average)
+                : null,
+            technical_average:
+              row.technical_average !== null && row.technical_average !== undefined
+                ? Number(row.technical_average)
+                : null,
+            available_categories_count: Number(row.available_categories_count || 0),
             completed_assessments_count: Number(row.completed_assessments_count || 0),
+            incomplete_assessments_count: Number(row.incomplete_assessments_count || 0),
+            in_progress_assessments_count: Number(row.in_progress_assessments_count || 0),
           };
         });
       } else {
-        // Fallback to direct profiles table query if RPC is temporarily unavailable
+        // Fallback to direct profiles + sessions/results computation strictly excluding incomplete sessions
         console.warn("Direct query fallback in effect:", rpcError?.message);
         let query = supabase
           .from("profiles")
@@ -213,14 +230,53 @@ function UserManagement() {
         const { data, count, error } = await query;
         if (error) throw error;
 
+        const rows = data || [];
+        const allIds = [...new Set(rows.flatMap((r) => [r.id, r.auth_user_id]).filter(Boolean))];
+        let sessionsList = [];
+        let resultsList = [];
+        let qCatMap = {};
+
+        if (allIds.length > 0) {
+          const [sesRes, resRes] = await Promise.all([
+            supabase
+              .from("interview_sessions")
+              .select("id, profile_id, overall_score, speech_score, camera_score, question_count, completed_count, summary, created_at")
+              .in("profile_id", allIds),
+            supabase
+              .from("interview_results")
+              .select("id, profile_id, session_id, question_id, ai_score, created_at")
+              .in("profile_id", allIds),
+          ]);
+          if (!sesRes.error) sessionsList = sesRes.data || [];
+          if (!resRes.error) resultsList = resRes.data || [];
+
+          const qIds = [...new Set(resultsList.map((r) => r.question_id).filter(Boolean))];
+          if (qIds.length > 0) {
+            const { data: qData } = await supabase.from("questions").select("id, category").in("id", qIds);
+            qCatMap = Object.fromEntries((qData || []).map((q) => [q.id, q.category]));
+          }
+        }
+
         totalCount = count || 0;
-        profileUsers = (data || []).map((row) => {
+        profileUsers = rows.map((row) => {
           const lastOnlineDate = row.last_online ? new Date(row.last_online) : null;
           const lastOnlineAt =
             lastOnlineDate && Number.isFinite(lastOnlineDate.getTime())
               ? lastOnlineDate.toISOString()
               : null;
           const status = row.account_status || "active";
+          const rowSessions = sessionsList.filter(
+            (s) => s.profile_id === row.id || (row.auth_user_id && s.profile_id === row.auth_user_id)
+          );
+          const rowResults = resultsList.filter(
+            (r) => !r.profile_id || r.profile_id === row.id || (row.auth_user_id && r.profile_id === row.auth_user_id)
+          );
+          const eriSummary = computeStudentEriSummary({
+            sessions: rowSessions,
+            results: rowResults,
+            questionCategoryById: qCatMap,
+          });
+
           return {
             ...row,
             avatar_url: row.avatar_url || null,
@@ -233,12 +289,16 @@ function UserManagement() {
             legacy_is_online: isPresenceRecentlyOnline(lastOnlineAt),
             created_at: row.created_at || new Date().toISOString(),
             last_online_at: lastOnlineAt,
-            latest_eri:
-              row.latest_eri !== null && row.latest_eri !== undefined
-                ? Number(row.latest_eri)
-                : null,
-            latest_eri_date: row.latest_eri_date || null,
-            completed_assessments_count: Number(row.completed_assessments_count || 0),
+            latest_eri: eriSummary.latest_eri,
+            latest_eri_date: eriSummary.latest_eri_date,
+            hr_average: eriSummary.hr_average,
+            behavioral_average: eriSummary.behavioral_average,
+            situational_average: eriSummary.situational_average,
+            technical_average: eriSummary.technical_average,
+            available_categories_count: eriSummary.available_categories_count,
+            completed_assessments_count: eriSummary.completed_assessments_count,
+            incomplete_assessments_count: eriSummary.incomplete_assessments_count,
+            in_progress_assessments_count: eriSummary.in_progress_assessments_count,
           };
         });
       }
@@ -349,16 +409,17 @@ function UserManagement() {
   }, [loadAccountCounts, refreshOnlineStatuses]);
 
   const modalUserId = modalUser?.id;
+  const modalUserAuthId = modalUser?.auth_user_id;
   const modalUserAvatar = modalUser?.avatar_url;
 
-  // Load selected or modal candidate's detailed ERI assessment history & avatar
+  // Load selected or modal candidate's detailed ERI assessment analytics & avatar
   useEffect(() => {
     let isMounted = true;
 
     const frameId = requestAnimationFrame(async () => {
       if (!modalUserId) {
         if (isMounted) {
-          setStudentEriHistory([]);
+          setStudentEriAnalytics(null);
           setLoadingEriHistory(false);
         }
         return;
@@ -366,13 +427,13 @@ function UserManagement() {
 
       setLoadingEriHistory(true);
       try {
-        const history = await fetchStudentEriHistory(modalUserId);
+        const analytics = await fetchStudentEriAnalytics(modalUserId, modalUserAuthId);
         if (isMounted) {
-          setStudentEriHistory(history || []);
+          setStudentEriAnalytics(analytics || null);
         }
       } catch (err) {
         console.error("Failed to load student ERI assessment history:", err);
-        if (isMounted) setStudentEriHistory([]);
+        if (isMounted) setStudentEriAnalytics(null);
       } finally {
         if (isMounted) setLoadingEriHistory(false);
       }
@@ -401,7 +462,7 @@ function UserManagement() {
       isMounted = false;
       cancelAnimationFrame(frameId);
     };
-  }, [modalUserId, modalUserAvatar]);
+  }, [modalUserId, modalUserAuthId, modalUserAvatar]);
 
   const usersWithPresence = useMemo(
     () =>
@@ -874,8 +935,8 @@ function UserManagement() {
                               {user.latest_eri !== null && user.latest_eri !== undefined ? (
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="font-extrabold text-slate-900 text-xs">
-                                      {user.latest_eri}%
+                                    <span className="text-xs font-extrabold text-slate-900 tabular-nums">
+                                      {formatEriScore(user.latest_eri)}
                                     </span>
                                     <span
                                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${
@@ -885,18 +946,24 @@ function UserManagement() {
                                       {getEriClassification(user.latest_eri).label}
                                     </span>
                                   </div>
-                                  <span className="text-[10px] text-slate-400">
-                                    {user.completed_assessments_count > 0
-                                      ? `${user.completed_assessments_count} session${
-                                          user.completed_assessments_count > 1 ? "s" : ""
-                                        }`
-                                      : "Latest evaluation"}
+                                  <span className="text-[10px] text-slate-400 tabular-nums">
+                                    {user.completed_assessments_count} completed
+                                    {user.incomplete_assessments_count > 0
+                                      ? ` · ${user.incomplete_assessments_count} incomplete`
+                                      : ""}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
-                                  Not Yet Available
-                                </span>
+                                <div className="flex flex-col gap-1">
+                                  <span className="inline-flex w-fit items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200/80">
+                                    N/A
+                                  </span>
+                                  {user.incomplete_assessments_count > 0 && (
+                                    <span className="text-[10px] text-amber-700 tabular-nums">
+                                      {user.incomplete_assessments_count} incomplete
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </td>
 
@@ -1279,84 +1346,11 @@ function UserManagement() {
                 </div>
 
                 {/* Right Column: Employment Readiness Index (ERI) */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Employment Readiness Index (ERI)
-                    </h4>
-                    {modalUserWithPresence.latest_eri !== null && modalUserWithPresence.latest_eri !== undefined ? (
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ring-1 ${
-                          getEriClassification(modalUserWithPresence.latest_eri).badgeClass
-                        }`}
-                      >
-                        {getEriClassification(modalUserWithPresence.latest_eri).label}
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                        Pending Assessment
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 via-white to-cyan-50/60 p-4 shadow-sm ring-1 ring-sky-200/50">
-                    {modalUserWithPresence.latest_eri !== null && modalUserWithPresence.latest_eri !== undefined ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-around gap-4 rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
-                          <EriProgressRing
-                            score={modalUserWithPresence.latest_eri}
-                            size={92}
-                            strokeWidth={8}
-                            showLabel={false}
-                            classification={getEriClassification(modalUserWithPresence.latest_eri)}
-                          />
-                          <div className="flex-1 space-y-2 text-xs">
-                            <div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                Latest Assessment Date
-                              </span>
-                              <p className="font-semibold text-slate-800">
-                                {modalUserWithPresence.latest_eri_date
-                                  ? new Date(modalUserWithPresence.latest_eri_date).toLocaleDateString(undefined, {
-                                      month: "short",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    })
-                                  : "Recent"}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                Completed Mock Evaluations
-                              </span>
-                              <p className="font-semibold text-slate-800">
-                                {modalUserWithPresence.completed_assessments_count || studentEriHistory.length || 1} interview session(s)
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ERI Historical Trend Chart */}
-                        {loadingEriHistory ? (
-                          <div className="rounded-xl border border-slate-100 bg-white/70 p-6 text-center text-xs text-slate-400">
-                            <FaSyncAlt className="mx-auto mb-1 animate-spin text-sm text-sky-600" />
-                            Loading historical assessments...
-                          </div>
-                        ) : (
-                          <EriHistoryChart history={studentEriHistory} />
-                        )}
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center">
-                        <FaGraduationCap className="mx-auto mb-2 text-2xl text-slate-300" />
-                        <p className="text-xs font-bold text-slate-700">Not Yet Available</p>
-                        <p className="mt-1 text-[11px] text-slate-500">
-                          This student has not completed any mock interview evaluations on PrepMate AI yet.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <StudentEriPanel
+                  student={modalUserWithPresence}
+                  analytics={studentEriAnalytics}
+                  loading={loadingEriHistory}
+                />
               </div>
             </div>
 

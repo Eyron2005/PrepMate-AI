@@ -1,15 +1,14 @@
 import { useRef, useState } from "react";
-import { FaDownload, FaUpload, FaDatabase, FaFileCode, FaCheck, FaExclamationTriangle } from "react-icons/fa";
+import { FaDownload, FaUpload, FaDatabase, FaFileCsv, FaCheck, FaExclamationTriangle } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
+import {
+  BACKUP_OPTIONS,
+  buildBackupCsv,
+  buildBackupFilename,
+  parseBackupFiles,
+} from "../services/backup";
 import { supabase } from "../services/supabase";
 
-const backupOptions = [
-  { key: "profiles", label: "User Profiles & Accounts", desc: "Candidate metadata and registration records" },
-  { key: "questions", label: "Question Bank", desc: "Curated technical, behavioral, and HR questions" },
-  { key: "interview_results", label: "Interview Results & Transcripts", desc: "Evaluation metrics, AI feedback, and answers" },
-  { key: "staff", label: "Staff Accounts", desc: "Supervisor credentials and department assignments" },
-];
-const format = "prepmate-admin-backup";
 const pageSize = 500;
 
 async function readTable(table) {
@@ -24,12 +23,12 @@ async function readTable(table) {
 
 function BackupRestore() {
   const fileRef = useRef(null);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [working, setWorking] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedTables, setSelectedTables] = useState(
-    Object.fromEntries(backupOptions.map(({ key }) => [key, true]))
+    Object.fromEntries(BACKUP_OPTIONS.map(({ key }) => [key, true]))
   );
 
   function toggleTable(key) {
@@ -40,15 +39,15 @@ function BackupRestore() {
   }
 
   function selectAll() {
-    setSelectedTables(Object.fromEntries(backupOptions.map(({ key }) => [key, true])));
+    setSelectedTables(Object.fromEntries(BACKUP_OPTIONS.map(({ key }) => [key, true])));
   }
 
   function deselectAll() {
-    setSelectedTables(Object.fromEntries(backupOptions.map(({ key }) => [key, false])));
+    setSelectedTables(Object.fromEntries(BACKUP_OPTIONS.map(({ key }) => [key, false])));
   }
 
   async function createBackup() {
-    const chosenTables = backupOptions
+    const chosenTables = BACKUP_OPTIONS
       .filter(({ key }) => selectedTables[key])
       .map(({ key }) => key);
 
@@ -72,52 +71,32 @@ function BackupRestore() {
       return;
     }
 
-    const backup = {
-      format,
-      version: 1,
-      created_at: new Date().toISOString(),
-      tables: Object.fromEntries(chosenTables.map((table, index) => [table, results[index].data])),
-    };
+    const tablesByName = Object.fromEntries(chosenTables.map((table, index) => [table, results[index].data]));
+    const csvContent = buildBackupCsv(tablesByName);
 
-    const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+    const url = URL.createObjectURL(new Blob([csvContent], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `prepmate-admin-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = buildBackupFilename(chosenTables);
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-    setSuccessMessage("Backup downloaded successfully. Keep the JSON snapshot safe.");
+    setSuccessMessage("CSV backup downloaded successfully. Keep the backup file safe.");
     setWorking(false);
   }
 
   async function restoreBackup() {
-    if (!file) return;
+    if (files.length === 0) return;
 
     let backup;
     try {
-      backup = JSON.parse(await file.text());
+      backup = await parseBackupFiles(files);
     } catch (error) {
-      console.error("Invalid backup JSON:", error);
-      setErrorMessage("The selected file is not a valid JSON document.");
+      console.error("Invalid backup file:", error);
+      setErrorMessage(error?.message || "The selected file is not a valid Prepmate backup.");
       return;
     }
 
-    if (
-      backup?.format !== format ||
-      backup?.version !== 1 ||
-      !backup.tables ||
-      Object.keys(backup.tables).length === 0
-    ) {
-      setErrorMessage("This file is not a recognized Prepmate AI admin backup.");
-      return;
-    }
-
-    const invalidTable = Object.entries(backup.tables).find(([, rows]) => !Array.isArray(rows));
-    if (invalidTable) {
-      setErrorMessage(`Backup table "${invalidTable[0]}" contains corrupt or non-array data.`);
-      return;
-    }
-
-    if (!window.confirm("Restore this backup? Existing records in matching tables will be overwritten. Authentication logins are preserved.")) return;
+    if (!window.confirm("Restore this backup? Matching records in the selected tables will be restored and overwritten. Authentication logins are preserved.")) return;
 
     setWorking(true);
     setErrorMessage("");
@@ -134,12 +113,14 @@ function BackupRestore() {
     const summary = [
       data?.profiles !== undefined ? `profiles: ${data.profiles}` : null,
       data?.questions !== undefined ? `questions: ${data.questions}` : null,
+      data?.interview_sessions !== undefined ? `interview sessions: ${data.interview_sessions}` : null,
       data?.interview_results !== undefined ? `interview results: ${data.interview_results}` : null,
       data?.staff !== undefined ? `staff: ${data.staff}` : null,
+      data?.staff_student_assignments !== undefined ? `assignments: ${data.staff_student_assignments}` : null,
     ].filter(Boolean).join(", ");
 
-    setSuccessMessage(`Database snapshot restored successfully. ${summary}.`);
-    setFile(null);
+    setSuccessMessage(`Database backup restored successfully. ${summary}.`);
+    setFiles([]);
     if (fileRef.current) fileRef.current.value = "";
     setWorking(false);
   }
@@ -166,7 +147,7 @@ function BackupRestore() {
               Backup &amp; Restore
             </h1>
             <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-              Export encrypted application data snapshots or restore previous backups with atomic verification.
+              Export CSV application data snapshots or restore previous backups with atomic verification.
             </p>
           </div>
         </section>
@@ -215,10 +196,10 @@ function BackupRestore() {
               </div>
 
               <h2 className="mt-5 text-xl font-bold text-slate-950">Export System Snapshot</h2>
-              <p className="mt-1.5 text-xs text-slate-600">Choose tables to bundle into a timestamped JSON backup archive.</p>
+              <p className="mt-1.5 text-xs text-slate-600">Choose tables to export into a timestamped CSV backup file.</p>
 
               <div className="mt-5 space-y-2.5">
-                {backupOptions.map(({ key, label, desc }) => {
+                {BACKUP_OPTIONS.map(({ key, label, desc }) => {
                   const isChecked = !!selectedTables[key];
                   return (
                     <label
@@ -252,7 +233,7 @@ function BackupRestore() {
               className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 py-3.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
             >
               <FaDownload className="text-xs" />
-              <span>{working ? "Bundling Database..." : "Download JSON Snapshot"}</span>
+              <span>{working ? "Exporting CSV Backup..." : "Download CSV Backup"}</span>
             </button>
           </div>
 
@@ -270,29 +251,35 @@ function BackupRestore() {
 
               <h2 className="mt-5 text-xl font-bold text-slate-950">Restore from File</h2>
               <p className="mt-1.5 text-xs text-slate-600">
-                Overwrites table data with contents from an existing backup snapshot.
+                Overwrites matching table records with contents from an existing CSV backup file.
               </p>
 
               {/* File Dropzone */}
               <div className="mt-5 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-6 text-center transition hover:border-amber-300 hover:bg-amber-50/30">
-                <FaFileCode className="mx-auto mb-2 text-2xl text-slate-400" />
-                <p className="text-xs font-bold text-slate-700">Select Backup Archive</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">Only .json files created by Prepmate are supported</p>
+                <FaFileCsv className="mx-auto mb-2 text-2xl text-slate-400" />
+                <p className="text-xs font-bold text-slate-700">Select Backup File</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Upload a .csv backup file created by Prepmate (legacy .json also supported)
+                </p>
 
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".json,application/json"
+                  multiple
+                  accept=".csv,text/csv,.json,application/json"
                   onChange={(e) => {
-                    setFile(e.target.files?.[0] || null);
+                    setFiles(Array.from(e.target.files || []));
                     setErrorMessage("");
                   }}
                   className="mt-4 block w-full text-xs text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-amber-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-amber-800 hover:file:bg-amber-200"
                 />
 
-                {file && (
+                {files.length > 0 && (
                   <p className="mt-3 truncate rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                    Ready to restore: {file.name}
+                    Ready to restore:{" "}
+                    {files.length === 1
+                      ? files[0].name
+                      : `${files.length} files (${files.map((item) => item.name).join(", ")})`}
                   </p>
                 )}
               </div>
@@ -300,7 +287,7 @@ function BackupRestore() {
 
             <button
               type="button"
-              disabled={!file || working}
+              disabled={files.length === 0 || working}
               onClick={restoreBackup}
               className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 py-3.5 text-xs font-bold text-white shadow-md shadow-orange-600/30 transition hover:shadow-orange-600/50 disabled:opacity-50"
             >

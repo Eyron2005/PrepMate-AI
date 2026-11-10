@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FaCalendarAlt, FaCheckCircle, FaComments, FaVideo } from "react-icons/fa";
+import { formatEriScore } from "../services/eri";
 
 export default function EriHistoryChart({ history = [] }) {
   const [activePoint, setActivePoint] = useState(null);
@@ -7,9 +8,9 @@ export default function EriHistoryChart({ history = [] }) {
   if (!history || history.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-xs">
-        <p className="font-bold text-slate-700">No Assessment History Available</p>
+        <p className="font-bold text-slate-700">No Completed Assessment History</p>
         <p className="mt-1 text-slate-500">
-          Historical trend line will be charted once the candidate completes mock interview evaluations.
+          Historical trend line will be charted once the candidate completes an eligible mock interview evaluation.
         </p>
       </div>
     );
@@ -25,20 +26,32 @@ export default function EriHistoryChart({ history = [] }) {
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
               Baseline Assessment (1 Completed)
             </span>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${session.classification.badgeClass}`}>
-              {session.score}%
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold tabular-nums ${session.classification.badgeClass}`}>
+              {formatEriScore(session.score)}
             </span>
           </div>
+          {session.availableCategories?.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {session.availableCategories.map((cat) => (
+                <span
+                  key={cat}
+                  className="rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-slate-700 ring-1 ring-sky-100"
+                >
+                  {cat}: {formatEriScore(session.categoryAverages?.[cat])}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="mt-2 text-xs font-medium text-slate-700">
             {session.summary || "Completed evaluation session recorded."}
           </p>
-          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-sky-100 pt-2">
+          <div className="mt-3 flex items-center justify-between border-t border-sky-100 pt-2 text-[11px] text-slate-500">
             <span>{session.formattedDate} at {session.formattedTime}</span>
             <span>{session.completed_count} of {session.question_count} questions</span>
           </div>
         </div>
-        <p className="text-[11px] italic text-slate-400 text-center">
-          Additional interview sessions will populate the chronological progress trend line.
+        <p className="text-center text-[11px] italic text-slate-400">
+          Additional completed interview sessions will populate the chronological progress trend line.
         </p>
       </div>
     );
@@ -54,8 +67,10 @@ export default function EriHistoryChart({ history = [] }) {
   const innerHeight = height - paddingY * 2;
 
   const points = history.map((item, idx) => {
+    const numeric = Number(item.score ?? 0);
+    const clamped = Number.isFinite(numeric) ? Math.min(100, Math.max(0, numeric)) : 0;
     const x = paddingX + (idx / (history.length - 1)) * innerWidth;
-    const y = height - paddingY - (item.score / 100) * innerHeight;
+    const y = height - paddingY - (clamped / 100) * innerHeight;
     return { x, y, item };
   });
 
@@ -71,16 +86,16 @@ export default function EriHistoryChart({ history = [] }) {
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-sm">
         <div className="flex items-center justify-between px-2 pt-1 pb-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Readiness Trend Line ({history.length} Assessments)
+            Readiness Trend Line ({history.length} Completed)
           </span>
           {activePoint && (
-            <span className="text-xs font-bold text-sky-700">
-              {activePoint.item.formattedDate}: {activePoint.item.score}%
+            <span className="text-xs font-bold text-sky-700 tabular-nums">
+              {activePoint.item.formattedDate}: {formatEriScore(activePoint.item.score)}
             </span>
           )}
         </div>
 
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto overflow-visible">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full overflow-visible">
           <defs>
             <linearGradient id="eriGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#0284c7" stopOpacity="0.25" />
@@ -121,16 +136,16 @@ export default function EriHistoryChart({ history = [] }) {
         </svg>
 
         {/* X-axis labels */}
-        <div className="flex justify-between px-6 pt-1 text-[10px] text-slate-400 font-semibold">
+        <div className="flex justify-between px-6 pt-1 text-[10px] font-semibold text-slate-400">
           <span>{history[0].formattedDate}</span>
           <span>{history[history.length - 1].formattedDate}</span>
         </div>
       </div>
 
-      {/* Chronological List of Assessments */}
-      <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+      {/* Chronological List of Completed Assessments */}
+      <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          Chronological Assessments
+          Completed Assessments
         </p>
         {history.slice().reverse().map((session) => (
           <div
@@ -138,34 +153,34 @@ export default function EriHistoryChart({ history = [] }) {
             className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 text-xs transition hover:bg-white hover:shadow-sm"
           >
             <div className="min-w-0 pr-2">
-              <div className="flex items-center gap-1.5 font-bold text-slate-800 truncate">
-                <FaCalendarAlt className="text-[10px] text-slate-400 shrink-0" />
+              <div className="flex items-center gap-1.5 truncate font-bold text-slate-800">
+                <FaCalendarAlt className="shrink-0 text-[10px] text-slate-400" />
                 <span>{session.formattedDate}</span>
                 <span className="text-[11px] font-normal text-slate-400">({session.formattedTime})</span>
               </div>
-              <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
+              <div className="mt-1 flex flex-wrap items-center gap-2.5 text-[10px] text-slate-500">
                 <span className="inline-flex items-center gap-1">
-                  <FaCheckCircle className="text-emerald-500 text-[9px]" />
+                  <FaCheckCircle className="text-[9px] text-emerald-500" />
                   {session.completed_count}/{session.question_count} Qs
                 </span>
                 {session.speech_score != null && (
                   <span className="inline-flex items-center gap-1">
-                    <FaComments className="text-sky-500 text-[9px]" />
-                    Speech: {session.speech_score}%
+                    <FaComments className="text-[9px] text-sky-500" />
+                    Speech: {formatEriScore(session.speech_score)}
                   </span>
                 )}
                 {session.camera_score != null && (
                   <span className="inline-flex items-center gap-1">
-                    <FaVideo className="text-indigo-500 text-[9px]" />
-                    Cam: {session.camera_score}%
+                    <FaVideo className="text-[9px] text-indigo-500" />
+                    Cam: {formatEriScore(session.camera_score)}
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="text-right shrink-0">
-              <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-extrabold ${session.classification.badgeClass}`}>
-                {session.score}%
+            <div className="shrink-0 text-right">
+              <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-extrabold tabular-nums ${session.classification.badgeClass}`}>
+                {formatEriScore(session.score)}
               </span>
               <p className="mt-0.5 text-[10px] font-semibold text-slate-500">
                 {session.classification.shortLabel}

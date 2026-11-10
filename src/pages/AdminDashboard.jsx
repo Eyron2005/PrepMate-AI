@@ -5,7 +5,14 @@ import AdminSidebar from "../components/AdminSidebar";
 import { useAuth } from "../contexts/authContext";
 import { fetchCurrentAdminProfile, getCachedAdminProfile } from "../services/adminProfile";
 import {
+  ERI_CATEGORIES,
+  fetchAdminEriAnalytics,
+  formatEriScore,
+  getEriClassification,
+} from "../services/eri";
+import {
   FaUsers,
+  FaAward,
   FaQuestionCircle,
   FaUserTie,
   FaDatabase,
@@ -31,6 +38,7 @@ function AdminDashboard() {
   const [totalUsers, setTotalUsers] = useState(null);
   const [totalQuestions, setTotalQuestions] = useState(null);
   const [pendingRequests, setPendingRequests] = useState(null);
+  const [eriAnalytics, setEriAnalytics] = useState(null);
   const [mounted, setMounted] = useState(false);
 
   const cachedAdmin = userId ? getCachedAdminProfile(userId, email) : null;
@@ -55,12 +63,17 @@ function AdminDashboard() {
     }
 
     async function loadDashboard() {
-      const [userResult, questionResult, requestsResult] = await Promise.all([
+      const [userResult, questionResult, requestsResult, analyticsResult] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("questions").select("id", { count: "exact", head: true }),
         supabase.from("account_reactivation_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        fetchAdminEriAnalytics(),
       ]);
       if (!active) return;
+
+      if (analyticsResult) {
+        setEriAnalytics(analyticsResult);
+      }
 
       if (userResult.error) {
         console.error("Unable to load the registered user count:", userResult.error);
@@ -336,6 +349,82 @@ function AdminDashboard() {
             ))}
           </div>
         </section>
+
+        {/* Cohort ERI & Session Integrity Summary */}
+        {eriAnalytics && (
+          <section className="glass-card mt-10 rounded-[2rem] border border-sky-100/90 p-6 shadow-sm ring-1 ring-sky-200/40 sm:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-md shadow-sky-500/25">
+                  <FaAward />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-950">Cohort ERI &amp; Session Integrity</h3>
+                  <p className="text-xs text-slate-500">
+                    Calculated strictly from completed sessions across HR, Behavioral, Situational, and Technical categories.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/interview-results"
+                className="text-xs font-bold text-sky-700 hover:text-sky-900 hover:underline"
+              >
+                Inspect Interview Sessions →
+              </Link>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Cohort Average ERI</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-2xl font-extrabold text-slate-950 tabular-nums">
+                    {formatEriScore(eriAnalytics.averageEri)}
+                  </span>
+                  {eriAnalytics.averageEri !== null && (
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${getEriClassification(eriAnalytics.averageEri).badgeClass}`}>
+                      {getEriClassification(eriAnalytics.averageEri).label}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500 tabular-nums">
+                  {eriAnalytics.studentsWithEri} assessed · {eriAnalytics.studentsWithoutEri} N/A
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Completed Sessions</p>
+                <p className="mt-2 text-2xl font-extrabold text-slate-950 tabular-nums">
+                  {eriAnalytics.completedSessionsTotal ?? 0}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500 tabular-nums">
+                  {eriAnalytics.validEvaluatedSessionsTotal ?? 0} valid evaluated
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Incomplete Sessions</p>
+                <p className="mt-2 text-2xl font-extrabold text-slate-950 tabular-nums">
+                  {eriAnalytics.incompleteSessionsTotal ?? 0}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500">Excluded from ERI &amp; averages</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Category Averages</p>
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                  {ERI_CATEGORIES.map((cat) => (
+                    <div key={cat} className="flex items-center justify-between gap-1">
+                      <span className="font-semibold text-slate-600">{cat}:</span>
+                      <span className="font-bold text-slate-900 tabular-nums">
+                        {formatEriScore(eriAnalytics.categoryAverages?.[cat])}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Security & Infrastructure Banner */}
         <section className="mt-10 rounded-[2rem] border border-sky-100/80 bg-gradient-to-r from-sky-50/60 via-white to-cyan-50/50 p-6 shadow-sm ring-1 ring-sky-200/40">

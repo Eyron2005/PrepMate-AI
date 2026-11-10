@@ -22,7 +22,13 @@ import {
 import AdminSidebar from "../components/AdminSidebar";
 import StaffSidebar from "../components/StaffSidebar";
 import { supabase } from "../services/supabase";
-import { getEriClassification } from "../services/eri";
+import {
+  classifyInterviewSession,
+  computeCategoryAveragesAndEri,
+  ERI_CATEGORIES,
+  formatEriScore,
+  getEriClassification,
+} from "../services/eri";
 import {
   fetchAssignedStudentIds,
   isAssignedStudentProfile,
@@ -330,28 +336,48 @@ async function loadSessionStudents(profileIds) {
   return result;
 }
 
-function OverallScoreBadge({ score, prominent = false }) {
-  const formattedScore = displayScore(score);
-  const isAvailable = formattedScore !== "N/A" && formattedScore !== "";
-  const numScore = isAvailable ? Number(String(score).replace("%", "")) : null;
-  const classification = getEriClassification(Number.isFinite(numScore) ? numScore : null);
+function SessionStatusBadge({ sessionInfo }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${sessionInfo.badgeClass}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${sessionInfo.dotClass}`} />
+      {sessionInfo.status}
+    </span>
+  );
+}
+
+function OverallScoreBadge({ score, prominent = false, isCompleted = true, statusLabel = "COMPLETED" }) {
+  const effectiveScore =
+    isCompleted && score !== null && score !== undefined && Number.isFinite(Number(score))
+      ? Number(score)
+      : null;
+  const formattedScore = isCompleted ? formatEriScore(effectiveScore) : "N/A";
+  const isAvailable = isCompleted && formattedScore !== "N/A";
+  const classification = getEriClassification(isAvailable ? effectiveScore : null);
 
   if (prominent) {
     return (
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-600 via-blue-600 to-indigo-700 p-4 text-white shadow-lg shadow-sky-500/25">
+      <div
+        className={`relative overflow-hidden rounded-2xl p-4 text-white shadow-lg ${
+          isAvailable
+            ? "bg-gradient-to-br from-sky-600 via-blue-600 to-indigo-700 shadow-sky-500/25"
+            : "bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 shadow-slate-500/20"
+        }`}
+      >
         <div className="flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-sky-100">
-            <FaAward className="text-amber-300" />
+            <FaAward className={isAvailable ? "text-amber-300" : "text-slate-300"} />
             Overall (ERI)
           </span>
-          {isAvailable && (
-            <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
-              {classification.shortLabel}
-            </span>
-          )}
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+            {isAvailable ? classification.shortLabel : "N/A"}
+          </span>
         </div>
-        <p className="mt-2 text-3xl font-extrabold tracking-tight">{formattedScore}</p>
-        <p className="mt-1 text-xs text-sky-100/90">{classification.label}</p>
+        <p className="mt-2 text-3xl font-extrabold tracking-tight tabular-nums">{formattedScore}</p>
+        <p className="mt-1 text-xs text-sky-100/90">
+          {isAvailable
+            ? classification.label
+            : `Readiness: N/A (${statusLabel})`}
+        </p>
       </div>
     );
   }
@@ -361,10 +387,12 @@ function OverallScoreBadge({ score, prominent = false }) {
       <div className="flex items-center justify-between gap-1">
         <p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
           <FaAward className="text-sky-600 text-[11px]" />
-          Overall
+          ERI
         </p>
       </div>
-      <p className="mt-1 truncate text-lg font-extrabold text-slate-900">{formattedScore}</p>
+      <p className={`mt-1 truncate text-lg font-extrabold tabular-nums ${isAvailable ? "text-slate-900" : "text-slate-400"}`}>
+        {formattedScore}
+      </p>
       <div className="mt-1">
         {isAvailable ? (
           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${classification.badgeClass}`}>
@@ -372,39 +400,52 @@ function OverallScoreBadge({ score, prominent = false }) {
             {classification.shortLabel}
           </span>
         ) : (
-          <span className="text-[10px] font-medium text-slate-400">Not assessed</span>
+          <span className="text-[10px] font-semibold text-amber-700">
+            {statusLabel === "IN PROGRESS" ? "In progress · N/A" : "Incomplete · N/A"}
+          </span>
         )}
       </div>
     </div>
   );
 }
 
-function MetricScoreBadge({ label, score, icon: Icon, iconColor = "text-sky-600", subtitle }) {
-  const formattedScore = displayScore(score);
+function MetricScoreBadge({ label, score, icon: Icon, iconColor = "text-sky-600", subtitle, isCompleted = true }) {
+  const formattedScore = isCompleted ? formatEriScore(score) : "N/A";
+  const hasVal = isCompleted && formattedScore !== "N/A";
   return (
     <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/90 p-3 transition group-hover:border-slate-200/90 group-hover:bg-white">
       <p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
         {Icon && <Icon className={`${iconColor} text-[11px]`} />}
         {label}
       </p>
-      <p className="mt-1 truncate text-lg font-extrabold text-slate-900">{formattedScore}</p>
+      <p className={`mt-1 truncate text-lg font-extrabold tabular-nums ${hasVal ? "text-slate-900" : "text-slate-400"}`}>
+        {formattedScore}
+      </p>
       <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
-        {subtitle || (formattedScore !== "N/A" ? "Performance" : "Pending")}
+        {!isCompleted ? "Excluded · N/A" : subtitle || (hasVal ? "Performance" : "Pending")}
       </p>
     </div>
   );
 }
 
-function QuestionsBadge({ count }) {
+function QuestionsBadge({ sessionInfo, fallbackCount = 0 }) {
+  const total = sessionInfo?.questionCount || fallbackCount;
+  const answered = sessionInfo?.answeredCount ?? total;
+  const unanswered = sessionInfo?.unansweredCount ?? 0;
+
   return (
     <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/90 p-3 transition group-hover:border-slate-200/90 group-hover:bg-white">
       <p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
         <FaQuestionCircle className="text-cyan-600 text-[11px]" />
         Questions
       </p>
-      <p className="mt-1 truncate text-lg font-extrabold text-slate-900">{count}</p>
-      <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
-        {count === 1 ? "1 item" : `${count} total`}
+      <p className="mt-1 truncate text-lg font-extrabold text-slate-900 tabular-nums">
+        {answered}/{total}
+      </p>
+      <p className="mt-1 truncate text-[11px] font-medium text-slate-400 tabular-nums">
+        {sessionInfo?.isCompleted
+          ? `${total} completed`
+          : `${unanswered} unanswered`}
       </p>
     </div>
   );
@@ -541,7 +582,7 @@ function StudentPicker({ search, setSearch, students, selectedStudent, onSelect,
   );
 }
 
-function QuestionReview({ answer, question, index }) {
+function QuestionReview({ answer, question, index, isCompletedSession = true }) {
   const [expanded, setExpanded] = useState(index === 0);
   const questionId = firstValue(answer, ["question_id", "questionId", "question_ref"]);
   const ownAnswer = getAnswerText(answer);
@@ -599,8 +640,14 @@ function QuestionReview({ answer, question, index }) {
           </h3>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <span className="rounded-2xl border border-sky-100 bg-sky-50/90 px-3.5 py-1.5 text-sm font-extrabold text-sky-900 shadow-sm">
-            Score: {displayScore(questionScore)}
+          <span
+            className={`rounded-2xl border px-3.5 py-1.5 text-sm font-extrabold shadow-sm tabular-nums ${
+              isCompletedSession
+                ? "border-sky-100 bg-sky-50/90 text-sky-900"
+                : "border-slate-200 bg-slate-100 text-slate-500"
+            }`}
+          >
+            Score: {isCompletedSession ? displayScore(questionScore) : "N/A"}
           </span>
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors hover:bg-sky-100 hover:text-sky-800">
             <FaChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
@@ -620,14 +667,20 @@ function QuestionReview({ answer, question, index }) {
             <FeedbackContent value={idealAnswer} unavailable="Ideal answer reference unavailable." />
           </ReviewSection>
           <ReviewSection title="AI Evaluation & Grading">
-            <AiFeedbackContent
-              value={feedback}
-              unavailable="Question-specific AI feedback unavailable."
-              strengths={strengths}
-              improvements={improvements}
-              fillerFeedback={fillerAnalysis}
-              fillerWordCount={fillerWordCount}
-            />
+            {isCompletedSession ? (
+              <AiFeedbackContent
+                value={feedback}
+                unavailable="Question-specific AI feedback unavailable."
+                strengths={strengths}
+                improvements={improvements}
+                fillerFeedback={fillerAnalysis}
+                fillerWordCount={fillerWordCount}
+              />
+            ) : (
+              <p className="text-slate-500">
+                Score: N/A — Incomplete sessions do not assign official question evaluation scores.
+              </p>
+            )}
           </ReviewSection>
           <ReviewSection title="Camera & Visual Notes" className="sm:col-span-2">
             <FeedbackContent value={cameraNotes} unavailable="Camera evaluation not available." />
@@ -760,9 +813,16 @@ function SessionDetails({
   ].filter(([, value]) => hasSavedValue(value));
   const hasTimeManagement = timeStats.length > 0 || hasSavedValue(timeManagementFeedback);
 
-  const totalQuestionCount = answers.length
-    || firstValue(session, ["question_count", "total_questions", "questions_total"])
-    || 0;
+  const sessionInfo = classifyInterviewSession(session, undefined, answers.length);
+  const categoryById = Object.fromEntries(
+    Object.entries(questionsById || {}).map(([id, q]) => [id, q?.category])
+  );
+  const sessionComputed = sessionInfo.isCompleted
+    ? computeCategoryAveragesAndEri(answers, categoryById)
+    : null;
+  const sessionEri = sessionInfo.isCompleted
+    ? sessionComputed?.eri ?? (session?.overall_score !== null && session?.overall_score !== undefined ? Number(session.overall_score) : null)
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -791,27 +851,41 @@ function SessionDetails({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-extrabold text-slate-950 sm:text-2xl">{studentName}</h2>
+                <SessionStatusBadge sessionInfo={sessionInfo} />
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
                   <FaBrain className="text-sky-600 text-[10px]" />
                   Mock Evaluation
                 </span>
               </div>
               {studentEmail && <p className="text-xs text-slate-500">{studentEmail}</p>}
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                <FaCalendarAlt className="text-sky-500 text-[11px]" />
-                {formatDate(session.created_at)}
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-400">
+                <span className="inline-flex items-center gap-1.5">
+                  <FaCalendarAlt className="text-sky-500 text-[11px]" />
+                  {formatDate(session.created_at)}
+                </span>
+                <span className="tabular-nums text-slate-500">
+                  Answered: <strong className="text-slate-700">{sessionInfo.answeredCount}</strong> · Unanswered:{" "}
+                  <strong className="text-slate-700">{sessionInfo.unansweredCount}</strong> · Planned:{" "}
+                  <strong className="text-slate-700">{sessionInfo.questionCount}</strong>
+                </span>
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[36rem]">
-            <OverallScoreBadge score={session.overall_score} prominent />
+            <OverallScoreBadge
+              score={sessionEri}
+              prominent
+              isCompleted={sessionInfo.isCompleted}
+              statusLabel={sessionInfo.status}
+            />
             <MetricScoreBadge
               label="Speech"
               score={session.speech_score}
               icon={FaMicrophone}
               iconColor="text-blue-500"
               subtitle="Verbal score"
+              isCompleted={sessionInfo.isCompleted}
             />
             <MetricScoreBadge
               label="Camera"
@@ -819,10 +893,53 @@ function SessionDetails({
               icon={FaVideo}
               iconColor="text-indigo-500"
               subtitle="Visual score"
+              isCompleted={sessionInfo.isCompleted}
             />
-            <QuestionsBadge count={totalQuestionCount} />
+            <QuestionsBadge sessionInfo={sessionInfo} fallbackCount={answers.length} />
           </div>
         </div>
+
+        {/* Category Averages & Readiness Integrity Strip */}
+        <div className="relative mt-5 grid grid-cols-2 gap-2.5 border-t border-slate-100 pt-4 sm:grid-cols-5">
+          {ERI_CATEGORIES.map((cat) => {
+            const catScore = sessionInfo.isCompleted
+              ? sessionComputed?.categoryAverages?.[cat] ?? null
+              : null;
+            return (
+              <div
+                key={cat}
+                className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-center"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{cat}</p>
+                <p
+                  className={`mt-0.5 text-sm font-extrabold tabular-nums ${
+                    catScore !== null ? "text-slate-900" : "text-slate-400"
+                  }`}
+                >
+                  {sessionInfo.isCompleted ? formatEriScore(catScore) : "N/A"}
+                </p>
+              </div>
+            );
+          })}
+          <div className="col-span-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-center sm:col-span-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Readiness</p>
+            <p
+              className={`mt-0.5 text-xs font-extrabold ${
+                sessionInfo.isCompleted && sessionEri !== null ? "text-sky-700" : "text-slate-400"
+              }`}
+            >
+              {sessionInfo.isCompleted && sessionEri !== null
+                ? getEriClassification(sessionEri).label
+                : "N/A"}
+            </p>
+          </div>
+        </div>
+
+        {!sessionInfo.isCompleted && (
+          <div className="relative mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-xs text-amber-900">
+            <strong>{sessionInfo.status} Session:</strong> Partial, abandoned, and in-progress interviews are preserved in history for auditing but are excluded from category averages, readiness classification, and ERI scores.
+          </div>
+        )}
       </section>
 
       {/* Overall Assessment Banner */}
@@ -954,6 +1071,7 @@ function SessionDetails({
                   answer={answer}
                   question={questionId ? questionsById[questionId] : null}
                   index={index}
+                  isCompletedSession={sessionInfo.isCompleted}
                 />
               );
             })}
@@ -974,6 +1092,7 @@ function AdminInterviewResults({ isStaff = false }) {
   const [sessions, setSessions] = useState([]);
   const [sessionStudents, setSessionStudents] = useState({});
   const [answerCounts, setAnswerCounts] = useState({});
+  const [sessionComputedEris, setSessionComputedEris] = useState({});
   const [sessionsPage, setSessionsPage] = useState(0);
   const [sessionsCount, setSessionsCount] = useState(0);
   const [sessionsLoading, setSessionsLoading] = useState(true);
@@ -1133,7 +1252,7 @@ function AdminInterviewResults({ isStaff = false }) {
         const [resultResponse, profileResponse] = await Promise.all([
           supabase
             .from("interview_results")
-            .select("session_id")
+            .select("id, session_id, question_id, ai_score, created_at")
             .in("session_id", sessionRows.map((session) => session.id)),
           profileIds.length > 0
             ? loadSessionStudents(profileIds)
@@ -1142,12 +1261,40 @@ function AdminInterviewResults({ isStaff = false }) {
         if (!active || request !== sessionsRequest.current) return;
         if (resultResponse.error) {
           console.error("Unable to load session response counts:", resultResponse.error);
+          setSessionComputedEris({});
         } else {
+          const rows = resultResponse.data || [];
           const counts = {};
-          for (const row of resultResponse.data || []) {
+          const bySession = {};
+          for (const row of rows) {
             counts[row.session_id] = (counts[row.session_id] || 0) + 1;
+            if (!bySession[row.session_id]) bySession[row.session_id] = [];
+            bySession[row.session_id].push(row);
           }
           setAnswerCounts(counts);
+
+          const qIds = [...new Set(rows.map((r) => r.question_id).filter(Boolean))];
+          let qCategoryMap = {};
+          if (qIds.length > 0) {
+            const { data: qRows } = await supabase
+              .from("questions")
+              .select("id, category")
+              .in("id", qIds);
+            if (!active || request !== sessionsRequest.current) return;
+            qCategoryMap = Object.fromEntries((qRows || []).map((q) => [q.id, q.category]));
+          }
+
+          const eris = {};
+          for (const ses of sessionRows) {
+            const info = classifyInterviewSession(ses, undefined, counts[ses.id] || 0);
+            if (info.isCompleted) {
+              const computed = computeCategoryAveragesAndEri(bySession[ses.id] || [], qCategoryMap);
+              if (computed.eri !== null) {
+                eris[ses.id] = computed.eri;
+              }
+            }
+          }
+          setSessionComputedEris(eris);
         }
         if (profileResponse.error) {
           console.error("Unable to load session student names:", profileResponse.error);
@@ -1397,8 +1544,11 @@ function AdminInterviewResults({ isStaff = false }) {
               ) : (
                 <div className="grid gap-4">
                   {visibleSessions.map((session) => {
-                    const answerCount = firstValue(session, ["question_count", "total_questions", "questions_total"])
-                      ?? (answerCounts[session.id] || 0);
+                    const recordedAnswersCount = answerCounts[session.id] || 0;
+                    const sessionInfo = classifyInterviewSession(session, undefined, recordedAnswersCount);
+                    const displaySessionEri = sessionInfo.isCompleted
+                      ? sessionComputedEris[session.id] ?? session.overall_score
+                      : null;
                     const student = sessionStudents[session.profile_id]
                       || students.find((s) => s.sessionProfileId === session.profile_id)
                       || (selectedStudent?.id === session.profile_id || selectedStudent?.auth_user_id === session.profile_id ? selectedStudent : null);
@@ -1425,6 +1575,7 @@ function AdminInterviewResults({ isStaff = false }) {
                                   <h3 className="truncate text-base font-bold text-slate-950 transition group-hover:text-sky-800 sm:text-lg">
                                     {studentName}
                                   </h3>
+                                  <SessionStatusBadge sessionInfo={sessionInfo} />
                                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                                     <FaBrain className="text-[9px] text-sky-600" />
                                     Mock Interview
@@ -1438,6 +1589,9 @@ function AdminInterviewResults({ isStaff = false }) {
                                     <FaCalendarAlt className="text-sky-500/80 text-[11px]" />
                                     {formatDate(session.created_at)}
                                   </span>
+                                  <span className="tabular-nums text-[11px] font-medium text-slate-500">
+                                    Answered: {sessionInfo.answeredCount} · Unanswered: {sessionInfo.unansweredCount}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -1445,13 +1599,18 @@ function AdminInterviewResults({ isStaff = false }) {
 
                           {/* Scores Metric Badges */}
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[36rem]">
-                            <OverallScoreBadge score={session.overall_score} />
+                            <OverallScoreBadge
+                              score={displaySessionEri}
+                              isCompleted={sessionInfo.isCompleted}
+                              statusLabel={sessionInfo.status}
+                            />
                             <MetricScoreBadge
                               label="Speech"
                               score={session.speech_score}
                               icon={FaMicrophone}
                               iconColor="text-blue-500"
                               subtitle="Verbal delivery"
+                              isCompleted={sessionInfo.isCompleted}
                             />
                             <MetricScoreBadge
                               label="Camera"
@@ -1459,8 +1618,12 @@ function AdminInterviewResults({ isStaff = false }) {
                               icon={FaVideo}
                               iconColor="text-indigo-500"
                               subtitle="Visual presence"
+                              isCompleted={sessionInfo.isCompleted}
                             />
-                            <QuestionsBadge count={answerCount} />
+                            <QuestionsBadge
+                              sessionInfo={sessionInfo}
+                              fallbackCount={recordedAnswersCount}
+                            />
                           </div>
                         </div>
 

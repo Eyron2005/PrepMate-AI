@@ -14,13 +14,17 @@ import {
 } from "react-icons/fa";
 import StaffSidebar from "../components/StaffSidebar";
 import { supabase } from "../services/supabase";
-import { getEriClassification, fetchStudentEriHistory } from "../services/eri";
+import {
+  computeStudentEriSummary,
+  fetchStudentEriAnalytics,
+  formatEriScore,
+  getEriClassification,
+} from "../services/eri";
 import {
   fetchAssignedStudentIds,
   isAssignedStudentProfile,
 } from "../services/staffAssignments";
-import EriProgressRing from "../components/EriProgressRing";
-import EriHistoryChart from "../components/EriHistoryChart";
+import StudentEriPanel from "../components/StudentEriPanel";
 import StudentAvatar from "../components/StudentAvatar";
 
 function StaffStudentRecords() {
@@ -33,7 +37,7 @@ function StaffStudentRecords() {
 
   // Selected student for ERI inspection modal
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [studentEriHistory, setStudentEriHistory] = useState([]);
+  const [studentEriAnalytics, setStudentEriAnalytics] = useState(null);
   const [loadingEriHistory, setLoadingEriHistory] = useState(false);
 
   const loadStudents = useCallback(async (isRefresh = false) => {
@@ -45,6 +49,45 @@ function StaffStudentRecords() {
     setErrorMessage("");
 
     try {
+      const { data: rpcEriProfiles, error: rpcEriError } = await supabase.rpc(
+        "get_staff_assigned_students_with_eri"
+      );
+
+      if (!rpcEriError && Array.isArray(rpcEriProfiles)) {
+        const merged = rpcEriProfiles.map((p) => ({
+          ...p,
+          email: p.email || "",
+          latest_eri:
+            p.latest_eri !== null && p.latest_eri !== undefined ? Number(p.latest_eri) : null,
+          latest_eri_date: p.latest_eri_date || null,
+          hr_average:
+            p.hr_average !== null && p.hr_average !== undefined ? Number(p.hr_average) : null,
+          behavioral_average:
+            p.behavioral_average !== null && p.behavioral_average !== undefined
+              ? Number(p.behavioral_average)
+              : null,
+          situational_average:
+            p.situational_average !== null && p.situational_average !== undefined
+              ? Number(p.situational_average)
+              : null,
+          technical_average:
+            p.technical_average !== null && p.technical_average !== undefined
+              ? Number(p.technical_average)
+              : null,
+          available_categories_count: Number(p.available_categories_count || 0),
+          completed_assessments_count: Number(p.completed_assessments_count || 0),
+          incomplete_assessments_count: Number(p.incomplete_assessments_count || 0),
+          in_progress_assessments_count: Number(p.in_progress_assessments_count || 0),
+        }));
+
+        setStudents(merged);
+        setSelectedStudent((prev) => {
+          if (!prev) return null;
+          return merged.find((s) => s.id === prev.id) || prev;
+        });
+        return;
+      }
+
       let profiles = null;
       const { data: rpcProfiles, error: rpcError } = await supabase.rpc("get_staff_assigned_students");
       if (!rpcError && Array.isArray(rpcProfiles)) {
@@ -84,45 +127,68 @@ function StaffStudentRecords() {
         ...new Set(profiles.flatMap((p) => [p.id, p.auth_user_id]).filter(Boolean)),
       ];
 
-      // 2. Fetch completed interview assessments for ERI calculations
-      const sessionMap = new Map();
-      if (studentIds.length > 0) {
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("interview_sessions")
-          .select("id, profile_id, overall_score, created_at, completed_count")
-          .in("profile_id", studentIds)
-          .gt("completed_count", 0)
-          .order("created_at", { ascending: false });
+      // 3. Fetch sessions + results + questions and compute strictly from completed sessions
+      let sessionRows = [];
+      let resultRows = [];
+      let questionCategoryById = {};
 
-        if (!sessionError && Array.isArray(sessionData)) {
-          for (const session of sessionData) {
-            const pId = session.profile_id;
-            if (!sessionMap.has(pId)) {
-              sessionMap.set(pId, {
-                latest_eri: Number(session.overall_score),
-                latest_eri_date: session.created_at,
-                completed_count: 1,
-              });
-            } else {
-              const current = sessionMap.get(pId);
-              current.completed_count += 1;
-            }
-          }
+      if (studentIds.length > 0) {
+        const [sessionRes, resultRes] = await Promise.all([
+          supabase
+            .from("interview_sessions")
+            .select("id, profile_id, overall_score, speech_score, camera_score, question_count, completed_count, summary, created_at")
+            .in("profile_id", studentIds)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("interview_results")
+            .select("id, profile_id, session_id, question_id, ai_score, created_at")
+            .in("profile_id", studentIds),
+        ]);
+
+        if (!sessionRes.error && Array.isArray(sessionRes.data)) {
+          sessionRows = sessionRes.data;
+        }
+        if (!resultRes.error && Array.isArray(resultRes.data)) {
+          resultRows = resultRes.data;
+        }
+
+        const qIds = [...new Set(resultRows.map((r) => r.question_id).filter(Boolean))];
+        if (qIds.length > 0) {
+          const { data: qData } = await supabase
+            .from("questions")
+            .select("id, category")
+            .in("id", qIds);
+          questionCategoryById = Object.fromEntries((qData || []).map((q) => [q.id, q.category]));
         }
       }
 
-      // 3. Merge profiles with their genuine ERI assessment data
+      // 4. Merge profiles with verified completed-only ERI metrics
       const merged = profiles.map((p) => {
-        const eriInfo =
-          sessionMap.get(p.id) ||
-          (p.auth_user_id ? sessionMap.get(p.auth_user_id) : null);
+        const studentSessions = sessionRows.filter(
+          (s) => s.profile_id === p.id || (p.auth_user_id && s.profile_id === p.auth_user_id)
+        );
+        const studentResults = resultRows.filter(
+          (r) => !r.profile_id || r.profile_id === p.id || (p.auth_user_id && r.profile_id === p.auth_user_id)
+        );
+        const summary = computeStudentEriSummary({
+          sessions: studentSessions,
+          results: studentResults,
+          questionCategoryById,
+        });
 
         return {
           ...p,
           email: p.email || "",
-          latest_eri: eriInfo?.latest_eri ?? null,
-          latest_eri_date: eriInfo?.latest_eri_date ?? null,
-          completed_assessments_count: eriInfo?.completed_count ?? 0,
+          latest_eri: summary.latest_eri,
+          latest_eri_date: summary.latest_eri_date,
+          hr_average: summary.hr_average,
+          behavioral_average: summary.behavioral_average,
+          situational_average: summary.situational_average,
+          technical_average: summary.technical_average,
+          available_categories_count: summary.available_categories_count,
+          completed_assessments_count: summary.completed_assessments_count,
+          incomplete_assessments_count: summary.incomplete_assessments_count,
+          in_progress_assessments_count: summary.in_progress_assessments_count,
         };
       });
 
@@ -147,14 +213,17 @@ function StaffStudentRecords() {
     return () => cancelAnimationFrame(frameId);
   }, [loadStudents]);
 
-  // Load detailed ERI history when a student is selected for inspection
+  const selectedStudentId = selectedStudent?.id;
+  const selectedStudentAuthId = selectedStudent?.auth_user_id;
+
+  // Load detailed ERI analytics when a student is selected for inspection
   useEffect(() => {
     let isMounted = true;
 
     const frameId = requestAnimationFrame(async () => {
-      if (!selectedStudent?.id) {
+      if (!selectedStudentId) {
         if (isMounted) {
-          setStudentEriHistory([]);
+          setStudentEriAnalytics(null);
           setLoadingEriHistory(false);
         }
         return;
@@ -162,13 +231,13 @@ function StaffStudentRecords() {
 
       setLoadingEriHistory(true);
       try {
-        const history = await fetchStudentEriHistory(selectedStudent.id);
+        const analytics = await fetchStudentEriAnalytics(selectedStudentId, selectedStudentAuthId);
         if (isMounted) {
-          setStudentEriHistory(history || []);
+          setStudentEriAnalytics(analytics || null);
         }
       } catch (err) {
         console.error("Failed to load student ERI assessment history:", err);
-        if (isMounted) setStudentEriHistory([]);
+        if (isMounted) setStudentEriAnalytics(null);
       } finally {
         if (isMounted) setLoadingEriHistory(false);
       }
@@ -178,7 +247,7 @@ function StaffStudentRecords() {
       isMounted = false;
       cancelAnimationFrame(frameId);
     };
-  }, [selectedStudent?.id]);
+  }, [selectedStudentId, selectedStudentAuthId]);
 
   function copyToClipboard(text) {
     if (navigator?.clipboard) {
@@ -361,8 +430,8 @@ function StaffStudentRecords() {
                             {hasEri ? (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-extrabold text-slate-900 text-xs">
-                                    {student.latest_eri}%
+                                  <span className="text-xs font-extrabold text-slate-900 tabular-nums">
+                                    {formatEriScore(student.latest_eri)}
                                   </span>
                                   <span
                                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${classification.badgeClass}`}
@@ -370,18 +439,24 @@ function StaffStudentRecords() {
                                     {classification.label}
                                   </span>
                                 </div>
-                                <span className="text-[10px] text-slate-400">
-                                  {student.completed_assessments_count > 0
-                                    ? `${student.completed_assessments_count} session${
-                                        student.completed_assessments_count > 1 ? "s" : ""
-                                      }`
-                                    : "Latest evaluation"}
+                                <span className="text-[10px] text-slate-400 tabular-nums">
+                                  {student.completed_assessments_count} completed
+                                  {student.incomplete_assessments_count > 0
+                                    ? ` · ${student.incomplete_assessments_count} incomplete`
+                                    : ""}
                                 </span>
                               </div>
                             ) : (
-                              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
-                                Not Yet Available
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className="inline-flex w-fit items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200/80">
+                                  N/A
+                                </span>
+                                {student.incomplete_assessments_count > 0 && (
+                                  <span className="text-[10px] text-amber-700 tabular-nums">
+                                    {student.incomplete_assessments_count} incomplete
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </td>
 
@@ -463,7 +538,7 @@ function StaffStudentRecords() {
                       </span>
                     ) : (
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                        Pending Assessment
+                        N/A
                       </span>
                     )}
                   </div>
@@ -557,84 +632,12 @@ function StaffStudentRecords() {
                 </div>
 
                 {/* Right Column: Employment Readiness Index (ERI) */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Employment Readiness Index (ERI)
-                    </h4>
-                    {selectedStudent.latest_eri !== null && selectedStudent.latest_eri !== undefined ? (
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ring-1 ${
-                          getEriClassification(selectedStudent.latest_eri).badgeClass
-                        }`}
-                      >
-                        {getEriClassification(selectedStudent.latest_eri).label}
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                        Pending Assessment
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 via-white to-cyan-50/60 p-4 shadow-sm ring-1 ring-sky-200/50">
-                    {selectedStudent.latest_eri !== null && selectedStudent.latest_eri !== undefined ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-around gap-4 rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
-                          <EriProgressRing
-                            score={selectedStudent.latest_eri}
-                            size={92}
-                            strokeWidth={8}
-                            showLabel={false}
-                            classification={getEriClassification(selectedStudent.latest_eri)}
-                          />
-                          <div className="flex-1 space-y-2 text-xs">
-                            <div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                Latest Assessment Date
-                              </span>
-                              <p className="font-semibold text-slate-800">
-                                {selectedStudent.latest_eri_date
-                                  ? new Date(selectedStudent.latest_eri_date).toLocaleDateString(undefined, {
-                                      month: "short",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    })
-                                  : "Recent"}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                Completed Mock Evaluations
-                              </span>
-                              <p className="font-semibold text-slate-800">
-                                {selectedStudent.completed_assessments_count || studentEriHistory.length || 1} session(s)
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ERI Historical Trend Chart */}
-                        {loadingEriHistory ? (
-                          <div className="rounded-xl border border-slate-100 bg-white/70 p-6 text-center text-xs text-slate-400">
-                            <FaSyncAlt className="mx-auto mb-1 animate-spin text-sm text-indigo-600" />
-                            Loading historical assessments...
-                          </div>
-                        ) : (
-                          <EriHistoryChart history={studentEriHistory} />
-                        )}
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center">
-                        <FaGraduationCap className="mx-auto mb-2 text-2xl text-slate-300" />
-                        <p className="text-xs font-bold text-slate-700">Not Yet Available</p>
-                        <p className="mt-1 text-[11px] text-slate-500">
-                          This student has not completed any mock interview evaluations on PrepMate AI yet.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <StudentEriPanel
+                  student={selectedStudent}
+                  analytics={studentEriAnalytics}
+                  loading={loadingEriHistory}
+                  spinnerClassName="text-indigo-600"
+                />
               </div>
             </div>
 
