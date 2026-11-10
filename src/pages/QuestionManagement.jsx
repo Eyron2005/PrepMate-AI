@@ -695,12 +695,10 @@ function QuestionManagement() {
 
       <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Banner Hero */}
-        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 fade-in-up sm:p-9">
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-cyan-400/15 via-sky-400/12 to-indigo-400/10 pointer-events-none" />
-
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm fade-in-up sm:p-9">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-100 to-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-cyan-800 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-cyan-800 shadow-sm">
                 <FaQuestionCircle className="text-cyan-600 text-[11px]" />
                 Interview Questions
               </span>
@@ -722,7 +720,7 @@ function QuestionManagement() {
               </Link>
               <button
                 onClick={openAddForm}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-sky-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sky-500/40 active:translate-y-0"
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-sky-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sky-500/40 active:translate-y-0"
               >
                 <FaPlus className="text-xs" />
                 <span>Create New Question</span>
@@ -732,7 +730,7 @@ function QuestionManagement() {
 
           {/* Quick Metrics Bar */}
           <div className="relative mt-8 grid gap-4 sm:grid-cols-3">
-            <div className="stat-card rounded-[1.75rem] border border-sky-100/80 bg-gradient-to-br from-sky-50/80 via-white to-cyan-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-sky-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-sky-200 bg-sky-50 p-6 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-800">Total Questions</p>
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
@@ -745,7 +743,7 @@ function QuestionManagement() {
               </p>
             </div>
 
-            <div className="stat-card rounded-[1.75rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/80 via-white to-sky-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-cyan-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-cyan-200 bg-cyan-50 p-6 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Categories</p>
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700">
@@ -758,7 +756,7 @@ function QuestionManagement() {
               <p className="mt-1 text-xs text-slate-500">HR, Technical, Behavioral, Situational</p>
             </div>
 
-            <div className="stat-card rounded-[1.75rem] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-white to-indigo-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-violet-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-violet-200 bg-violet-50 p-6 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Difficulty Levels</p>
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
@@ -1316,7 +1314,7 @@ function QuestionManagement() {
               </div>
 
               {/* AI-Generated Answer Guide Section (Review & Edit before Save) */}
-              <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 via-white to-sky-50/40 p-4 space-y-2.5">
+              <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
@@ -1614,7 +1612,7 @@ function QuestionManagement() {
                   className={`rounded-xl px-6 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed ${
                     !canSubmit
                       ? "bg-slate-400"
-                      : "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 shadow-sky-500/30 hover:shadow-sky-500/50"
+                      : "bg-blue-600 hover:bg-blue-700 shadow-sky-500/30 hover:shadow-sky-500/50"
                   }`}
                 >
                   {actionLoading

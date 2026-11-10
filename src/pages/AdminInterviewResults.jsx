@@ -359,8 +359,8 @@ function OverallScoreBadge({ score, prominent = false, isCompleted = true, statu
       <div
         className={`relative overflow-hidden rounded-2xl p-4 text-white shadow-lg ${
           isAvailable
-            ? "bg-gradient-to-br from-sky-600 via-blue-600 to-indigo-700 shadow-sky-500/25"
-            : "bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 shadow-slate-500/20"
+            ? "bg-blue-600 shadow-sky-500/25"
+            : "bg-slate-700 shadow-slate-500/20"
         }`}
       >
         <div className="flex items-center justify-between gap-2">
@@ -368,7 +368,7 @@ function OverallScoreBadge({ score, prominent = false, isCompleted = true, statu
             <FaAward className={isAvailable ? "text-amber-300" : "text-slate-300"} />
             Overall (ERI)
           </span>
-          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+          <span className="rounded-full bg-slate-900/20 px-2 py-0.5 text-[10px] font-bold text-white">
             {isAvailable ? classification.shortLabel : "N/A"}
           </span>
         </div>
@@ -560,7 +560,7 @@ function StudentPicker({ search, setSearch, students, selectedStudent, onSelect,
                       isSelected ? "bg-sky-50/90 ring-1 ring-sky-200" : "hover:bg-slate-50"
                     }`}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-xs font-bold text-white shadow-sm">
                       {getInitials(student.full_name)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -841,11 +841,10 @@ function SessionDetails({
       </div>
 
       {/* Candidate Profile & Score Summary Banner */}
-      <section className="glass-card-elevated relative overflow-hidden rounded-[2rem] border border-white/80 p-6 shadow-xl ring-1 ring-sky-100/90 sm:p-7">
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-sky-400/15 via-blue-400/12 to-indigo-400/10 pointer-events-none rounded-t-[2rem]" />
+      <section className="glass-card-elevated relative overflow-hidden rounded-[2rem] border border-slate-200 p-6 shadow-sm sm:p-7">
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-base font-bold text-white shadow-lg shadow-sky-500/25">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-sky-500/25">
               {getInitials(studentName)}
             </div>
             <div>
@@ -1387,11 +1386,10 @@ function AdminInterviewResults({ isStaff = false }) {
         {!selectedSession && (
           <>
             {/* Header Hero Card */}
-            <section className="glass-card-elevated relative z-30 overflow-visible rounded-[2rem] border border-white/80 p-6 shadow-xl ring-1 ring-sky-100/90 sm:p-8">
-              <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-sky-400/15 via-blue-400/12 to-indigo-400/10 pointer-events-none rounded-t-[2rem]" />
+            <section className="glass-card-elevated relative z-30 overflow-visible rounded-[2rem] border border-slate-200 p-6 shadow-sm sm:p-8">
               <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-2xl">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-800 shadow-sm">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-800 shadow-sm">
                     <FaShieldAlt className="text-sky-600 text-[10px]" />
                     {isStaff ? "Staff Performance Workspace" : "Admin Performance Console"}
                   </span>
@@ -1407,7 +1405,7 @@ function AdminInterviewResults({ isStaff = false }) {
 
                 {/* Stat Pill Card */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="rounded-2xl border border-sky-100/90 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-md">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-xs">
                     <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Total Interviews</p>
                     <p className="mt-0.5 text-2xl font-extrabold text-slate-900">{sessionsCount}</p>
                   </div>
@@ -1562,12 +1560,12 @@ function AdminInterviewResults({ isStaff = false }) {
                         onClick={() => loadSessionDetails(session)}
                         className="group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/10 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:p-6"
                       >
-                        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                        <div className="absolute inset-x-0 top-0 h-1 bg-sky-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                           {/* Candidate & Session Meta */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start gap-3.5">
-                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-sky-500/20">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-bold text-white shadow-md shadow-sky-500/20">
                                 {getInitials(studentName)}
                               </div>
                               <div className="min-w-0 flex-1">
@@ -1633,7 +1631,7 @@ function AdminInterviewResults({ isStaff = false }) {
                             <FaEye className="text-sky-500 text-xs" />
                             Click to inspect question breakdowns, AI critique &amp; camera analysis
                           </span>
-                          <span className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-50 to-blue-50 px-3.5 py-1.5 text-xs font-bold text-sky-700 ring-1 ring-sky-200/80 transition-all duration-200 group-hover:bg-gradient-to-r group-hover:from-sky-500 group-hover:to-blue-600 group-hover:text-white group-hover:ring-transparent group-hover:shadow-md group-hover:shadow-sky-500/25">
+                          <span className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-sky-700 ring-1 ring-sky-200/80 transition-all duration-200 group-hover:bg-blue-600 group-hover:text-white group-hover:ring-transparent group-hover:shadow-md group-hover:shadow-sky-500/25">
                             Review Session
                             <FaArrowRight className="text-[11px] transition-transform duration-200 group-hover:translate-x-1" />
                           </span>

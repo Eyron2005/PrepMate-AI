@@ -98,7 +98,7 @@ function AdminDashboard() {
       description: "View student accounts, see who is online, and activate or deactivate logins.",
       href: "/user-management",
       icon: FaUsers,
-      color: "from-sky-500 to-blue-600",
+      color: "bg-blue-600",
       surface: "border-sky-100/90",
     },
     {
@@ -107,7 +107,7 @@ function AdminDashboard() {
       description: "Review requests from deactivated students asking to turn their account back on.",
       href: "/reactivation-requests",
       icon: FaUserClock,
-      color: "from-amber-500 to-orange-600",
+      color: "bg-amber-500",
       surface: "border-amber-100/90",
     },
     {
@@ -116,7 +116,7 @@ function AdminDashboard() {
       description: "Add, check, and edit interview questions by category, difficulty, and job role.",
       href: "/question-management",
       icon: FaQuestionCircle,
-      color: "from-cyan-500 to-teal-600",
+      color: "bg-teal-600",
       surface: "border-cyan-100/90",
     },
     {
@@ -125,7 +125,7 @@ function AdminDashboard() {
       description: "Add, edit, or turn on and off the industries and job roles shown in the mobile app.",
       href: "/interview-mode",
       icon: FaSlidersH,
-      color: "from-sky-600 to-indigo-600",
+      color: "bg-indigo-600",
       surface: "border-sky-100/90",
     },
     {
@@ -134,7 +134,7 @@ function AdminDashboard() {
       description: "Invite staff members, set their departments and roles, and manage access.",
       href: "/staff-management",
       icon: FaUserTie,
-      color: "from-violet-500 to-indigo-600",
+      color: "bg-violet-600",
       surface: "border-violet-100/90",
     },
     {
@@ -143,7 +143,7 @@ function AdminDashboard() {
       description: "Pair staff advisors with students so they can check progress and results.",
       href: "/staff-assignments",
       icon: FaUserCheck,
-      color: "from-blue-500 to-indigo-600",
+      color: "bg-blue-600",
       surface: "border-blue-100/90",
     },
     {
@@ -152,7 +152,7 @@ function AdminDashboard() {
       description: "See student interview scores, answers, AI feedback, and progress over time.",
       href: "/interview-results",
       icon: FaFileAlt,
-      color: "from-indigo-500 to-purple-600",
+      color: "bg-indigo-600",
       surface: "border-indigo-100/90",
     },
     {
@@ -161,7 +161,7 @@ function AdminDashboard() {
       description: "Send messages or announcements to students and check if emails were delivered.",
       href: "/email-communication",
       icon: FaEnvelope,
-      color: "from-sky-500 to-cyan-600",
+      color: "bg-sky-600",
       surface: "border-sky-100/90",
     },
     {
@@ -170,7 +170,7 @@ function AdminDashboard() {
       description: "Download a CSV backup copy of your data or restore saved backups from a file.",
       href: "/backup-restore",
       icon: FaDatabase,
-      color: "from-emerald-500 to-teal-600",
+      color: "bg-emerald-600",
       surface: "border-emerald-100/90",
     },
   ];
@@ -186,28 +186,25 @@ function AdminDashboard() {
       <main className="relative ml-20 max-w-7xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Hero Command Banner */}
         <section
-          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-9 ${
+          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm transition-all duration-700 sm:p-9 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
           }`}
         >
-          {/* Subtle Ambient Accent Header */}
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-sky-400/15 via-cyan-400/12 to-indigo-400/10" />
-
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
                   <FaShieldAlt className="text-sky-600 text-[11px]" />
                   Admin Console
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-xs font-medium text-slate-600 backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
                   <FaCalendarAlt className="text-slate-400 text-[11px]" />
                   {todayFormatted}
                 </span>
               </div>
 
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                {greeting}{adminName ? ", " : ""}<span className="bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">{adminName}</span>
+                {greeting}{adminName ? ", " : ""}<span className="text-blue-600">{adminName}</span>
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
                 Manage students, staff, interview questions, and app choices for PrepMate AI from one place.
@@ -215,7 +212,7 @@ function AdminDashboard() {
             </div>
 
             {/* Live Operational Status Pill */}
-            <div className="flex shrink-0 flex-col items-start gap-2.5 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 p-4 shadow-sm ring-1 ring-emerald-100/80 sm:items-end">
+            <div className="flex shrink-0 flex-col items-start gap-2.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 shadow-sm ring-1 ring-emerald-100/80 sm:items-end">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-3 w-3">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -283,13 +280,11 @@ function AdminDashboard() {
               <Link
                 key={href}
                 to={href}
-                className={`glass-card group relative flex min-h-68 flex-col justify-between overflow-hidden rounded-[2rem] border ${surface} p-6 shadow-[0_15px_35px_-20px_rgba(14,116,144,0.3)] ring-1 ring-white/80 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_50px_-20px_rgba(37,99,235,0.4)] hover:ring-sky-200`}
+                className={`glass-card group relative flex min-h-68 flex-col justify-between overflow-hidden rounded-[2rem] border ${surface} p-6 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md hover:border-sky-300`}
               >
-                <div className="absolute -top-16 -right-16 h-36 w-36 rounded-full bg-sky-200/20 blur-2xl transition duration-500 group-hover:scale-125" />
-
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className={`flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-br ${color} text-xl text-white shadow-md shadow-sky-500/25 ring-1 ring-white/30 transition-transform duration-300 group-hover:scale-110`}>
+                    <span className={`flex h-13 w-13 items-center justify-center rounded-2xl ${color} text-xl text-white shadow-md shadow-sky-500/25 ring-1 ring-white/30 transition-transform duration-300 group-hover:scale-110`}>
                       <Icon />
                     </span>
                     <span className="rounded-full border border-slate-200/70 bg-slate-50/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 transition group-hover:border-sky-300 group-hover:bg-sky-50 group-hover:text-sky-800">
@@ -319,10 +314,10 @@ function AdminDashboard() {
 
 
         {/* Security & Infrastructure Banner */}
-        <section className="mt-10 rounded-[2rem] border border-sky-100/80 bg-gradient-to-r from-sky-50/60 via-white to-cyan-50/50 p-6 shadow-sm ring-1 ring-sky-200/40">
+        <section className="mt-10 rounded-[2rem] border border-sky-200 bg-sky-50 p-6 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md shadow-sky-500/25">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xs">
                 <FaServer />
               </div>
               <div>

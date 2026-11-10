@@ -15,8 +15,8 @@ export default function StudentAvatar({
   const badgeRadius = isLg ? "rounded-2xl" : "rounded-xl";
   const textClasses = isLg ? "text-xl font-extrabold" : "text-xs font-bold";
   const bgClasses = isDeactivated
-    ? "bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20"
-    : "bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/30";
+    ? "bg-slate-500 shadow-slate-500/20"
+    : "bg-blue-600 shadow-sky-500/30";
 
   const hasFailed = Boolean(resolvedUrl && failedUrl === resolvedUrl);
 

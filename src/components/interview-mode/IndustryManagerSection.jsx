@@ -175,7 +175,7 @@ export default function IndustryManagerSection({
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/25 transition hover:shadow-sky-500/40"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/25 transition hover:shadow-sky-500/40"
         >
           <FaPlus className="text-[11px]" />
           <span>Add Industry</span>
@@ -298,7 +298,7 @@ export default function IndustryManagerSection({
             >
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-base text-white shadow-md shadow-sky-500/25">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-base text-white shadow-md shadow-sky-500/25">
                     <FaIndustry />
                   </span>
                   <div>
@@ -387,7 +387,7 @@ export default function IndustryManagerSection({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/25 transition hover:shadow-sky-500/40 disabled:opacity-60"
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/25 transition hover:shadow-sky-500/40 disabled:opacity-60"
                 >
                   {saving ? "Saving..." : editing ? "Save Changes" : "Add Industry"}
                 </button>

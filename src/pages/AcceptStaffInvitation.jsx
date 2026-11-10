@@ -163,7 +163,7 @@ function AcceptStaffInvitation() {
               </label>
               <button
                 disabled={saving}
-                className="w-full rounded-2xl bg-gradient-to-r from-sky-600 to-cyan-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                className="w-full rounded-2xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {saving ? "Accepting invitation..." : "Set password and accept invitation"}
               </button>

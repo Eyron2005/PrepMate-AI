@@ -409,16 +409,14 @@ function EmailCommunication({ isStaff = false }) {
       <main className="relative ml-20 max-w-7xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Hero Header */}
         <section
-          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-9 ${
+          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm transition-all duration-700 sm:p-9 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
           }`}
         >
-          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-sky-400/15 via-blue-400/12 to-cyan-400/10" />
-
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-sky-800 shadow-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-sky-800 shadow-sm">
                   <FaEnvelope className="text-[11px] text-sky-600" />
                   Student Communication
                 </span>
@@ -453,7 +451,7 @@ function EmailCommunication({ isStaff = false }) {
                 onClick={() => setActiveTab("compose")}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
                   activeTab === "compose"
-                    ? "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 text-white shadow-md shadow-sky-500/25"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-sky-500/25"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
@@ -465,7 +463,7 @@ function EmailCommunication({ isStaff = false }) {
                 onClick={() => setActiveTab("history")}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
                   activeTab === "history"
-                    ? "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 text-white shadow-md shadow-sky-500/25"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-sky-500/25"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
@@ -657,7 +655,7 @@ function EmailCommunication({ isStaff = false }) {
                         }`}
                       >
                         {isSelected && broadcastMode ? (
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm bg-gradient-to-br from-sky-500 to-blue-600">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm bg-blue-600">
                             <FaCheck className="text-xs" />
                           </div>
                         ) : (
@@ -957,7 +955,7 @@ function EmailCommunication({ isStaff = false }) {
                   <button
                     type="submit"
                     disabled={sending}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {sending ? (
                       <>
@@ -1175,7 +1173,7 @@ function EmailCommunication({ isStaff = false }) {
                 type="button"
                 onClick={handleConfirmSend}
                 disabled={sending}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
               >
                 {sending ? (
                   <>

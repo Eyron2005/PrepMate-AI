@@ -71,7 +71,7 @@ export default function StudentEriPanel({
         )}
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 via-white to-cyan-50/60 p-4 shadow-sm ring-1 ring-sky-200/50">
+      <div className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/80 p-4 shadow-sm ring-1 ring-sky-200/50">
         {/* Completed vs Incomplete Session Integrity Strip */}
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/70 px-2.5 py-2">

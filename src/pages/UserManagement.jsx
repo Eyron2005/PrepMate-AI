@@ -654,15 +654,13 @@ function UserManagement() {
       <main className="relative ml-20 flex max-w-7xl flex-col gap-6 px-4 py-5 md:ml-64 md:px-8 lg:py-6">
         {/* Header Hero */}
         <section
-          className={`glass-card-elevated relative overflow-hidden rounded-[2rem] border border-white/80 p-5 shadow-[0_20px_50px_-25px_rgba(14,116,144,0.3)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-6 ${
+          className={`glass-card-elevated relative overflow-hidden rounded-[2rem] border border-slate-200 p-5 shadow-sm transition-all duration-700 sm:p-6 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"
           }`}
         >
-          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-sky-400/15 via-cyan-400/12 to-indigo-400/10" />
-
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-800 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-800 shadow-sm">
                 <FaShieldAlt className="text-sky-600 text-[10px]" />
                 Students
               </span>
@@ -689,13 +687,13 @@ function UserManagement() {
           <div className="relative mt-5 grid gap-3.5 sm:grid-cols-4">
             {/* Total Students */}
             <div
-              className={`stat-card rounded-[1.5rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-4 text-white shadow-[0_18px_35px_-20px_rgba(37,99,235,0.85)] ring-1 ring-white/30 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] bg-blue-600 p-4 text-white shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-100">Total Students</p>
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
+                <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
               </div>
               <p className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">{totalUserCount ?? "—"}</p>
               <p className="mt-1 text-[11px] text-sky-100/90">All student accounts</p>
@@ -703,7 +701,7 @@ function UserManagement() {
 
             {/* Active Accounts */}
             <div
-              className={`stat-card rounded-[1.5rem] border border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 p-4 shadow-[0_18px_35px_-22px_rgba(16,185,129,0.35)] ring-1 ring-emerald-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-4 shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
@@ -719,7 +717,7 @@ function UserManagement() {
 
             {/* Deactivated Accounts */}
             <div
-              className={`stat-card rounded-[1.5rem] border border-rose-100/80 bg-gradient-to-br from-rose-50/70 via-white to-amber-50/50 p-4 shadow-[0_18px_35px_-22px_rgba(225,29,72,0.3)] ring-1 ring-rose-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] border border-rose-200 bg-rose-50 p-4 shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
@@ -735,7 +733,7 @@ function UserManagement() {
 
             {/* Realtime Online */}
             <div
-              className={`stat-card rounded-[1.5rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 p-4 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.3)] ring-1 ring-cyan-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.5rem] border border-cyan-200 bg-cyan-50 p-4 shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
@@ -1154,7 +1152,7 @@ function UserManagement() {
             <div className="mt-6 flex-1 overflow-y-auto pr-1 space-y-6">
               {/* If Deactivated: Prominent Account Suspended Alert Banner */}
               {modalUserWithPresence.account_status === "deactivated" && (
-                <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/90 via-white to-amber-50/60 p-5 ring-1 ring-rose-300/40">
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-5 ring-1 ring-rose-300/40">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <FaBan className="text-rose-600 text-lg" />
@@ -1213,7 +1211,7 @@ function UserManagement() {
                         initiateReactivate(modalUserWithPresence);
                       }}
                       disabled={actionLoading}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:bg-emerald-700 disabled:opacity-50"
                     >
                       <FaUserCheck className="text-xs" />
                       <span>Reactivate Student Account</span>
@@ -1326,7 +1324,7 @@ function UserManagement() {
                         type="button"
                         onClick={() => initiateReactivate(modalUserWithPresence)}
                         disabled={actionLoading}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:bg-emerald-700 disabled:opacity-50"
                       >
                         <FaUserCheck className="text-xs" />
                         <span>Reactivate Student Account</span>
@@ -1598,7 +1596,7 @@ function UserManagement() {
                 type="button"
                 onClick={handleConfirmReactivation}
                 disabled={actionLoading}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:bg-emerald-700 disabled:opacity-50"
               >
                 {actionLoading ? (
                   <>

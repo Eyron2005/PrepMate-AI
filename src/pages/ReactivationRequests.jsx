@@ -215,15 +215,13 @@ function ReactivationRequests() {
       <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Banner Hero */}
         <section
-          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-9 ${
+          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm transition-all duration-700 sm:p-9 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"
           }`}
         >
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-amber-400/15 via-sky-400/12 to-indigo-400/10" />
-
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-amber-800 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-amber-800 shadow-sm">
                 <FaUserClock className="text-amber-700 text-[11px]" />
                 Student Requests
               </span>
@@ -239,7 +237,7 @@ function ReactivationRequests() {
               type="button"
               onClick={loadRequests}
               disabled={refreshing || loading}
-              className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-white/80 px-4 py-2.5 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-white px-4 py-2.5 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
             >
               <FaSyncAlt className={`text-xs ${refreshing ? "animate-spin" : ""}`} />
               <span>{refreshing ? "Refreshing..." : "Refresh List"}</span>
@@ -248,7 +246,7 @@ function ReactivationRequests() {
 
           {/* Quick Metrics */}
           <div className="relative mt-8 grid gap-4 sm:grid-cols-3">
-            <div className="stat-card rounded-[1.75rem] border border-amber-100/80 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(245,158,11,0.3)] ring-1 ring-amber-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-800">Pending Review</p>
                 <span className="relative flex h-2.5 w-2.5">
@@ -260,7 +258,7 @@ function ReactivationRequests() {
               <p className="mt-1 text-xs text-slate-500">Waiting for review</p>
             </div>
 
-            <div className="stat-card rounded-[1.75rem] border border-emerald-100/80 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(16,185,129,0.3)] ring-1 ring-emerald-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-6 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">Approved Total</p>
                 <FaCheck className="text-emerald-600 text-sm" />
@@ -269,7 +267,7 @@ function ReactivationRequests() {
               <p className="mt-1 text-xs text-slate-500">Turned back on</p>
             </div>
 
-            <div className="stat-card rounded-[1.75rem] border border-rose-100/80 bg-gradient-to-br from-rose-50/80 via-white to-pink-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(244,63,94,0.3)] ring-1 ring-rose-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-rose-200 bg-rose-50 p-6 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-800">Rejected Total</p>
                 <FaTimes className="text-rose-600 text-sm" />
@@ -305,7 +303,7 @@ function ReactivationRequests() {
         )}
 
         {/* Requests Table Card */}
-        <section className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
+        <section className="glass-card rounded-[2.25rem] border border-slate-200 p-6 shadow-sm sm:p-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-xl font-bold text-slate-950">Student Requests</h2>
@@ -408,7 +406,7 @@ function ReactivationRequests() {
                       <tr key={req.id} className="transition-colors hover:bg-sky-50/50">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-sky-600 text-xs font-bold text-white shadow-sm">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-xs font-bold text-white shadow-sm">
                               {getInitials(req.student_name)}
                             </div>
                             <div className="min-w-0">

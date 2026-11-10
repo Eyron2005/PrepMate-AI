@@ -194,22 +194,22 @@ function LoginPage() {
       <div className="relative mx-auto w-full max-w-md fade-in-up">
         {/* Brand Showcase */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="relative mb-4 flex h-24 w-24 items-center justify-center rounded-3xl bg-white/90 p-3 shadow-[0_20px_40px_-15px_rgba(37,99,235,0.35)] ring-1 ring-sky-200/80 backdrop-blur-xl">
+          <div className="relative mb-4 flex h-24 w-24 items-center justify-center rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
             <img
               alt="Prepmate logo"
               src="/PrepmateLogo.svg"
-              className="h-full w-full object-contain drop-shadow-[0_8px_14px_rgba(37,99,235,0.25)]"
+              className="h-full w-full object-contain"
             />
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-sky-50/90 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
             PrepMate AI Portal
           </div>
         </div>
 
         {/* Login Card */}
-        <div className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-8 shadow-[0_30px_70px_-25px_rgba(15,23,42,0.35)] ring-1 ring-sky-100/90 sm:p-10">
-          <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-400" />
+        <div className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-8 shadow-sm sm:p-10">
+          <div className="absolute inset-x-0 top-0 h-2 bg-blue-600" />
 
           <div className="mb-7 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Welcome Back</h1>
@@ -267,7 +267,7 @@ function LoginPage() {
                 type="button"
                 onClick={handleLogin}
                 disabled={isSubmitting}
-                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 py-3.5 text-sm font-bold text-white shadow-[0_18px_30px_-15px_rgba(37,99,235,0.7)] transition-all duration-300 hover:shadow-[0_22px_40px_-15px_rgba(14,116,144,0.8)] hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
+                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-blue-600 hover:bg-blue-700 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:shadow hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? (
                   <>

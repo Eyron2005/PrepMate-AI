@@ -244,15 +244,13 @@ function StaffAssignments() {
       <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Banner Hero */}
         <section
-          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 transition-all duration-700 sm:p-9 ${
+          className={`glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm transition-all duration-700 sm:p-9 ${
             mounted ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"
           }`}
         >
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-sky-400/15 via-cyan-400/12 to-indigo-400/10" />
-
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
                 <FaUserGraduate className="text-sky-600 text-[11px]" />
                 Assign Students
               </span>
@@ -279,13 +277,13 @@ function StaffAssignments() {
           <div className="relative mt-8 grid gap-4 sm:grid-cols-4">
             {/* Total Assignments */}
             <div
-              className={`stat-card rounded-[1.75rem] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 p-5 text-white shadow-[0_18px_35px_-20px_rgba(37,99,235,0.85)] ring-1 ring-white/30 transition duration-500 ${
+              className={`stat-card rounded-[1.75rem] bg-blue-600 p-5 text-white shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-100">Total Assignments</p>
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
+                <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
               </div>
               <p className="mt-3 text-3xl font-extrabold tracking-tight">{assignments.length}</p>
               <p className="mt-1.5 text-xs text-sky-100/90">Active student-supervisor links</p>
@@ -293,7 +291,7 @@ function StaffAssignments() {
 
             {/* Active Supervisors */}
             <div
-              className={`stat-card rounded-[1.75rem] border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/60 p-5 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-indigo-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.75rem] border border-indigo-200 bg-indigo-50 p-5 shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
@@ -309,7 +307,7 @@ function StaffAssignments() {
 
             {/* Assigned Students */}
             <div
-              className={`stat-card rounded-[1.75rem] border border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 p-5 shadow-[0_18px_35px_-22px_rgba(16,185,129,0.35)] ring-1 ring-emerald-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-5 shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
@@ -325,7 +323,7 @@ function StaffAssignments() {
 
             {/* Unassigned Students Pool */}
             <div
-              className={`stat-card rounded-[1.75rem] border border-amber-100/80 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/50 p-5 shadow-[0_18px_35px_-22px_rgba(245,158,11,0.3)] ring-1 ring-amber-200/50 transition duration-500 ${
+              className={`stat-card rounded-[1.75rem] border border-amber-200 bg-amber-50 p-5 shadow-xs transition duration-500 ${
                 mounted ? "scale-100" : "scale-95"
               }`}
             >
@@ -440,7 +438,7 @@ function StaffAssignments() {
               <button
                 type="submit"
                 disabled={saving || loading || !staffId || !studentId}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-500 px-6 py-3.5 text-xs font-bold text-white shadow-md shadow-sky-600/30 transition hover:from-sky-700 hover:to-cyan-600 disabled:opacity-50 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 text-xs font-bold text-white shadow-md shadow-sky-600/30 transition hover:bg-blue-700 disabled:opacity-50 sm:w-auto"
               >
                 {saving ? (
                   <>
@@ -587,7 +585,7 @@ function StaffAssignments() {
                           {/* Staff Member Cell */}
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white shadow-sm">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-xs font-bold text-white shadow-sm">
                                 {getInitials(staffName)}
                               </div>
                               <div className="min-w-0">
@@ -602,7 +600,7 @@ function StaffAssignments() {
                           {/* Student Cell */}
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-xs font-bold text-white shadow-sm">
                                 {getInitials(studentName)}
                               </div>
                               <div className="min-w-0">

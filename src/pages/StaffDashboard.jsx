@@ -12,7 +12,7 @@ const sections = [
     description: "View your assigned students, their details, and interview progress.",
     href: "/staff/student-records",
     icon: FaClipboardList,
-    color: "from-violet-500 to-indigo-600",
+    color: "bg-violet-600",
     surface: "border-violet-100/90",
   },
   {
@@ -21,7 +21,7 @@ const sections = [
     description: "See student interview answers, scores, and AI feedback.",
     href: "/staff/interview-results",
     icon: FaFileAlt,
-    color: "from-emerald-500 to-teal-600",
+    color: "bg-emerald-600",
     surface: "border-emerald-100/90",
   },
   {
@@ -30,7 +30,7 @@ const sections = [
     description: "Send personalized reminders, feedback, and concerns directly to your assigned students.",
     href: "/staff/email-communication",
     icon: FaEnvelope,
-    color: "from-sky-500 to-blue-600",
+    color: "bg-blue-600",
     surface: "border-sky-100/90",
   },
 ];
@@ -92,29 +92,28 @@ function StaffDashboard() {
       <StaffSidebar staffName={staffName || undefined} />
 
       <main className="relative ml-20 max-w-7xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
-        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 sm:p-9">
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-sky-400/15 via-indigo-400/12 to-cyan-400/10" />
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm sm:p-9">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-100 to-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-indigo-800 shadow-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-indigo-800 shadow-sm">
                   <FaUserTie className="text-[11px]" />
                   Staff Portal
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-xs font-medium text-slate-600 backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
                   <FaCalendarAlt className="text-slate-400 text-[11px]" />
                   {todayFormatted}
                 </span>
               </div>
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                {greeting}{staffName ? ", " : ""}<span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-sky-600 bg-clip-text text-transparent">{staffName}</span>
+                {greeting}{staffName ? ", " : ""}<span className="text-indigo-600">{staffName}</span>
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
                 View your assigned students, check their interview results, and track readiness progress.
               </p>
             </div>
 
-            <div className="flex shrink-0 flex-col items-start gap-2 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 p-4 shadow-sm ring-1 ring-emerald-100/80 sm:items-end">
+            <div className="flex shrink-0 flex-col items-start gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 shadow-sm ring-1 ring-emerald-100/80 sm:items-end">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-3 w-3">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -142,11 +141,11 @@ function StaffDashboard() {
               <Link
                 key={href}
                 to={href}
-                className={`glass-card group relative flex min-h-68 flex-col justify-between overflow-hidden rounded-[2rem] border ${surface} p-7 shadow-[0_15px_35px_-20px_rgba(14,116,144,0.3)] ring-1 ring-white/80 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_50px_-20px_rgba(37,99,235,0.4)] hover:ring-sky-200`}
+                className={`glass-card group relative flex min-h-68 flex-col justify-between overflow-hidden rounded-[2rem] border ${surface} p-7 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md hover:border-indigo-300`}
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className={`flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-br ${color} text-xl text-white shadow-md shadow-indigo-500/25 ring-1 ring-white/30 transition-transform duration-300 group-hover:scale-110`}>
+                    <span className={`flex h-13 w-13 items-center justify-center rounded-2xl ${color} text-xl text-white shadow-md shadow-indigo-500/25 ring-1 ring-white/30 transition-transform duration-300 group-hover:scale-110`}>
                       <Icon />
                     </span>
                     <span className="rounded-full border border-slate-200/70 bg-slate-50/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 transition group-hover:border-indigo-300 group-hover:bg-indigo-50 group-hover:text-indigo-800">

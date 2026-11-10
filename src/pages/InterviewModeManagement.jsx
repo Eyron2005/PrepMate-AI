@@ -97,12 +97,10 @@ export default function InterviewModeManagement() {
 
       <main className="relative ml-20 flex max-w-7xl flex-col gap-7 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Hero Header */}
-        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 fade-in-up sm:p-9">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-sky-400/15 via-indigo-400/12 to-cyan-400/12" />
-
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm fade-in-up sm:p-9">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
                 <FaSlidersH className="text-sky-600 text-[11px]" />
                 Mobile App Options
               </span>
@@ -126,7 +124,7 @@ export default function InterviewModeManagement() {
               </button>
               <Link
                 to="/question-management"
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-sky-500/25 transition hover:-translate-y-0.5 hover:shadow-sky-500/40"
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-sky-500/25 transition hover:-translate-y-0.5 hover:shadow-sky-500/40"
               >
                 <FaQuestionCircle className="text-xs" />
                 <span>Manage Questions</span>
@@ -136,7 +134,7 @@ export default function InterviewModeManagement() {
 
           {/* Summary Stat Cards */}
           <div className="relative mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-[1.5rem] border border-sky-100/90 bg-gradient-to-br from-sky-50/80 via-white to-cyan-50/60 p-5 shadow-xs ring-1 ring-sky-200/50">
+            <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 p-5 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Active Industries</p>
                 <FaIndustry className="text-sky-600" />
@@ -145,7 +143,7 @@ export default function InterviewModeManagement() {
               <p className="mt-0.5 text-[11px] text-slate-500">{catalog.industries.length} total added</p>
             </div>
 
-            <div className="rounded-[1.5rem] border border-indigo-100/90 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/60 p-5 shadow-xs ring-1 ring-indigo-200/50">
+            <div className="rounded-[1.5rem] border border-indigo-200 bg-indigo-50 p-5 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-800">Active Job Roles</p>
                 <FaBriefcase className="text-indigo-600" />
@@ -154,7 +152,7 @@ export default function InterviewModeManagement() {
               <p className="mt-0.5 text-[11px] text-slate-500">{catalog.jobRoles.length} total added</p>
             </div>
 
-            <div className="rounded-[1.5rem] border border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-slate-50/60 p-5 shadow-xs sm:col-span-2 lg:col-span-1">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 shadow-xs sm:col-span-2 lg:col-span-1">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Fixed App Settings</p>
                 <FaLock className="text-slate-400" />
@@ -213,7 +211,7 @@ export default function InterviewModeManagement() {
                     onClick={() => setActiveTab(key)}
                     className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all ${
                       isActive
-                        ? "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 text-white shadow-md shadow-sky-500/25"
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-sky-500/25"
                         : "border border-slate-200 bg-white text-slate-600 hover:bg-sky-50 hover:text-sky-800"
                     }`}
                   >

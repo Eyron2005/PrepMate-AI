@@ -277,12 +277,10 @@ function StaffStudentRecords() {
 
       <main className="relative ml-20 flex max-w-7xl flex-col gap-6 px-4 py-6 md:ml-64 md:px-8 lg:py-8">
         {/* Header Hero */}
-        <section className="glass-card-elevated relative overflow-hidden rounded-[2rem] border border-white/80 p-5 shadow-[0_20px_50px_-25px_rgba(99,102,241,0.3)] ring-1 ring-indigo-100/90 sm:p-6">
-          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-indigo-400/15 via-sky-400/12 to-violet-400/10" />
-
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2rem] border border-slate-200 p-5 shadow-sm sm:p-6">
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-sky-100 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-800 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-800 shadow-sm">
                 <FaGraduationCap className="text-indigo-600 text-[10px]" />
                 Staff Workspace
               </span>
@@ -616,7 +614,7 @@ function StaffStudentRecords() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-sky-50/50 p-4 text-xs">
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/80 p-4 text-xs">
                     <p className="font-bold text-indigo-950">Supervisor Guidance</p>
                     <p className="mt-1 text-slate-600 leading-relaxed">
                       Follow your student&apos;s interview readiness over time, or open Interview Results to see full answers and feedback.

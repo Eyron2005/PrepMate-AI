@@ -148,11 +148,9 @@ function StaffManagement() {
 
       <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Banner Hero */}
-        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 fade-in-up sm:p-9">
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-violet-400/15 via-indigo-400/12 to-sky-400/10" />
-
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm fade-in-up sm:p-9">
           <div className="relative">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-100 to-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-indigo-800 shadow-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-indigo-800 shadow-sm">
               <FaUserTie className="text-[11px]" />
               Staff Accounts
             </span>
@@ -166,12 +164,12 @@ function StaffManagement() {
 
           {/* Quick Metrics Bar */}
           <div className="relative mt-8 grid gap-4 sm:grid-cols-2">
-            <div className="stat-card rounded-[1.75rem] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-white to-indigo-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-violet-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-violet-200 bg-violet-50 p-6 shadow-xs">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Total Staff</p>
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">{staff.length}</p>
               <p className="mt-1 text-xs text-slate-500">Active staff members</p>
             </div>
-            <div className="stat-card rounded-[1.75rem] border border-sky-100/80 bg-gradient-to-br from-sky-50/80 via-white to-cyan-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-sky-200/50">
+            <div className="stat-card rounded-[1.75rem] border border-sky-200 bg-sky-50 p-6 shadow-xs">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-800">Departments</p>
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">
                 {new Set(staff.map((item) => item.department).filter(Boolean)).size}
@@ -294,7 +292,7 @@ function StaffManagement() {
             <div className="sm:col-span-2 lg:col-span-4 mt-2">
               <button
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
               >
                 <FaPlus className="text-xs" />
                 <span>{saving ? "Processing..." : editing ? "Save Profile Changes" : "Send Staff Invitation"}</span>
@@ -347,7 +345,7 @@ function StaffManagement() {
                       <tr key={person.id} className="transition-colors hover:bg-sky-50/50">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white shadow-sm">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-xs font-bold text-white shadow-sm">
                               {getInitials(person.full_name)}
                             </div>
                             <div>

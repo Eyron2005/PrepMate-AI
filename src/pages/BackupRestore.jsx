@@ -135,11 +135,9 @@ function BackupRestore() {
 
       <main className="relative ml-20 max-w-6xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Banner Hero */}
-        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 fade-in-up sm:p-9">
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-emerald-400/15 via-teal-400/12 to-cyan-400/10" />
-
+        <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-slate-200 p-7 shadow-sm fade-in-up sm:p-9">
           <div className="relative">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-emerald-800 shadow-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-emerald-800 shadow-sm">
               <FaDatabase className="text-emerald-600 text-[11px]" />
               Save &amp; Restore Data
             </span>
@@ -173,7 +171,7 @@ function BackupRestore() {
           <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-white/80 p-7 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-8">
             <div>
               <div className="flex items-center justify-between">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-lg text-white shadow-md shadow-sky-500/30">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-lg text-white shadow-md shadow-sky-500/30">
                   <FaDownload />
                 </span>
                 <div className="flex items-center gap-2">
@@ -230,7 +228,7 @@ function BackupRestore() {
               type="button"
               disabled={working}
               onClick={createBackup}
-              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 py-3.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
+              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 py-3.5 text-xs font-bold text-white shadow-md shadow-sky-500/30 transition hover:shadow-sky-500/50 disabled:opacity-60"
             >
               <FaDownload className="text-xs" />
               <span>{working ? "Exporting CSV Backup..." : "Download CSV Backup"}</span>
@@ -241,7 +239,7 @@ function BackupRestore() {
           <div className="glass-card flex flex-col justify-between rounded-[2.25rem] border border-white/80 p-7 shadow-[0_20px_45px_-25px_rgba(245,158,11,0.3)] ring-1 ring-amber-100/90 sm:p-8">
             <div>
               <div className="flex items-center justify-between">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-lg text-white shadow-md shadow-amber-500/30">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-lg text-white shadow-md shadow-amber-500/30">
                   <FaUpload />
                 </span>
                 <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-800 ring-1 ring-amber-200">
@@ -289,7 +287,7 @@ function BackupRestore() {
               type="button"
               disabled={files.length === 0 || working}
               onClick={restoreBackup}
-              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 py-3.5 text-xs font-bold text-white shadow-md shadow-orange-600/30 transition hover:shadow-orange-600/50 disabled:opacity-50"
+              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-600 hover:bg-orange-700 py-3.5 text-xs font-bold text-white shadow-md shadow-orange-600/30 transition hover:shadow-orange-600/50 disabled:opacity-50"
             >
               <FaUpload className="text-xs" />
               <span>{working ? "Restoring Data..." : "Restore Backup"}</span>

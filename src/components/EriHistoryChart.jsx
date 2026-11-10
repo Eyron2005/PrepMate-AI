@@ -96,12 +96,6 @@ export default function EriHistoryChart({ history = [] }) {
         </div>
 
         <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full overflow-visible">
-          <defs>
-            <linearGradient id="eriGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0284c7" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#0284c7" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
 
           {/* Grid lines */}
           <line x1={paddingX} y1={paddingY} x2={width - paddingX} y2={paddingY} stroke="#f1f5f9" strokeDasharray="3 3" />
@@ -109,7 +103,7 @@ export default function EriHistoryChart({ history = [] }) {
           <line x1={paddingX} y1={height - paddingY} x2={width - paddingX} y2={height - paddingY} stroke="#e2e8f0" />
 
           {/* Area under curve */}
-          <path d={areaD} fill="url(#eriGradient)" />
+          <path d={areaD} fill="#0284c7" fillOpacity="0.12" />
 
           {/* Connected Line */}
           <path d={pathD} fill="none" stroke="#0284c7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
