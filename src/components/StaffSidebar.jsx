@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   FaChartPie,
@@ -9,6 +10,18 @@ import {
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 import { clearProfileOnlineStatus } from "../services/profilePresence";
+import { useAuth } from "../contexts/authContext";
+import {
+  formatAdminDisplayName,
+  getAdminAvatarInitial,
+  isGenericRoleLabel,
+} from "../services/adminProfile";
+import {
+  clearStaffProfileCache,
+  fetchCurrentStaffProfile,
+  getCachedStaffProfile,
+  resolveStaffDisplayName,
+} from "../services/staffProfile";
 
 const links = [
   { to: "/staff-dashboard", label: "Dashboard", icon: FaChartPie, end: true },
@@ -17,8 +30,55 @@ const links = [
   { to: "/staff/email-communication", label: "Email Communication", icon: FaEnvelope },
 ];
 
-export default function StaffSidebar({ staffName = "Staff" }) {
+export default function StaffSidebar({ staffName }) {
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const userId = session?.user?.id || null;
+  const userEmail = session?.user?.email || "";
+  const [profileState, setProfileState] = useState({
+    userId: null,
+    profile: null,
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    if (!userId) {
+      clearStaffProfileCache();
+      return () => {
+        active = false;
+      };
+    }
+
+    if (getCachedStaffProfile(userId, userEmail)) {
+      return () => {
+        active = false;
+      };
+    }
+
+    async function loadStaffProfile() {
+      try {
+        const profile = await fetchCurrentStaffProfile(session);
+        if (active) {
+          setProfileState({ userId, profile });
+        }
+      } catch (err) {
+        console.warn("Unable to load staff profile:", err);
+        if (active) {
+          setProfileState({
+            userId,
+            profile: resolveStaffDisplayName({ user: session?.user }),
+          });
+        }
+      }
+    }
+
+    loadStaffProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [session, userEmail, userId]);
 
   async function handleLogout() {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -35,6 +95,7 @@ export default function StaffSidebar({ staffName = "Staff" }) {
       }
     }
 
+    clearStaffProfileCache();
     const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
       console.error("Unable to sign out:", error);
@@ -50,7 +111,24 @@ export default function StaffSidebar({ staffName = "Staff" }) {
         : "text-slate-600 hover:bg-gradient-to-r hover:from-sky-50/90 hover:to-cyan-50/50 hover:text-sky-700 hover:translate-x-0.5"
     }`;
 
-  const initial = (staffName || "S").trim().charAt(0).toUpperCase();
+  const propDisplayName =
+    typeof staffName === "string" && !isGenericRoleLabel(staffName)
+      ? formatAdminDisplayName(staffName)
+      : "";
+
+  const cachedProfile = userId ? getCachedStaffProfile(userId, userEmail) : null;
+  const loadedProfile =
+    cachedProfile || (profileState.userId === userId ? profileState.profile : null);
+
+  const resolvedProfile = propDisplayName
+    ? {
+        displayName: propDisplayName,
+        initial: getAdminAvatarInitial(propDisplayName),
+      }
+    : loadedProfile || (!userId ? { displayName: "Staff Member", initial: "S" } : null);
+
+  const displayName = resolvedProfile?.displayName || "";
+  const initial = resolvedProfile?.initial || "S";
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 flex w-20 flex-col border-r border-sky-100/80 bg-white/92 px-2 py-4 shadow-[14px_0_45px_-24px_rgba(14,116,144,0.35)] backdrop-blur-2xl md:w-64 md:px-4 md:py-6">
@@ -97,9 +175,16 @@ export default function StaffSidebar({ staffName = "Staff" }) {
             {initial}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold text-slate-900">{staffName || "Staff"}</p>
+            <p className="truncate text-xs font-bold text-slate-900" title={displayName || undefined}>
+              {displayName || (
+                <span
+                  className="inline-block h-3 w-24 animate-pulse rounded bg-slate-200 align-middle"
+                  aria-label="Loading staff name"
+                />
+              )}
+            </p>
             <div className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-indigo-700 uppercase">
-              <FaUserTie className="text-[9px]" /> Staff Member
+              <FaUserTie className="text-[9px]" /> STAFF MEMBER
             </div>
           </div>
         </div>

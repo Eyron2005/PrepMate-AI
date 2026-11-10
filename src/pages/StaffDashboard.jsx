@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaClipboardList, FaEnvelope, FaFileAlt, FaArrowRight, FaCalendarAlt, FaUserTie } from "react-icons/fa";
 import StaffSidebar from "../components/StaffSidebar";
 import { useAuth } from "../contexts/authContext";
+import { fetchCurrentStaffProfile, getCachedStaffProfile } from "../services/staffProfile";
 
 const sections = [
   {
@@ -37,11 +38,34 @@ const sections = [
 function StaffDashboard() {
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const metadataName = session?.user?.user_metadata?.full_name;
-  const email = session?.user?.email;
-  const staffName = userId
-    ? metadataName || email?.split("@")[0] || "Staff"
-    : "Staff";
+  const email = session?.user?.email || "";
+  const [profileState, setProfileState] = useState({
+    userId: null,
+    displayName: "",
+  });
+
+  const cachedStaff = userId ? getCachedStaffProfile(userId, email) : null;
+  const staffName =
+    cachedStaff?.displayName ||
+    (profileState.userId === userId ? profileState.displayName : "");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadStaffName() {
+      if (!userId || getCachedStaffProfile(userId, email)) return;
+
+      const profile = await fetchCurrentStaffProfile(session);
+      if (!active) return;
+      setProfileState({ userId, displayName: profile.displayName });
+    }
+
+    loadStaffName();
+
+    return () => {
+      active = false;
+    };
+  }, [email, session, userId]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -65,7 +89,7 @@ function StaffDashboard() {
       <div className="float-orb orb-two" />
       <div className="float-orb orb-three" />
 
-      <StaffSidebar staffName={staffName} />
+      <StaffSidebar staffName={staffName || undefined} />
 
       <main className="relative ml-20 max-w-7xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         <section className="glass-card-elevated relative overflow-hidden rounded-[2.25rem] border border-white/80 p-7 shadow-[0_25px_60px_-25px_rgba(14,116,144,0.35)] ring-1 ring-sky-100/90 sm:p-9">
@@ -83,7 +107,7 @@ function StaffDashboard() {
                 </span>
               </div>
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                {greeting}, <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-sky-600 bg-clip-text text-transparent">{staffName}</span>
+                {greeting}{staffName ? ", " : ""}<span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-sky-600 bg-clip-text text-transparent">{staffName}</span>
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
                 Your supervisor dashboard for Prepmate AI. Review your assigned students, assess performance transcripts, and monitor interview readiness.

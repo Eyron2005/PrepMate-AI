@@ -116,7 +116,7 @@ export function getAdminAvatarInitial(displayName) {
   return firstAlnum ? firstAlnum.toLocaleUpperCase() : "A";
 }
 
-function extractMetadataFullName(user) {
+export function extractMetadataFullName(user) {
   const meta = user?.user_metadata;
   if (!meta || typeof meta !== "object") return "";
 

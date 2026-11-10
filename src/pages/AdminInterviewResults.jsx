@@ -23,6 +23,10 @@ import AdminSidebar from "../components/AdminSidebar";
 import StaffSidebar from "../components/StaffSidebar";
 import { supabase } from "../services/supabase";
 import { getEriClassification } from "../services/eri";
+import {
+  fetchAssignedStudentIds,
+  isAssignedStudentProfile,
+} from "../services/staffAssignments";
 
 const SESSION_PAGE_SIZE = 20;
 const STUDENT_RESULT_LIMIT = 40;
@@ -993,21 +997,44 @@ function AdminInterviewResults({ isStaff = false }) {
     const request = ++studentsRequest.current;
     const search = debouncedStudentSearch.replace(/[\\%_,()"]/g, "\\$&");
     async function loadStudents() {
+      let assignedIds = null;
+      if (isStaff) {
+        assignedIds = await fetchAssignedStudentIds();
+        if (!active || request !== studentsRequest.current) return;
+        if (assignedIds.length === 0) {
+          setStudents([]);
+          setStudentsLoading(false);
+          return;
+        }
+      }
+
       let query = supabase
         .from("profiles")
         .select("id, auth_user_id, full_name, email")
         .order("full_name")
         .limit(STUDENT_RESULT_LIMIT);
 
+      if (assignedIds) {
+        const quotedIds = assignedIds.map((id) => `"${id}"`).join(",");
+        query = query.or(`id.in.(${quotedIds}),auth_user_id.in.(${quotedIds})`);
+      }
+
       if (search) query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
       let result = await query;
       if (result.error && /column .* does not exist|could not find .* column/i.test(result.error.message || "")) {
         let fallback = supabase.from("profiles").select("id, auth_user_id, full_name").order("full_name").limit(STUDENT_RESULT_LIMIT);
+        if (assignedIds) {
+          const quotedIds = assignedIds.map((id) => `"${id}"`).join(",");
+          fallback = fallback.or(`id.in.(${quotedIds}),auth_user_id.in.(${quotedIds})`);
+        }
         if (search) fallback = fallback.ilike("full_name", `%${search}%`);
         result = await fallback;
       }
       if (result.error && /column .* does not exist|could not find .* column/i.test(result.error.message || "")) {
         let fallback = supabase.from("profiles").select("id, full_name").order("full_name").limit(STUDENT_RESULT_LIMIT);
+        if (assignedIds) {
+          fallback = fallback.in("id", assignedIds);
+        }
         if (search) fallback = fallback.ilike("full_name", `%${search}%`);
         result = await fallback;
       }
@@ -1017,7 +1044,11 @@ function AdminInterviewResults({ isStaff = false }) {
         console.error("Unable to load interview result students:", result.error);
         setStudentsError("Unable to load students. Please try again.");
       } else {
-        setStudents((result.data || []).map((profile) => ({
+        const scopedRows = assignedIds
+          ? (result.data || []).filter((profile) => isAssignedStudentProfile(profile, assignedIds))
+          : (result.data || []);
+
+        setStudents(scopedRows.map((profile) => ({
           ...profile,
           full_name: profile.full_name || profile.email || "Unnamed student",
           email: profile.email || "",
@@ -1037,12 +1068,26 @@ function AdminInterviewResults({ isStaff = false }) {
     return () => {
       active = false;
     };
-  }, [debouncedStudentSearch]);
+  }, [debouncedStudentSearch, isStaff]);
 
   useEffect(() => {
     let active = true;
     const request = ++sessionsRequest.current;
     async function loadSessions() {
+      let assignedIds = null;
+      if (isStaff) {
+        assignedIds = await fetchAssignedStudentIds();
+        if (!active || request !== sessionsRequest.current) return;
+        if (assignedIds.length === 0) {
+          setSessions([]);
+          setSessionsCount(0);
+          setAnswerCounts({});
+          setSessionStudents({});
+          setSessionsLoading(false);
+          return;
+        }
+      }
+
       let query = supabase
         .from("interview_sessions")
         .select(SESSION_COLUMNS, { count: "exact" })
@@ -1053,7 +1098,20 @@ function AdminInterviewResults({ isStaff = false }) {
           selectedStudent.id,
           selectedStudent.auth_user_id,
         ].filter(Boolean))];
-        query = query.in("profile_id", studentProfileIds);
+        const allowedIds = assignedIds
+          ? studentProfileIds.filter((id) => assignedIds.includes(id))
+          : studentProfileIds;
+        if (allowedIds.length === 0) {
+          setSessions([]);
+          setSessionsCount(0);
+          setAnswerCounts({});
+          setSessionStudents({});
+          setSessionsLoading(false);
+          return;
+        }
+        query = query.in("profile_id", allowedIds);
+      } else if (assignedIds) {
+        query = query.in("profile_id", assignedIds);
       }
 
       const { data, error, count } = await query;
@@ -1123,7 +1181,7 @@ function AdminInterviewResults({ isStaff = false }) {
     return () => {
       active = false;
     };
-  }, [selectedStudent, sessionsPage]);
+  }, [isStaff, selectedStudent, sessionsPage]);
 
   const loadSessionDetails = useCallback(async (session) => {
     const request = ++detailsRequest.current;

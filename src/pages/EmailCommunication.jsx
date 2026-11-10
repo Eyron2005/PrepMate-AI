@@ -409,7 +409,7 @@ function EmailCommunication({ isStaff = false }) {
       <div className="float-orb orb-three" />
 
       {isStaff ? (
-        <StaffSidebar staffName={sender?.name || "Staff"} />
+        <StaffSidebar staffName={sender?.name || undefined} />
       ) : (
         <AdminSidebar />
       )}

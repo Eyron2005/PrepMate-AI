@@ -15,6 +15,10 @@ import {
 import StaffSidebar from "../components/StaffSidebar";
 import { supabase } from "../services/supabase";
 import { getEriClassification, fetchStudentEriHistory } from "../services/eri";
+import {
+  fetchAssignedStudentIds,
+  isAssignedStudentProfile,
+} from "../services/staffAssignments";
 import EriProgressRing from "../components/EriProgressRing";
 import EriHistoryChart from "../components/EriHistoryChart";
 
@@ -49,15 +53,28 @@ function StaffStudentRecords() {
     setErrorMessage("");
 
     try {
-      // 1. Fetch assigned student profiles (scoped by Supabase RLS)
+      // 1. Fetch explicit student assignments for the logged-in staff user
+      const assignedStudentIds = await fetchAssignedStudentIds();
+
+      if (assignedStudentIds.length === 0) {
+        setStudents([]);
+        setSelectedStudent(null);
+        return;
+      }
+
+      // 2. Fetch assigned student profiles only (defense-in-depth alongside RLS)
+      const quotedIds = assignedStudentIds.map((id) => `"${id}"`).join(",");
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("id, auth_user_id, full_name, email, created_at, last_online")
+        .or(`id.in.(${quotedIds}),auth_user_id.in.(${quotedIds})`)
         .order("full_name");
 
       if (profileError) throw profileError;
 
-      const profiles = profileData || [];
+      const profiles = (profileData || []).filter((p) =>
+        isAssignedStudentProfile(p, assignedStudentIds)
+      );
       const studentIds = [
         ...new Set(profiles.flatMap((p) => [p.id, p.auth_user_id]).filter(Boolean)),
       ];
