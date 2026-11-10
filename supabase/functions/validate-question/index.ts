@@ -124,12 +124,19 @@ Deno.serve(async (request) => {
       return respond(200, { success: false, error: "Authentication is required to validate questions. Please sign in again." });
     }
 
-    // 2. Parse request body
+    // 2. Parse & validate request body
     const payload = await request.json().catch(() => ({}));
     const questionText = typeof payload.question === "string" ? payload.question.trim() : "";
-    const category = payload.category || "Technical";
-    const difficulty = payload.difficulty || "Medium";
+    const category = typeof payload.category === "string" && payload.category.trim() ? payload.category.trim() : "Technical";
     const currentQuestionId = payload.currentQuestionId || null;
+
+    const ALLOWED_CATEGORIES = new Set(["Technical", "Behavioral", "Situational", "HR"]);
+    if (!ALLOWED_CATEGORIES.has(category)) {
+      return respond(200, {
+        success: false,
+        error: `Unsupported interview category "${category}".`,
+      });
+    }
 
     if (!questionText) {
       return respond(200, {
@@ -142,6 +149,13 @@ Deno.serve(async (request) => {
       return respond(200, {
         success: false,
         error: "Question prompt text is too short to be an interview question (minimum 10 characters).",
+      });
+    }
+
+    if (questionText.length > 500) {
+      return respond(200, {
+        success: false,
+        error: "Question prompt text must not exceed 500 characters.",
       });
     }
 
@@ -181,29 +195,30 @@ Deno.serve(async (request) => {
       }
     }
 
-    // 5. Configurable Gemini AI Integration with Multi-Model Fallback
+    // 5. Configurable AI Integration (Gemini Primary + Optional OpenAI Fallback)
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    const configuredModel = Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
+    const openAiKey = Deno.env.get("OPENAI_API_KEY");
+    const configuredModel = Deno.env.get("GEMINI_MODEL") || "gemini-3-flash-preview";
+    const configuredOpenAiModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
 
-    if (!geminiKey) {
+    if (!geminiKey && !openAiKey) {
       return respond(200, {
         success: false,
-        error: "GEMINI_API_KEY environment variable is not configured on the server. Please set it in Supabase secrets.",
+        error: "Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured in Supabase Edge Function secrets.",
       });
     }
 
-    const prompt = `You are an expert HR and technical interviewer reviewing a candidate mock interview prompt.
+    const prompt = `You are an expert HR and technical interviewer evaluating candidate mock interview prompts.
 Analyze the following interview question:
 Input Question: "${questionText}"
 Selected Category: "${category}"
-Selected Difficulty: "${difficulty}"
 
 Instructions:
 1. Grammar & Spelling Correction:
-   - Produce real grammatical corrections for grammar mistakes, pronoun errors (e.g. "what is you goal" -> "What is your goal?", "tell me about you self" -> "Tell me about yourself.", "why you want to work here" -> "Why do you want to work here?", "what are your strength and weakness" -> "What are your strengths and weaknesses?", "what is your goals" -> "What are your goals?"), subject-verb disagreement, capitalization, punctuation, and awkward sentence structure.
+   - Produce real grammatical corrections for grammar mistakes, pronoun errors (e.g. "what is you goal" -> "What is your goal?", "tell me about you self" -> "Tell me about yourself.", "why you want to work here" -> "Why do you want to work here?", "what are your strength and weakness" -> "What are your strengths and weaknesses?"), subject-verb disagreement, capitalization, punctuation, and awkward sentence structure.
    - Do NOT merely add punctuation or quotes if there are grammatical errors.
    - If the input is already grammatically sound, keep it unchanged and set wasCorrected to false.
-   - Strictly preserve original meaning, technical concepts, and difficulty level. Do NOT add new requirements or questions.
+   - Strictly preserve original meaning and technical concepts. Do NOT add new requirements or questions.
 
 2. Validation Checks:
    Evaluate the question against four criteria. For each, assign status ("pass" or "fail") and a concise explanation:
@@ -216,15 +231,31 @@ Instructions:
       - Technical: Programming, architecture, system design, databases, networking, testing, algorithms, technical tools.
       Fail if completely unrelated to the selected category.
    d. "interviewSuitability": Pass if professional and workplace-appropriate.
-      Fail if it contains discriminatory questions prohibited under employment law (inquiries into age, birth year, retirement date, race, ethnicity, religion, marital status, pregnancy, family planning, sexual orientation, disability, medical history, political affiliation) or inappropriate/offensive content.
+      Fail if it contains discriminatory questions prohibited under employment law or inappropriate/offensive content.
 
-3. Overall Status:
-   - "valid": Passes all criteria without critical issues.
-   - "needs_revision": Understandable but has quality warnings or minor relevance concerns.
-   - "invalid": Fails interview suitability (e.g. discriminatory question), incoherent, or completely fails category relevance.
+3. Difficulty Classification (based strictly on these guidelines):
+   Analyze the question across ALL FOUR assessment criteria, considering the selected interview category ("${category}") and the expected competency of a fourth-year college student preparing for an internship or OJT:
+   a. "knowledge_required": Determine the amount and depth of knowledge needed to answer.
+   b. "cognitive_complexity": Determine the level of thinking, reasoning, analysis, and evaluation required.
+   c. "problem_solving": Determine the complexity of the problem or situation presented.
+   d. "experience_required": Determine the level of practical or professional experience expected.
 
-4. Score:
-   - Overall quality score from 0 to 100.
+   Assign "suggestedDifficulty" strictly as "EASY", "MEDIUM", or "HARD":
+   - "EASY": Requires basic knowledge, simple explanations, fundamental understanding, or straightforward factual responses.
+   - "MEDIUM": Requires applied knowledge, logical reasoning, analysis, practical examples, or moderate problem-solving.
+   - "HARD": Requires advanced knowledge, critical thinking, complex problem-solving, evaluating alternatives, justifying decisions, strategic decision-making, or developing solutions.
+
+   Important Classification Rules:
+   - Do NOT determine difficulty solely based on question length. A short question can still be HARD.
+   - Consider the expected answer, not just the wording.
+   - Evaluate the question according to its selected interview category ("${category}") and the expected competency of a fourth-year college student preparing for an internship or OJT.
+   - Do NOT automatically classify Technical questions as HARD.
+   - Do NOT classify questions based on keywords alone; evaluate the actual cognitive demand and expected response.
+   - Apply the same classification standards consistently across HR, Behavioral, Situational, and Technical questions.
+
+4. Overall Validation Status & Score:
+   - status: "valid" | "needs_revision" | "invalid"
+   - score: 0 to 100
 
 Output MUST be strict JSON in this exact structure:
 {
@@ -233,6 +264,14 @@ Output MUST be strict JSON in this exact structure:
   "changes": ["List of changes made"],
   "status": "valid",
   "score": 95,
+  "suggestedDifficulty": "MEDIUM",
+  "difficultyAssessment": {
+    "knowledge_required": "Short explanation of depth/amount of knowledge required.",
+    "cognitive_complexity": "Short explanation of reasoning/analysis/evaluation required.",
+    "problem_solving": "Short explanation of problem or situation complexity.",
+    "experience_required": "Short explanation of practical/OJT experience expected."
+  },
+  "difficultyReason": "1-2 concise sentences explaining why this question is EASY, MEDIUM, or HARD under the four criteria for a fourth-year OJT/internship candidate.",
   "overallFeedback": "Concise summary of validation findings",
   "checks": {
     "grammarAndSpelling": { "status": "pass", "message": "Explanation" },
@@ -250,79 +289,122 @@ Output MUST be strict JSON in this exact structure:
       "gemini-pro-latest",
     ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
-    let aiResponse: Response | null = null;
+    let rawAiText = "";
     let lastErrorText = "";
     let lastStatus = 500;
 
-    for (const model of candidateModels) {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+    if (geminiKey) {
+      for (const model of candidateModels) {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
 
-      try {
-        const res = await fetch(geminiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              thinkingConfig: {
-                thinkingBudget: 0,
+        try {
+          const res = await fetch(geminiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                thinkingConfig: {
+                  thinkingBudget: 0,
+                },
               },
-            },
-          }),
-          signal: AbortSignal.timeout(6000),
-        });
+            }),
+            signal: AbortSignal.timeout(10000),
+          });
 
-        if (res.ok) {
-          aiResponse = res;
-          break;
+          if (res.ok) {
+            const aiData = await res.json();
+            const candidate = aiData?.candidates?.[0];
+            const partWithText = candidate?.content?.parts?.find(
+              (p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought
+            ) || candidate?.content?.parts?.find(
+              (p: { text?: string }) => typeof p.text === "string"
+            );
+            rawAiText = partWithText?.text || "";
+            if (rawAiText) break;
+            lastErrorText = "Gemini did not return candidate JSON text.";
+            continue;
+          }
+
+          lastStatus = res.status;
+          lastErrorText = await res.text();
+          console.warn(`Gemini API model ${model} returned status ${res.status}:`, lastErrorText);
+
+          // Project-level key/billing failures affect all models for this key; stop immediately
+          if (res.status === 401 || res.status === 403) {
+            break;
+          }
+          continue;
+        } catch (fetchErr) {
+          lastErrorText = (fetchErr as Error).message || String(fetchErr);
+          console.warn(`Gemini API model ${model} fetch exception:`, lastErrorText);
+          continue;
         }
-
-        lastStatus = res.status;
-        lastErrorText = await res.text();
-        console.warn(`Gemini API model ${model} returned status ${res.status}:`, lastErrorText);
-
-        // Try next candidate model immediately without stalling
-        continue;
-      } catch (fetchErr) {
-        lastErrorText = (fetchErr as Error).message || String(fetchErr);
-        console.warn(`Gemini API model ${model} fetch exception:`, lastErrorText);
-        continue;
       }
     }
 
-    if (!aiResponse || !aiResponse.ok) {
+    // Optional server-side OpenAI fallback if OPENAI_API_KEY is configured in Supabase secrets
+    if (!rawAiText && openAiKey) {
+      try {
+        const openAiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openAiKey}`,
+          },
+          body: JSON.stringify({
+            model: configuredOpenAiModel,
+            response_format: { type: "json_object" },
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.2,
+          }),
+          signal: AbortSignal.timeout(12000),
+        });
+
+        if (openAiRes.ok) {
+          const openAiData = await openAiRes.json();
+          rawAiText = openAiData?.choices?.[0]?.message?.content || "";
+        } else {
+          lastStatus = openAiRes.status;
+          lastErrorText = await openAiRes.text();
+          console.warn(`OpenAI fallback returned status ${openAiRes.status}:`, lastErrorText);
+        }
+      } catch (openAiErr) {
+        lastErrorText = (openAiErr as Error).message || String(openAiErr);
+        console.warn("OpenAI fallback fetch exception:", lastErrorText);
+      }
+    }
+
+    if (!rawAiText) {
+      let readableDetail = "";
+      try {
+        const parsedErr = JSON.parse(lastErrorText);
+        if (parsedErr?.error?.message) {
+          readableDetail = String(parsedErr.error.message);
+        }
+      } catch {
+        readableDetail = lastErrorText;
+      }
+
+      if (geminiKey) readableDetail = readableDetail.split(geminiKey).join("[REDACTED]");
+      if (openAiKey) readableDetail = readableDetail.split(openAiKey).join("[REDACTED]");
+
       if (lastStatus === 429) {
         return respond(200, {
           success: false,
-          error: "Gemini API daily or rate limit reached. Please wait a few moments or check your API key quota.",
+          error: readableDetail || "AI API daily or rate limit reached. Please wait a few moments and retry.",
         });
       }
-      if (lastStatus === 400 || lastStatus === 403) {
+      if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) {
         return respond(200, {
           success: false,
-          error: `Gemini API authentication or configuration error (${lastStatus}). Please verify your GEMINI_API_KEY.`,
+          error: readableDetail || `AI API authentication or permission error (${lastStatus}). Please update GEMINI_API_KEY (or set OPENAI_API_KEY) in Supabase secrets.`,
         });
       }
       return respond(200, {
         success: false,
-        error: `Gemini AI service returned status ${lastStatus}. ${lastErrorText || "Unable to complete validation at this time."}`,
-      });
-    }
-
-    const aiData = await aiResponse.json();
-    const candidate = aiData?.candidates?.[0];
-    const partWithText = candidate?.content?.parts?.find(
-      (p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought
-    ) || candidate?.content?.parts?.find(
-      (p: { text?: string }) => typeof p.text === "string"
-    );
-
-    const rawAiText = partWithText?.text;
-    if (!rawAiText) {
-      return respond(200, {
-        success: false,
-        error: "Gemini did not return a valid candidate response. Please try again.",
+        error: `AI service returned status ${lastStatus}. ${readableDetail || "Unable to complete validation at this time."}`,
       });
     }
 
@@ -332,6 +414,14 @@ Output MUST be strict JSON in this exact structure:
       changes?: string[];
       status?: "valid" | "needs_revision" | "invalid";
       score?: number;
+      suggestedDifficulty?: string;
+      difficultyReason?: string;
+      difficultyAssessment?: {
+        knowledge_required?: string;
+        cognitive_complexity?: string;
+        problem_solving?: string;
+        experience_required?: string;
+      };
       overallFeedback?: string;
       checks?: {
         grammarAndSpelling?: { status: "pass" | "fail"; message: string };
@@ -344,9 +434,52 @@ Output MUST be strict JSON in this exact structure:
     try {
       parsed = JSON.parse(rawAiText);
     } catch {
-      const cleaned = rawAiText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-      parsed = JSON.parse(cleaned);
+      try {
+        const cleaned = rawAiText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+        parsed = JSON.parse(cleaned);
+      } catch {
+        return respond(200, {
+          success: false,
+          error: "AI service returned malformed JSON. Please retry validation.",
+        });
+      }
     }
+
+    const DIFFICULTY_MAP: Record<string, { tier: "Easy" | "Medium" | "Hard"; code: "EASY" | "MEDIUM" | "HARD" }> = {
+      easy: { tier: "Easy", code: "EASY" },
+      medium: { tier: "Medium", code: "MEDIUM" },
+      hard: { tier: "Hard", code: "HARD" },
+    };
+    const rawDiff = typeof parsed.suggestedDifficulty === "string" ? parsed.suggestedDifficulty.trim().toLowerCase() : "";
+    const normalizedDiff = DIFFICULTY_MAP[rawDiff] || null;
+    const difficultyReason = typeof parsed.difficultyReason === "string" ? parsed.difficultyReason.trim() : "";
+    const rawAssess = parsed.difficultyAssessment;
+    const difficultyAssessment =
+      rawAssess && typeof rawAssess === "object"
+        ? {
+            knowledge_required: typeof rawAssess.knowledge_required === "string" ? rawAssess.knowledge_required.trim() : "",
+            cognitive_complexity: typeof rawAssess.cognitive_complexity === "string" ? rawAssess.cognitive_complexity.trim() : "",
+            problem_solving: typeof rawAssess.problem_solving === "string" ? rawAssess.problem_solving.trim() : "",
+            experience_required: typeof rawAssess.experience_required === "string" ? rawAssess.experience_required.trim() : "",
+          }
+        : null;
+
+    if (
+      !normalizedDiff ||
+      !difficultyReason ||
+      !difficultyAssessment ||
+      !difficultyAssessment.knowledge_required ||
+      !difficultyAssessment.cognitive_complexity ||
+      !difficultyAssessment.problem_solving ||
+      !difficultyAssessment.experience_required
+    ) {
+      return respond(200, {
+        success: false,
+        error: "AI difficulty classification returned an incomplete or invalid evaluation. Please retry validation.",
+      });
+    }
+
+    const suggestedDifficulty = normalizedDiff.tier;
 
     // Build final duplicate detection check
     let duplicateCheckStatus: "pass" | "fail" | "warn" = "pass";
@@ -409,6 +542,10 @@ Output MUST be strict JSON in this exact structure:
         changes: parsed.changes || [],
         status: finalStatus,
         score: finalScore,
+        suggestedDifficulty,
+        suggestedDifficultyCode: normalizedDiff.code,
+        difficultyReason,
+        difficultyAssessment,
         overallFeedback: finalFeedback,
         suggestedQuestion: wasCorrected && correctedText !== questionText ? correctedText : null,
         checks: {

@@ -4,6 +4,10 @@ import {
   validateQuestionSync,
   autoCorrectGrammar,
   calculateTokenSimilarity,
+  toDisplayDifficultyTier,
+  toDifficultyCode,
+  validateDifficultyClassification,
+  resolveDifficultyPersistence,
 } from "../src/services/questionValidator.js";
 
 const SAMPLE_EXISTING_QUESTIONS = [
@@ -252,4 +256,126 @@ test("calculateTokenSimilarity computes token overlap between questions", () => 
     "describe a challenging programming project"
   );
   assert.ok(partial > 0.6);
+});
+
+test("toDisplayDifficultyTier normalizes difficulty tiers safely", () => {
+  assert.equal(toDisplayDifficultyTier("Easy"), "Easy");
+  assert.equal(toDisplayDifficultyTier("EASY"), "Easy");
+  assert.equal(toDisplayDifficultyTier("medium"), "Medium");
+  assert.equal(toDisplayDifficultyTier("HARD"), "Hard");
+  assert.equal(toDisplayDifficultyTier("hard"), "Hard");
+  assert.equal(toDisplayDifficultyTier("invalid"), "");
+  assert.equal(toDisplayDifficultyTier(""), "");
+  assert.equal(toDisplayDifficultyTier(null), "");
+});
+
+test("toDifficultyCode normalizes difficulty tiers to uppercase codes", () => {
+  assert.equal(toDifficultyCode("Easy"), "EASY");
+  assert.equal(toDifficultyCode("medium"), "MEDIUM");
+  assert.equal(toDifficultyCode("HARD"), "HARD");
+  assert.equal(toDifficultyCode("other"), "");
+});
+
+test("validateDifficultyClassification validates all 4 criteria and rejects incomplete payloads", () => {
+  const valid = validateDifficultyClassification({
+    suggestedDifficulty: "medium",
+    difficultyReason: "Requires applying SQL indexing concepts to improve query latency.",
+    difficultyAssessment: {
+      knowledge_required: "Understanding of B-tree indexes and query execution plans.",
+      cognitive_complexity: "Applying indexing trade-offs to practical read/write workloads.",
+      problem_solving: "Diagnosing slow queries and selecting an index strategy.",
+      experience_required: "Practical coursework or OJT project database tuning.",
+    },
+  });
+
+  assert.equal(valid?.difficulty, "MEDIUM");
+  assert.equal(valid?.difficultyTier, "Medium");
+  assert.equal(valid?.assessment.knowledge_required, "Understanding of B-tree indexes and query execution plans.");
+
+  // Rejects unsupported difficulty values
+  assert.equal(
+    validateDifficultyClassification({
+      suggestedDifficulty: "EXPERT",
+      difficultyReason: "reason",
+      difficultyAssessment: {
+        knowledge_required: "k",
+        cognitive_complexity: "c",
+        problem_solving: "p",
+        experience_required: "e",
+      },
+    }),
+    null
+  );
+
+  // Rejects missing criteria or missing reason instead of defaulting silently
+  assert.equal(
+    validateDifficultyClassification({
+      suggestedDifficulty: "EASY",
+      difficultyReason: "",
+      difficultyAssessment: {
+        knowledge_required: "k",
+        cognitive_complexity: "c",
+        problem_solving: "p",
+        experience_required: "e",
+      },
+    }),
+    null
+  );
+  assert.equal(
+    validateDifficultyClassification({
+      suggestedDifficulty: "HARD",
+      difficultyReason: "Requires deep trade-off evaluation.",
+      difficultyAssessment: {
+        knowledge_required: "k",
+        cognitive_complexity: "",
+        problem_solving: "p",
+        experience_required: "e",
+      },
+    }),
+    null
+  );
+  assert.equal(validateDifficultyClassification(null), null);
+});
+
+test("resolveDifficultyPersistence tracks AI vs ADMIN_OVERRIDE and blocks incomplete saves", () => {
+  const sampleAssessment = {
+    knowledge_required: "Fundamental database concepts.",
+    cognitive_complexity: "Applying normalization rules to schema design.",
+    problem_solving: "Resolving redundancy in a moderate table structure.",
+    experience_required: "Academic database project experience.",
+  };
+
+  const accepted = resolveDifficultyPersistence({
+    selectedDifficulty: "Medium",
+    aiSuggestedDifficulty: "MEDIUM",
+    assessment: sampleAssessment,
+    reason: "Applies database design knowledge.",
+    hasCompletedClassification: true,
+  });
+  assert.equal(accepted.isComplete, true);
+  assert.equal(accepted.difficulty, "Medium");
+  assert.equal(accepted.ai_suggested_difficulty, "MEDIUM");
+  assert.equal(accepted.classification_status, "COMPLETED");
+  assert.equal(accepted.classification_method, "AI");
+
+  const overridden = resolveDifficultyPersistence({
+    selectedDifficulty: "Hard",
+    aiSuggestedDifficulty: "MEDIUM",
+    assessment: sampleAssessment,
+    reason: "Applies database design knowledge.",
+    hasCompletedClassification: true,
+  });
+  assert.equal(overridden.isComplete, true);
+  assert.equal(overridden.difficulty, "Hard");
+  assert.equal(overridden.ai_suggested_difficulty, "MEDIUM");
+  assert.equal(overridden.classification_method, "ADMIN_OVERRIDE");
+
+  const incomplete = resolveDifficultyPersistence({
+    selectedDifficulty: "Medium",
+    aiSuggestedDifficulty: "",
+    assessment: null,
+    reason: "",
+    hasCompletedClassification: false,
+  });
+  assert.equal(incomplete.isComplete, false);
 });

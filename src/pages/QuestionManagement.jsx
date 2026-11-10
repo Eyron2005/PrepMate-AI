@@ -17,17 +17,22 @@ import {
   FaLightbulb,
   FaMagic,
   FaUndo,
+  FaRedo,
 } from "react-icons/fa";
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 import {
   VALID_CATEGORIES as categories,
   VALID_DIFFICULTIES as difficulties,
+  toDisplayDifficultyTier,
+  toDifficultyCode,
+  resolveDifficultyPersistence,
   validateQuestionWithAiOrRules,
 } from "../services/questionValidator";
 
 function getDifficultyBadge(difficulty) {
-  switch (difficulty) {
+  const tier = toDisplayDifficultyTier(difficulty) || difficulty;
+  switch (tier) {
     case "Easy":
       return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80";
     case "Medium":
@@ -64,6 +69,7 @@ function QuestionManagement() {
   const [validationError, setValidationError] = useState("");
   const [originalQuestion, setOriginalQuestion] = useState(null);
   const [correctionNotice, setCorrectionNotice] = useState("");
+  const [difficultyInfo, setDifficultyInfo] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("");
@@ -99,7 +105,7 @@ function QuestionManagement() {
       id: item.id || item.question_id || item.uid,
       question: item.question || item.title || "Untitled question",
       category: item.category || item.topic || "HR",
-      difficulty: item.difficulty || item.level || "Medium",
+      difficulty: toDisplayDifficultyTier(item.difficulty || item.level) || "Medium",
       answer: item.answer || item.solution || "",
       created_at: item.created_at || item.createdAt || new Date().toISOString(),
     }));
@@ -123,13 +129,18 @@ function QuestionManagement() {
   }, [searchTerm, categoryFilter, difficultyFilter, questions]);
 
   function resetForm() {
-    setFormState({ question: "", category: "", difficulty: "" });
+    setFormState({
+      question: "",
+      category: "",
+      difficulty: "",
+    });
     setEditingQuestion(null);
     setValidationResult(null);
     setValidationAttempted(false);
     setValidationError("");
     setOriginalQuestion(null);
     setCorrectionNotice("");
+    setDifficultyInfo(null);
   }
 
   function openAddForm() {
@@ -139,40 +150,78 @@ function QuestionManagement() {
 
   function startEdit(question) {
     setEditingQuestion(question);
+    const normalizedDiff = toDisplayDifficultyTier(question.difficulty) || question.difficulty || "";
+    const savedAiCode = toDifficultyCode(question.ai_suggested_difficulty);
+    const savedAiTier = toDisplayDifficultyTier(savedAiCode);
+    const savedStatus = question.classification_status || (savedAiCode ? "COMPLETED" : null);
+    const savedMethod =
+      question.classification_method ||
+      (savedAiTier && normalizedDiff && savedAiTier !== normalizedDiff
+        ? "ADMIN_OVERRIDE"
+        : savedAiTier
+          ? "AI"
+          : null);
+
     setFormState({
       question: question.question,
       category: question.category,
-      difficulty: question.difficulty,
+      difficulty: normalizedDiff,
     });
     setValidationResult(null);
     setValidationAttempted(false);
     setValidationError("");
     setOriginalQuestion(null);
     setCorrectionNotice("");
+    setDifficultyInfo(
+      savedAiCode || savedMethod || question.difficulty_reason || question.difficulty_assessment
+        ? {
+            status: savedStatus || "COMPLETED",
+            aiSuggestedDifficulty: savedAiCode,
+            difficultyTier: savedAiTier,
+            assessment: question.difficulty_assessment || null,
+            reason: question.difficulty_reason || "",
+            method: savedMethod,
+          }
+        : null
+    );
     setIsFormOpen(true);
   }
 
   async function handleValidate(allowAutoCorrect = true) {
+    if (isValidating || actionLoading) return null;
+
     if (!formState.question.trim()) {
-      alert("Please provide the question prompt text before validating.");
+      setValidationError("Please provide the question prompt text before validating.");
+      return null;
+    }
+
+    if (!formState.category) {
+      setValidationError("Please select a Category Track before validating so AI can evaluate relevance and classify the Difficulty Tier.");
       return null;
     }
 
     setIsValidating(true);
     setValidationError("");
+
     try {
       const result = await validateQuestionWithAiOrRules({
         question: formState.question,
-        category: formState.category || "Technical",
-        difficulty: formState.difficulty || "Medium",
+        category: formState.category,
         currentQuestionId: editingQuestion?.id,
       });
 
-      if (!result || result.success === false) {
-        const errorMsg = result?.error || "AI validation could not be completed. Please check service status.";
+      const cls = result?.difficultyClassification;
+      if (!result || result.success === false || !cls) {
+        const errorMsg =
+          result?.error ||
+          "AI validation and difficulty classification could not be completed. Please retry.";
         setValidationError(errorMsg);
         setValidationResult(null);
         setValidationAttempted(false);
+        setDifficultyInfo((prev) => ({
+          ...(prev || {}),
+          status: "FAILED",
+        }));
         return null;
       }
 
@@ -189,15 +238,38 @@ function QuestionManagement() {
         setCorrectionNotice("Grammar and spelling automatically corrected.");
       }
 
+      const preserveOverride =
+        difficultyInfo?.method === "ADMIN_OVERRIDE" && Boolean(formState.difficulty);
+      const nextMethod = preserveOverride ? "ADMIN_OVERRIDE" : "AI";
+
+      if (!preserveOverride) {
+        setFormState((prev) => ({
+          ...prev,
+          difficulty: cls.difficultyTier,
+        }));
+      }
+
+      setDifficultyInfo({
+        status: "COMPLETED",
+        aiSuggestedDifficulty: cls.difficulty,
+        difficultyTier: cls.difficultyTier,
+        assessment: cls.assessment,
+        reason: cls.reason,
+        method: nextMethod,
+      });
+
       setValidationResult(result);
       setValidationAttempted(true);
       return result;
     } catch (err) {
       console.error("Validation error:", err);
-      const message = err?.message || "Failed to contact Gemini AI validation service.";
-      setValidationError(message);
+      setValidationError(err?.message || "Failed to contact AI validation service.");
       setValidationResult(null);
       setValidationAttempted(false);
+      setDifficultyInfo((prev) => ({
+        ...(prev || {}),
+        status: "FAILED",
+      }));
       return null;
     } finally {
       setIsValidating(false);
@@ -207,11 +279,19 @@ function QuestionManagement() {
   function handleUndoCorrection() {
     if (originalQuestion) {
       const reverted = originalQuestion;
-      setFormState((prev) => ({ ...prev, question: reverted }));
+      const keepOverride = difficultyInfo?.method === "ADMIN_OVERRIDE";
+      setFormState((prev) => ({
+        ...prev,
+        question: reverted,
+        difficulty: keepOverride ? prev.difficulty : (editingQuestion?.difficulty || ""),
+      }));
       setOriginalQuestion(null);
       setCorrectionNotice("");
       setValidationResult(null);
       setValidationAttempted(false);
+      if (!keepOverride) {
+        setDifficultyInfo(null);
+      }
     }
   }
 
@@ -237,59 +317,100 @@ function QuestionManagement() {
     }
 
     if (!formState.category) {
-      alert("Please select a Category Track before creating the question.");
+      alert("Please select a Category Track before continuing.");
       return;
     }
 
-    if (!formState.difficulty) {
-      alert("Please select a Difficulty Tier before creating the question.");
+    const isEditingLegacyUnchanged =
+      Boolean(editingQuestion) &&
+      !editingQuestion.ai_suggested_difficulty &&
+      trimmedQuestion === (editingQuestion.question || "").trim() &&
+      formState.category === editingQuestion.category &&
+      difficultyInfo?.status !== "FAILED";
+
+    const needsClassification =
+      (!validationAttempted || !validationResult || difficultyInfo?.status !== "COMPLETED") &&
+      !isEditingLegacyUnchanged;
+
+    // Automatically validate & classify difficulty if not yet completed,
+    // then display the suggested difficulty so admin can accept or override before saving.
+    if (needsClassification) {
+      await handleValidate(true);
       return;
     }
 
-    // Automatically validate question on the spot if not yet validated
-    let currentResult = validationResult;
-    if (!validationAttempted || !currentResult) {
-      currentResult = await handleValidate(true);
-      if (!currentResult) {
+    if (validationResult) {
+      if (validationResult.status === "invalid") {
+        alert(
+          `Cannot save question:\n\n${
+            validationResult.overallFeedback || "The question fails mandatory validation checks. Please correct the flagged issues."
+          }`
+        );
         return;
+      }
+
+      const failedChecks = Object.entries(validationResult.checks || {})
+        .filter(([, c]) => c.status === "fail")
+        .map(([, c]) => `• ${c.title}: ${c.message}`);
+
+      if (failedChecks.length > 0) {
+        alert(`Cannot save question. The following required criteria failed:\n\n${failedChecks.join("\n")}\n\nPlease revise the question before saving.`);
+        return;
+      }
+
+      if (validationResult.status === "needs_revision") {
+        const proceed = window.confirm(
+          `This question has quality warnings:\n\n${validationResult.overallFeedback}\n\nDo you want to proceed and save anyway?`
+        );
+        if (!proceed) {
+          return;
+        }
       }
     }
 
-    if (currentResult.status === "invalid") {
-      alert(
-        `Cannot save question:\n\n${
-          currentResult?.overallFeedback || "The question fails mandatory validation checks. Please correct the flagged issues."
-        }`
-      );
-      return;
-    }
+    const questionTextToSave = (validationResult?.correctedText || trimmedQuestion).trim();
+    let payload;
 
-    const failedChecks = Object.entries(currentResult.checks || {})
-      .filter(([, c]) => c.status === "fail")
-      .map(([, c]) => `• ${c.title}: ${c.message}`);
+    if (difficultyInfo?.status === "COMPLETED") {
+      const persistence = resolveDifficultyPersistence({
+        selectedDifficulty: formState.difficulty,
+        aiSuggestedDifficulty: difficultyInfo.aiSuggestedDifficulty,
+        assessment: difficultyInfo.assessment,
+        reason: difficultyInfo.reason,
+        hasCompletedClassification: true,
+      });
 
-    if (failedChecks.length > 0) {
-      alert(`Cannot save question. The following required criteria failed:\n\n${failedChecks.join("\n")}\n\nPlease revise the question before saving.`);
-      return;
-    }
-
-    if (currentResult.status === "needs_revision") {
-      const proceed = window.confirm(
-        `This question has quality warnings:\n\n${currentResult.overallFeedback}\n\nDo you want to proceed and save anyway?`
-      );
-      if (!proceed) {
+      if (!persistence.isComplete) {
+        alert(persistence.error);
         return;
       }
+
+      payload = {
+        question: questionTextToSave,
+        category: formState.category,
+        difficulty: persistence.difficulty,
+        ai_suggested_difficulty: persistence.ai_suggested_difficulty,
+        difficulty_assessment: persistence.difficulty_assessment,
+        difficulty_reason: persistence.difficulty_reason,
+        classification_status: persistence.classification_status,
+        classification_method: persistence.classification_method,
+      };
+    } else if (isEditingLegacyUnchanged && formState.difficulty) {
+      payload = {
+        question: questionTextToSave,
+        category: formState.category,
+        difficulty: formState.difficulty,
+        classification_method:
+          formState.difficulty !== editingQuestion.difficulty
+            ? "ADMIN_OVERRIDE"
+            : editingQuestion.classification_method || null,
+      };
+    } else {
+      alert("AI difficulty classification must complete before saving.");
+      return;
     }
 
     setActionLoading(true);
-    const questionTextToSave = (currentResult.correctedText || formState.question).trim();
-    const payload = {
-      question: questionTextToSave,
-      category: formState.category,
-      difficulty: formState.difficulty,
-    };
-
     const query = editingQuestion
       ? supabase.from("questions").update(payload).eq("id", editingQuestion.id).select("*")
       : supabase.from("questions").insert([payload]).select("*");
@@ -599,7 +720,7 @@ function QuestionManagement() {
                     <button
                       type="button"
                       onClick={() => handleValidate(true)}
-                      disabled={isValidating || !formState.question.trim()}
+                      disabled={isValidating || actionLoading || !formState.question.trim()}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-800 shadow-sm transition hover:bg-sky-100 disabled:opacity-50"
                     >
                       {isValidating ? (
@@ -618,27 +739,52 @@ function QuestionManagement() {
                 <textarea
                   value={formState.question}
                   onChange={(e) => {
-                    setFormState({ ...formState, question: e.target.value });
+                    const nextQuestion = e.target.value;
+                    const keepOverride = difficultyInfo?.method === "ADMIN_OVERRIDE";
+                    setFormState((prev) => ({
+                      ...prev,
+                      question: nextQuestion,
+                      difficulty: keepOverride
+                        ? prev.difficulty
+                        : editingQuestion && nextQuestion.trim() === (editingQuestion.question || "").trim()
+                          ? editingQuestion.difficulty
+                          : "",
+                    }));
                     if (validationResult) setValidationResult(null);
                     if (validationAttempted) setValidationAttempted(false);
                     if (validationError) setValidationError("");
                     if (correctionNotice && !originalQuestion) setCorrectionNotice("");
+                    if (!keepOverride) {
+                      setDifficultyInfo(null);
+                    }
                   }}
                   rows={3}
                   placeholder="e.g., Can you describe a challenging technical project you worked on and how you resolved unexpected roadblocks?"
                   className="w-full rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                 />
 
-                {/* AI Error Notification */}
+                {/* AI Error Notification with Retry */}
                 {validationError && (
-                  <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-rose-300 bg-rose-50/95 p-3 text-xs text-rose-950 shadow-sm animate-fadeIn">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-rose-200 text-rose-700 mt-0.5">
-                      <FaTimesCircle className="text-xs" />
-                    </span>
-                    <div className="flex-1">
-                      <p className="font-bold">Validation Error</p>
-                      <p className="mt-0.5 text-rose-800 text-[11px] leading-relaxed">{validationError}</p>
+                  <div className="mt-2.5 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-rose-300 bg-rose-50/95 p-3.5 text-xs text-rose-950 shadow-sm animate-fadeIn">
+                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-rose-200 text-rose-700 mt-0.5">
+                        <FaTimesCircle className="text-xs" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold">Validation Error</p>
+                        <p className="mt-0.5 text-rose-800 text-[11px] leading-relaxed">
+                          {validationError}
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleValidate(true)}
+                      disabled={isValidating || !formState.question.trim()}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-50"
+                    >
+                      <FaRedo className="text-[10px]" /> Retry Validation
+                    </button>
                   </div>
                 )}
 
@@ -692,8 +838,19 @@ function QuestionManagement() {
                   <select
                     value={formState.category}
                     onChange={(e) => {
-                      setFormState((prev) => ({ ...prev, category: e.target.value }));
+                      const nextCategory = e.target.value;
+                      const keepOverride = difficultyInfo?.method === "ADMIN_OVERRIDE";
+                      setFormState((prev) => ({
+                        ...prev,
+                        category: nextCategory,
+                        difficulty: keepOverride ? prev.difficulty : "",
+                      }));
                       if (validationAttempted) setValidationAttempted(false);
+                      if (validationResult) setValidationResult(null);
+                      if (validationError) setValidationError("");
+                      if (!keepOverride) {
+                        setDifficultyInfo(null);
+                      }
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
@@ -705,23 +862,118 @@ function QuestionManagement() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Difficulty Tier <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Difficulty Tier <span className="text-rose-500">*</span>
+                    </label>
+                    {difficultyInfo?.status === "COMPLETED" && difficultyInfo?.difficultyTier ? (
+                      difficultyInfo.method === "ADMIN_OVERRIDE" ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                            Override (AI: {difficultyInfo.difficultyTier})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormState((prev) => ({ ...prev, difficulty: difficultyInfo.difficultyTier }));
+                              setDifficultyInfo((prev) => ({ ...prev, method: "AI" }));
+                            }}
+                            className="text-[10px] font-bold text-sky-700 hover:underline"
+                          >
+                            Use AI
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${getDifficultyBadge(difficultyInfo.difficultyTier)}`}>
+                          AI Classified
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-[10px] font-semibold text-slate-400">
+                        Auto-classified
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={formState.difficulty}
                     onChange={(e) => {
-                      setFormState((prev) => ({ ...prev, difficulty: e.target.value }));
+                      const nextDiff = e.target.value;
+                      setFormState((prev) => ({ ...prev, difficulty: nextDiff }));
+                      if (difficultyInfo?.aiSuggestedDifficulty) {
+                        const aiTier = toDisplayDifficultyTier(difficultyInfo.aiSuggestedDifficulty);
+                        setDifficultyInfo((prev) => ({
+                          ...prev,
+                          method: nextDiff && aiTier ? (nextDiff === aiTier ? "AI" : "ADMIN_OVERRIDE") : prev?.method || "ADMIN_OVERRIDE",
+                        }));
+                      }
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
-                    <option value="">Select Difficulty Tier</option>
+                    <option value="">Auto-classified on Validate</option>
                     {difficulties.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
                 </div>
               </div>
+
+              {/* AI Processing Loading Indicator */}
+              {isValidating && (
+                <div className="flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50/80 p-3.5 text-xs text-sky-900 shadow-sm animate-pulse">
+                  <FaSyncAlt className="animate-spin text-sm text-sky-600 shrink-0" />
+                  <p className="font-semibold">Validating question and classifying difficulty tier (Easy / Medium / Hard)...</p>
+                </div>
+              )}
+
+              {/* Compact Difficulty Tier Assessment Summary (4 Guidelines Criteria) */}
+              {difficultyInfo?.status === "COMPLETED" && difficultyInfo?.reason && !isValidating && (
+                <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                        Difficulty Classification
+                      </span>
+                      {difficultyInfo.difficultyTier && (
+                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${getDifficultyBadge(difficultyInfo.difficultyTier)}`}>
+                          AI: {difficultyInfo.difficultyTier}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                      difficultyInfo.method === "ADMIN_OVERRIDE"
+                        ? "bg-amber-100 text-amber-800 ring-1 ring-amber-200"
+                        : "bg-sky-100 text-sky-800 ring-1 ring-sky-200"
+                    }`}>
+                      {difficultyInfo.method === "ADMIN_OVERRIDE" ? "Admin Override" : "AI Classified"}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-700 leading-snug">
+                    {difficultyInfo.reason}
+                  </p>
+
+                  {difficultyInfo.assessment && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl border border-slate-200/70 bg-white px-2.5 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-sky-800">Knowledge Required</p>
+                        <p className="mt-0.5 text-[11px] text-slate-600 leading-snug">{difficultyInfo.assessment.knowledge_required}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/70 bg-white px-2.5 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Cognitive Complexity</p>
+                        <p className="mt-0.5 text-[11px] text-slate-600 leading-snug">{difficultyInfo.assessment.cognitive_complexity}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/70 bg-white px-2.5 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Problem-Solving</p>
+                        <p className="mt-0.5 text-[11px] text-slate-600 leading-snug">{difficultyInfo.assessment.problem_solving}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200/70 bg-white px-2.5 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Experience Required</p>
+                        <p className="mt-0.5 text-[11px] text-slate-600 leading-snug">{difficultyInfo.assessment.experience_required}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Validation Results Panel */}
               {validationResult && (
@@ -846,19 +1098,25 @@ function QuestionManagement() {
               <div className="text-[11px] font-medium text-slate-500">
                 {isValidating ? (
                   <span className="text-sky-700 font-semibold flex items-center gap-1.5 animate-pulse">
-                    <FaSyncAlt className="text-sky-500 text-xs animate-spin" /> AI analyzing and validating question...
+                    <FaSyncAlt className="text-sky-500 text-xs animate-spin" /> Validating question &amp; classifying difficulty...
                   </span>
-                ) : !validationAttempted ? (
-                  <span className="text-slate-600 font-medium flex items-center gap-1.5">
-                    <FaShieldAlt className="text-sky-500 text-xs" /> Click &ldquo;Validate Question&rdquo; or click &ldquo;{editingQuestion ? "Update Question" : "Create Question"}&rdquo; to validate & save.
+                ) : difficultyInfo?.status === "FAILED" ? (
+                  <span className="text-rose-600 font-semibold flex items-center gap-1.5">
+                    <FaTimesCircle className="text-rose-500 text-xs" /> Difficulty classification failed. Retry before saving.
                   </span>
-                ) : validationResult?.status === "invalid" ? (
+                ) : validationAttempted && validationResult?.status === "invalid" ? (
                   <span className="text-rose-600 font-semibold flex items-center gap-1.5">
                     <FaTimesCircle className="text-rose-500 text-xs" /> Question failed validation and cannot be saved.
                   </span>
-                ) : (
+                ) : difficultyInfo?.status === "COMPLETED" && validationAttempted && validationResult ? (
                   <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
-                    <FaCheckCircle className="text-emerald-500 text-xs" /> Validation passed. Ready to save.
+                    <FaCheckCircle className="text-emerald-500 text-xs" /> Difficulty:{" "}
+                    <strong>{formState.difficulty}</strong> (
+                    {difficultyInfo.method === "ADMIN_OVERRIDE" ? "Admin Override" : "AI Classified"}). Ready to save.
+                  </span>
+                ) : (
+                  <span className="text-amber-700 font-medium flex items-center gap-1.5">
+                    <FaShieldAlt className="text-amber-500 text-xs" /> Click &ldquo;Validate Question&rdquo; to verify &amp; classify difficulty.
                   </span>
                 )}
               </div>
@@ -881,13 +1139,13 @@ function QuestionManagement() {
                     isValidating ||
                     !formState.question.trim() ||
                     !formState.category ||
-                    !formState.difficulty ||
+                    difficultyInfo?.status === "FAILED" ||
                     (validationAttempted && validationResult?.status === "invalid")
                   }
                   className={`rounded-xl px-6 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed ${
                     !formState.question.trim() ||
                     !formState.category ||
-                    !formState.difficulty ||
+                    difficultyInfo?.status === "FAILED" ||
                     (validationAttempted && validationResult?.status === "invalid")
                       ? "bg-slate-400"
                       : "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 shadow-sky-500/30 hover:shadow-sky-500/50"
@@ -896,10 +1154,14 @@ function QuestionManagement() {
                   {actionLoading
                     ? "Saving Question..."
                     : isValidating
-                      ? "Validating..."
-                      : editingQuestion
-                        ? "Update Question"
-                        : "Create Question"}
+                      ? "Checking..."
+                      : difficultyInfo?.status === "COMPLETED" && validationAttempted
+                        ? editingQuestion
+                          ? "Confirm & Update Question"
+                          : "Confirm & Create Question"
+                        : editingQuestion
+                          ? "Update Question"
+                          : "Create Question"}
                 </button>
               </div>
             </div>

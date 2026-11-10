@@ -20,6 +20,113 @@ import { supabase } from "./supabase.js";
 export const VALID_CATEGORIES = ["Technical", "Behavioral", "Situational", "HR"];
 export const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
+const DIFFICULTY_BY_LOWER = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+};
+
+const DIFFICULTY_CODE_BY_LOWER = {
+  easy: "EASY",
+  medium: "MEDIUM",
+  hard: "HARD",
+};
+
+export function toDisplayDifficultyTier(value) {
+  if (typeof value !== "string") return "";
+  return DIFFICULTY_BY_LOWER[value.trim().toLowerCase()] || "";
+}
+
+export function toDifficultyCode(value) {
+  if (typeof value !== "string") return "";
+  return DIFFICULTY_CODE_BY_LOWER[value.trim().toLowerCase()] || "";
+}
+
+const REQUIRED_ASSESSMENT_KEYS = [
+  "knowledge_required",
+  "cognitive_complexity",
+  "problem_solving",
+  "experience_required",
+];
+
+/**
+ * Validates the backend AI difficulty classification payload across all 4 assessment criteria.
+ * Rejects unsupported difficulty values or incomplete evaluations instead of assigning silent defaults.
+ */
+export function validateDifficultyClassification(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  const difficultyCode = toDifficultyCode(raw.suggestedDifficulty || raw.difficulty);
+  const difficultyTier = toDisplayDifficultyTier(difficultyCode);
+  if (!difficultyCode || !difficultyTier) return null;
+
+  const reason = typeof raw.difficultyReason === "string"
+    ? raw.difficultyReason.trim()
+    : typeof raw.reason === "string"
+      ? raw.reason.trim()
+      : "";
+  if (!reason) return null;
+
+  const rawAssessment = raw.difficultyAssessment || raw.assessment;
+  if (!rawAssessment || typeof rawAssessment !== "object") return null;
+
+  const assessment = {};
+  for (const key of REQUIRED_ASSESSMENT_KEYS) {
+    const val = typeof rawAssessment[key] === "string" ? rawAssessment[key].trim() : "";
+    if (!val) return null;
+    assessment[key] = val;
+  }
+
+  return {
+    difficulty: difficultyCode,
+    difficultyTier,
+    assessment,
+    reason,
+  };
+}
+
+/**
+ * Resolves database persistence fields for Difficulty Tier, preserving AI classification metadata
+ * and distinguishing automatic AI classification ("AI") from administrator overrides ("ADMIN_OVERRIDE").
+ */
+export function resolveDifficultyPersistence({
+  selectedDifficulty,
+  aiSuggestedDifficulty,
+  assessment,
+  reason,
+  hasCompletedClassification,
+}) {
+  const finalTier = toDisplayDifficultyTier(selectedDifficulty);
+  const aiCode = toDifficultyCode(aiSuggestedDifficulty);
+  const aiTier = toDisplayDifficultyTier(aiCode);
+
+  if (!hasCompletedClassification || !aiCode || !aiTier || !reason || !assessment) {
+    return {
+      isComplete: false,
+      error: "Difficulty classification must complete before saving as an AI evaluation.",
+    };
+  }
+
+  if (!finalTier) {
+    return {
+      isComplete: false,
+      error: "Please select a valid Difficulty Tier (Easy, Medium, or Hard).",
+    };
+  }
+
+  const isOverride = finalTier !== aiTier;
+
+  return {
+    isComplete: true,
+    difficulty: finalTier,
+    ai_suggested_difficulty: aiCode,
+    difficulty_assessment: assessment,
+    difficulty_reason: reason,
+    classification_status: "COMPLETED",
+    classification_method: isOverride ? "ADMIN_OVERRIDE" : "AI",
+  };
+}
+
 export const MIN_QUESTION_LENGTH = 15;
 export const MAX_QUESTION_LENGTH = 500;
 export const MIN_WORD_COUNT = 4;
@@ -770,9 +877,9 @@ function buildFinalResult(status, score, overallFeedback, suggestedQuestion, che
 }
 
 /**
- * Validates an interview question using the backend Gemini AI Edge Function.
- * Returns the AI-corrected question, individual validation indicators, status, and score.
- * If Gemini is unavailable, returns a structured error object.
+ * Validates an interview question using the backend AI Edge Function.
+ * Returns the AI-corrected question, individual validation indicators, status, score,
+ * and an optional suggestedDifficulty ("Easy" | "Medium" | "Hard").
  */
 export async function validateQuestionWithAiOrRules({
   question,
@@ -793,7 +900,7 @@ export async function validateQuestionWithAiOrRules({
       body: {
         question: trimmed,
         category: category || "Technical",
-        difficulty: difficulty || "Medium",
+        difficulty: difficulty || "",
         currentQuestionId,
       },
     });
@@ -816,20 +923,30 @@ export async function validateQuestionWithAiOrRules({
 
       return {
         success: false,
-        error: errorMsg || "Failed to validate question with Gemini. Please check server connection.",
+        error: errorMsg || "Failed to contact the AI validation service.",
       };
     }
 
     if (!data?.success || !data?.validation) {
       return {
         success: false,
-        error: data?.error || "AI validation could not be completed. Please try again.",
+        error: data?.error || "AI validation could not be completed. Please retry.",
+      };
+    }
+
+    const difficultyClassification = validateDifficultyClassification(data.validation);
+    if (!difficultyClassification) {
+      return {
+        success: false,
+        error: "AI difficulty classification returned incomplete criteria. Please retry validation.",
       };
     }
 
     return {
       success: true,
       ...data.validation,
+      suggestedDifficulty: difficultyClassification.difficultyTier,
+      difficultyClassification,
     };
   } catch (err) {
     console.error("Validation invocation error:", err);
