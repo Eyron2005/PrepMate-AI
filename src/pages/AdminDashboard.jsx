@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import AdminSidebar from "../components/AdminSidebar";
 import { useAuth } from "../contexts/authContext";
+import { fetchCurrentAdminProfile, getCachedAdminProfile } from "../services/adminProfile";
 import {
   FaUsers,
   FaQuestionCircle,
@@ -21,13 +22,20 @@ import {
 function AdminDashboard() {
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const metadataName = session?.user?.user_metadata?.full_name;
   const email = session?.user?.email || "";
-  const [adminName, setAdminName] = useState("Administrator");
+  const [profileState, setProfileState] = useState({
+    userId: null,
+    displayName: "",
+  });
   const [totalUsers, setTotalUsers] = useState(null);
   const [totalQuestions, setTotalQuestions] = useState(null);
   const [pendingRequests, setPendingRequests] = useState(null);
   const [mounted, setMounted] = useState(false);
+
+  const cachedAdmin = userId ? getCachedAdminProfile(userId, email) : null;
+  const adminName =
+    cachedAdmin?.displayName ||
+    (profileState.userId === userId ? profileState.displayName : "");
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -38,17 +46,11 @@ function AdminDashboard() {
     let active = true;
 
     async function loadAdminName() {
-      if (!userId) return;
+      if (!userId || getCachedAdminProfile(userId, email)) return;
 
-      const { data, error } = await supabase
-        .from("admins")
-        .select("full_name")
-        .eq("id", userId)
-        .single();
-
+      const profile = await fetchCurrentAdminProfile(session);
       if (!active) return;
-      const name = error ? metadataName : data?.full_name || metadataName;
-      setAdminName(name && name !== email.split("@")[0] ? name : "Administrator");
+      setProfileState({ userId, displayName: profile.displayName });
     }
 
     async function loadDashboard() {
@@ -82,7 +84,7 @@ function AdminDashboard() {
     return () => {
       active = false;
     };
-  }, [email, metadataName, userId]);
+  }, [email, session, userId]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -186,7 +188,7 @@ function AdminDashboard() {
       <div className="float-orb orb-two" />
       <div className="float-orb orb-three" />
 
-      <AdminSidebar adminName={adminName} />
+      <AdminSidebar adminName={adminName || undefined} />
 
       <main className="relative ml-20 max-w-7xl px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Hero Command Banner */}
@@ -212,7 +214,7 @@ function AdminDashboard() {
               </div>
 
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                {greeting}, <span className="bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">{adminName || "Administrator"}</span>
+                {greeting}{adminName ? ", " : ""}<span className="bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">{adminName}</span>
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
                 System overview and administration controls for Prepmate AI. Monitor candidate engagement, review question banks, and oversee staff activities.

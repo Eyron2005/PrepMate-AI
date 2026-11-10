@@ -1177,7 +1177,7 @@ function AdminInterviewResults({ isStaff = false }) {
       <div className="float-orb orb-one" />
       <div className="float-orb orb-two" />
       <div className="float-orb orb-three" />
-      {isStaff ? <StaffSidebar /> : <AdminSidebar adminName="Administrator" />}
+      {isStaff ? <StaffSidebar /> : <AdminSidebar />}
       <main className="relative ml-20 flex max-w-7xl flex-col gap-6 px-4 py-8 md:ml-64 md:px-8">
         {!selectedSession && (
           <>

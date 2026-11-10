@@ -345,7 +345,7 @@ function QuestionManagement() {
       <div className="float-orb orb-two" />
       <div className="float-orb orb-three" />
 
-      <AdminSidebar adminName="Administrator" />
+      <AdminSidebar />
 
       <main className="relative ml-20 flex max-w-7xl flex-col gap-8 px-4 py-8 md:ml-64 md:px-8 lg:py-10">
         {/* Banner Hero */}

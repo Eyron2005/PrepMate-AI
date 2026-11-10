@@ -14,10 +14,27 @@ import {
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 import { clearProfileOnlineStatus } from "../services/profilePresence";
+import { useAuth } from "../contexts/authContext";
+import {
+  clearAdminProfileCache,
+  fetchCurrentAdminProfile,
+  formatAdminDisplayName,
+  getAdminAvatarInitial,
+  getCachedAdminProfile,
+  isGenericRoleLabel,
+  resolveAdminDisplayName,
+} from "../services/adminProfile";
 
-export default function AdminSidebar({ adminName = "Administrator" }) {
+export default function AdminSidebar({ adminName }) {
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const userId = session?.user?.id || null;
+  const userEmail = session?.user?.email || "";
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [profileState, setProfileState] = useState({
+    userId: null,
+    profile: null,
+  });
 
   useEffect(() => {
     let active = true;
@@ -45,6 +62,47 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    if (!userId) {
+      clearAdminProfileCache();
+      return () => {
+        active = false;
+      };
+    }
+
+    // Skip network lookup when this session's profile is already cached
+    if (getCachedAdminProfile(userId, userEmail)) {
+      return () => {
+        active = false;
+      };
+    }
+
+    async function loadAdminProfile() {
+      try {
+        const profile = await fetchCurrentAdminProfile(session);
+        if (active) {
+          setProfileState({ userId, profile });
+        }
+      } catch (err) {
+        console.warn("Unable to load administrator profile:", err);
+        if (active) {
+          setProfileState({
+            userId,
+            profile: resolveAdminDisplayName({ user: session?.user }),
+          });
+        }
+      }
+    }
+
+    loadAdminProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [session, userEmail, userId]);
+
   async function handleLogout() {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) {
@@ -60,6 +118,7 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
       }
     }
 
+    clearAdminProfileCache();
     const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
       console.error("Unable to sign out:", error);
@@ -75,7 +134,24 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
         : "text-slate-600 hover:bg-gradient-to-r hover:from-sky-50/90 hover:to-cyan-50/50 hover:text-sky-700 hover:translate-x-0.5"
     }`;
 
-  const initial = (adminName || "A").trim().charAt(0).toUpperCase();
+  const propDisplayName =
+    typeof adminName === "string" && !isGenericRoleLabel(adminName)
+      ? formatAdminDisplayName(adminName)
+      : "";
+
+  const cachedProfile = userId ? getCachedAdminProfile(userId, userEmail) : null;
+  const loadedProfile =
+    cachedProfile || (profileState.userId === userId ? profileState.profile : null);
+
+  const resolvedProfile = propDisplayName
+    ? {
+        displayName: propDisplayName,
+        initial: getAdminAvatarInitial(propDisplayName),
+      }
+    : loadedProfile || (!userId ? { displayName: "Admin Account", initial: "A" } : null);
+
+  const displayName = resolvedProfile?.displayName || "";
+  const initial = resolvedProfile?.initial || "A";
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 flex w-20 flex-col border-r border-sky-100/80 bg-white/92 px-2 py-4 shadow-[14px_0_45px_-24px_rgba(14,116,144,0.35)] backdrop-blur-2xl md:w-64 md:px-4 md:py-6">
@@ -169,9 +245,16 @@ export default function AdminSidebar({ adminName = "Administrator" }) {
             {initial}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold text-slate-900">{adminName || "Administrator"}</p>
+            <p className="truncate text-xs font-bold text-slate-900" title={displayName || undefined}>
+              {displayName || (
+                <span
+                  className="inline-block h-3 w-24 animate-pulse rounded bg-slate-200 align-middle"
+                  aria-label="Loading administrator name"
+                />
+              )}
+            </p>
             <div className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-sky-700 uppercase">
-              <FaShieldAlt className="text-[9px]" /> Admin
+              <FaShieldAlt className="text-[9px]" /> ADMIN
             </div>
           </div>
         </div>
