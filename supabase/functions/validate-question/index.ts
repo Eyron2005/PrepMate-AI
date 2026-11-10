@@ -13,6 +13,45 @@ function respond(status: number, body: Record<string, unknown>) {
   });
 }
 
+const CATEGORY_ALIASES: Record<string, "Technical" | "Behavioral" | "Situational" | "HR"> = {
+  technical: "Technical",
+  "technical questions": "Technical",
+  behavioral: "Behavioral",
+  "behavioral questions": "Behavioral",
+  situational: "Situational",
+  "situational questions": "Situational",
+  hr: "HR",
+  "hr questions": "HR",
+};
+
+const CATEGORY_DISPLAY_LABELS: Record<"Technical" | "Behavioral" | "Situational" | "HR", string> = {
+  Technical: "Technical Questions",
+  Behavioral: "Behavioral Questions",
+  Situational: "Situational Questions",
+  HR: "HR Questions",
+};
+
+function normalizeCategory(raw: unknown): "Technical" | "Behavioral" | "Situational" | "HR" | "" {
+  if (typeof raw !== "string") return "";
+  return CATEGORY_ALIASES[raw.trim().toLowerCase()] || "";
+}
+
+function limitToTwoSentences(raw: unknown): string {
+  const cleaned = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+  if (!cleaned) return "";
+
+  if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+    const segmenter = new Intl.Segmenter("en", { granularity: "sentence" });
+    const sentences = Array.from(segmenter.segment(cleaned), (part) => part.segment.trim()).filter(Boolean);
+    if (sentences.length > 0) {
+      return sentences.slice(0, 2).join(" ");
+    }
+  }
+
+  const fallback = cleaned.match(/[^.!?]+(?:[.!?]+|$)/g) || [cleaned];
+  return fallback.map((s) => s.trim()).filter(Boolean).slice(0, 2).join(" ");
+}
+
 // Prohibited inquiry patterns under labor and employment non-discrimination laws
 const PROHIBITED_INQUIRIES = [
   {
@@ -75,6 +114,156 @@ function calculateTokenSimilarity(text1: string, text2: string): number {
   return union === 0 ? 0 : intersection / union;
 }
 
+async function callAiJson({
+  geminiKey,
+  openAiKey,
+  configuredModel,
+  configuredOpenAiModel,
+  prompt,
+}: {
+  geminiKey?: string;
+  openAiKey?: string;
+  configuredModel: string;
+  configuredOpenAiModel: string;
+  prompt: string;
+}): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
+  const candidateModels = [
+    configuredModel,
+    "gemini-3-flash-preview",
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+  ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
+
+  let rawAiText = "";
+  let lastErrorText = "";
+  let lastStatus = 500;
+
+  if (geminiKey) {
+    for (const model of candidateModels) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+
+      try {
+        const res = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              thinkingConfig: {
+                thinkingBudget: 0,
+              },
+            },
+          }),
+          signal: AbortSignal.timeout(18000),
+        });
+
+        if (res.ok) {
+          const aiData = await res.json();
+          const candidate = aiData?.candidates?.[0];
+          const partWithText = candidate?.content?.parts?.find(
+            (p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought
+          ) || candidate?.content?.parts?.find(
+            (p: { text?: string }) => typeof p.text === "string"
+          );
+          rawAiText = partWithText?.text || "";
+          if (rawAiText) break;
+          lastErrorText = "Gemini did not return candidate JSON text.";
+          continue;
+        }
+
+        lastStatus = res.status;
+        lastErrorText = await res.text();
+        console.warn(`Gemini API model ${model} returned status ${res.status}:`, lastErrorText);
+
+        if (res.status === 401 || res.status === 403) {
+          break;
+        }
+      } catch (fetchErr) {
+        lastErrorText = (fetchErr as Error).message || String(fetchErr);
+        console.warn(`Gemini API model ${model} fetch exception:`, lastErrorText);
+      }
+    }
+  }
+
+  if (!rawAiText && openAiKey) {
+    try {
+      const openAiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAiKey}`,
+        },
+        body: JSON.stringify({
+          model: configuredOpenAiModel,
+          response_format: { type: "json_object" },
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.25,
+        }),
+        signal: AbortSignal.timeout(18000),
+      });
+
+      if (openAiRes.ok) {
+        const openAiData = await openAiRes.json();
+        rawAiText = openAiData?.choices?.[0]?.message?.content || "";
+      } else {
+        lastStatus = openAiRes.status;
+        lastErrorText = await openAiRes.text();
+        console.warn(`OpenAI fallback returned status ${openAiRes.status}:`, lastErrorText);
+      }
+    } catch (openAiErr) {
+      lastErrorText = (openAiErr as Error).message || String(openAiErr);
+      console.warn("OpenAI fallback fetch exception:", lastErrorText);
+    }
+  }
+
+  if (!rawAiText) {
+    let readableDetail = "";
+    try {
+      const parsedErr = JSON.parse(lastErrorText);
+      if (parsedErr?.error?.message) {
+        readableDetail = String(parsedErr.error.message);
+      }
+    } catch {
+      readableDetail = lastErrorText;
+    }
+
+    if (geminiKey) readableDetail = readableDetail.split(geminiKey).join("[REDACTED]");
+    if (openAiKey) readableDetail = readableDetail.split(openAiKey).join("[REDACTED]");
+
+    if (lastStatus === 429) {
+      return {
+        ok: false,
+        error: readableDetail || "AI API daily or rate limit reached. Please wait a few moments and retry.",
+      };
+    }
+    if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) {
+      return {
+        ok: false,
+        error: readableDetail || `AI API authentication or permission error (${lastStatus}). Please verify AI credentials in Supabase secrets.`,
+      };
+    }
+    return {
+      ok: false,
+      error: `AI service returned status ${lastStatus}. ${readableDetail || "Unable to complete AI processing at this time."}`,
+    };
+  }
+
+  try {
+    return { ok: true, data: JSON.parse(rawAiText) };
+  } catch {
+    try {
+      const cleaned = rawAiText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+      return { ok: true, data: JSON.parse(cleaned) };
+    } catch {
+      return {
+        ok: false,
+        error: "AI service returned malformed JSON. Please retry.",
+      };
+    }
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -100,12 +289,10 @@ Deno.serve(async (request) => {
     // 1. Verify user authentication or project client authorization
     let isAuthenticated = false;
 
-    // Check project apikey header
     if (apiKey && (apiKey === anonKey || apiKey.startsWith("sb_publishable_") || apiKey.startsWith("eyJ"))) {
       isAuthenticated = true;
     }
 
-    // Check Bearer token (user session JWT or anon token)
     if (!isAuthenticated && bearerToken) {
       if (bearerToken === anonKey || bearerToken.startsWith("sb_publishable_")) {
         isAuthenticated = true;
@@ -126,15 +313,22 @@ Deno.serve(async (request) => {
 
     // 2. Parse & validate request body
     const payload = await request.json().catch(() => ({}));
+    const mode = payload.mode === "regenerate_ideal_answer" ? "regenerate_ideal_answer" : "validate";
     const questionText = typeof payload.question === "string" ? payload.question.trim() : "";
-    const category = typeof payload.category === "string" && payload.category.trim() ? payload.category.trim() : "Technical";
+    const category = normalizeCategory(payload.category);
+    const jobRoleRaw = typeof payload.jobRole === "string" ? payload.jobRole.trim() : "";
+    const effectiveJobRole = jobRoleRaw || "General / Entry-Level Candidate";
+    const selectedDifficulty = typeof payload.selectedDifficulty === "string"
+      ? payload.selectedDifficulty.trim()
+      : typeof payload.difficulty === "string"
+        ? payload.difficulty.trim()
+        : "";
     const currentQuestionId = payload.currentQuestionId || null;
 
-    const ALLOWED_CATEGORIES = new Set(["Technical", "Behavioral", "Situational", "HR"]);
-    if (!ALLOWED_CATEGORIES.has(category)) {
+    if (!category) {
       return respond(200, {
         success: false,
-        error: `Unsupported interview category "${category}".`,
+        error: "Please select a supported Category (HR Questions, Technical Questions, Behavioral Questions, or Situational Questions).",
       });
     }
 
@@ -156,6 +350,66 @@ Deno.serve(async (request) => {
       return respond(200, {
         success: false,
         error: "Question prompt text must not exceed 500 characters.",
+      });
+    }
+
+    const geminiKey = Deno.env.get("GEMINI_API_KEY");
+    const openAiKey = Deno.env.get("OPENAI_API_KEY");
+    const configuredModel = Deno.env.get("GEMINI_MODEL") || "gemini-3-flash-preview";
+    const configuredOpenAiModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+
+    if (!geminiKey && !openAiKey) {
+      return respond(200, {
+        success: false,
+        error: "Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured in Supabase Edge Function secrets.",
+      });
+    }
+
+    const categoryLabel = CATEGORY_DISPLAY_LABELS[category];
+
+    if (mode === "regenerate_ideal_answer") {
+      const regenPrompt = `You are an expert career coach and mock interviewer preparing concise Answer Guides for college students and job candidates.
+Generate an Answer Guide (learning reference) for this interview question:
+- Interview Question: "${questionText}"
+- Category: "${categoryLabel}" (${category})
+- Target Job Role: "${effectiveJobRole}"
+- Difficulty Level: "${selectedDifficulty || "Medium"}"
+
+Guidelines for idealAnswer (Answer Guide):
+- Write strictly 1 to 2 short, clear sentences (never 3 or more sentences, no bullet points).
+- Concisely guide the candidate on key concepts, structure (e.g., STAR for Behavioral/Situational, core concepts for Technical, role fit/examples for HR), and expectations tailored to "${effectiveJobRole}" and Difficulty "${selectedDifficulty || "Medium"}".
+- Keep it practical and easy to scan as a learning study guide.
+
+Output MUST be strict JSON:
+{
+  "idealAnswer": "Your 1-2 sentence Answer Guide here"
+}`;
+
+      const regenAi = await callAiJson({
+        geminiKey,
+        openAiKey,
+        configuredModel,
+        configuredOpenAiModel,
+        prompt: regenPrompt,
+      });
+
+      if (!regenAi.ok) {
+        return respond(200, { success: false, error: regenAi.error });
+      }
+
+      const generatedAnswer = limitToTwoSentences(regenAi.data?.idealAnswer);
+      if (!generatedAnswer) {
+        return respond(200, {
+          success: false,
+          error: "AI failed to generate a non-empty Answer Guide. Please retry.",
+        });
+      }
+
+      return respond(200, {
+        success: true,
+        idealAnswer: generatedAnswer,
+        category,
+        jobRole: effectiveJobRole,
       });
     }
 
@@ -195,23 +449,16 @@ Deno.serve(async (request) => {
       }
     }
 
-    // 5. Configurable AI Integration (Gemini Primary + Optional OpenAI Fallback)
-    const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    const openAiKey = Deno.env.get("OPENAI_API_KEY");
-    const configuredModel = Deno.env.get("GEMINI_MODEL") || "gemini-3-flash-preview";
-    const configuredOpenAiModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+    const difficultyDirective = selectedDifficulty
+      ? `The administrator selected difficulty level "${selectedDifficulty}". Still classify the true difficulty under the guidelines, and tailor the Answer Guide to "${selectedDifficulty}" expectations for "${effectiveJobRole}".`
+      : `Classify the difficulty tier ("EASY", "MEDIUM", or "HARD") and tailor the Answer Guide to that classified difficulty level for "${effectiveJobRole}".`;
 
-    if (!geminiKey && !openAiKey) {
-      return respond(200, {
-        success: false,
-        error: "Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured in Supabase Edge Function secrets.",
-      });
-    }
-
-    const prompt = `You are an expert HR and technical interviewer evaluating candidate mock interview prompts.
+    const prompt = `You are an expert HR and technical interviewer evaluating candidate mock interview prompts and preparing concise Answer Guide references.
 Analyze the following interview question:
 Input Question: "${questionText}"
-Selected Category: "${category}"
+Selected Category: "${categoryLabel}" (${category})
+Target Job Role: "${effectiveJobRole}"
+${difficultyDirective}
 
 Instructions:
 1. Grammar & Spelling Correction:
@@ -234,7 +481,7 @@ Instructions:
       Fail if it contains discriminatory questions prohibited under employment law or inappropriate/offensive content.
 
 3. Difficulty Classification (based strictly on these guidelines):
-   Analyze the question across ALL FOUR assessment criteria, considering the selected interview category ("${category}") and the expected competency of a fourth-year college student preparing for an internship or OJT:
+   Analyze the question across ALL FOUR assessment criteria, considering the selected interview category ("${category}") and the expected competency of a fourth-year college student preparing for an internship or OJT (${effectiveJobRole}):
    a. "knowledge_required": Determine the amount and depth of knowledge needed to answer.
    b. "cognitive_complexity": Determine the level of thinking, reasoning, analysis, and evaluation required.
    c. "problem_solving": Determine the complexity of the problem or situation presented.
@@ -248,12 +495,21 @@ Instructions:
    Important Classification Rules:
    - Do NOT determine difficulty solely based on question length. A short question can still be HARD.
    - Consider the expected answer, not just the wording.
-   - Evaluate the question according to its selected interview category ("${category}") and the expected competency of a fourth-year college student preparing for an internship or OJT.
    - Do NOT automatically classify Technical questions as HARD.
    - Do NOT classify questions based on keywords alone; evaluate the actual cognitive demand and expected response.
    - Apply the same classification standards consistently across HR, Behavioral, Situational, and Technical questions.
 
-4. Overall Validation Status & Score:
+4. Answer Guide Generation (REQUIRED):
+   Generate a crisp, practical Answer Guide in the "idealAnswer" field for the corrected question, tailored specifically to:
+   - Category: "${categoryLabel}"
+   - Target Job Role: "${effectiveJobRole}"
+   - Difficulty Level: "${selectedDifficulty || "the classified suggestedDifficulty"}"
+   Guidelines:
+   - Write strictly 1 to 2 concise sentences (never 3 or more sentences, no bullet lists) serving as an Answer Guide learning reference for students in PrepMate AI.
+   - Guide the student clearly on key points to include (core technical concepts/example for Technical; STAR framework & outcome for Behavioral/Situational; self-awareness, role alignment & example for HR).
+   - Must always be non-empty whenever the question is not invalid.
+
+5. Overall Validation Status & Score:
    - status: "valid" | "needs_revision" | "invalid"
    - score: 0 to 100
 
@@ -271,7 +527,8 @@ Output MUST be strict JSON in this exact structure:
     "problem_solving": "Short explanation of problem or situation complexity.",
     "experience_required": "Short explanation of practical/OJT experience expected."
   },
-  "difficultyReason": "1-2 concise sentences explaining why this question is EASY, MEDIUM, or HARD under the four criteria for a fourth-year OJT/internship candidate.",
+  "difficultyReason": "1-2 concise sentences explaining why this question is EASY, MEDIUM, or HARD under the four criteria.",
+  "idealAnswer": "Strictly 1-2 concise sentences providing a tailored Answer Guide learning reference for this question, category, job role, and difficulty.",
   "overallFeedback": "Concise summary of validation findings",
   "checks": {
     "grammarAndSpelling": { "status": "pass", "message": "Explanation" },
@@ -281,134 +538,22 @@ Output MUST be strict JSON in this exact structure:
   }
 }`;
 
-    // Candidate models to try in priority order for speed and resilience
-    const candidateModels = [
+    const aiResponse = await callAiJson({
+      geminiKey,
+      openAiKey,
       configuredModel,
-      "gemini-3-flash-preview",
-      "gemini-flash-latest",
-      "gemini-pro-latest",
-    ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
+      configuredOpenAiModel,
+      prompt,
+    });
 
-    let rawAiText = "";
-    let lastErrorText = "";
-    let lastStatus = 500;
-
-    if (geminiKey) {
-      for (const model of candidateModels) {
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-
-        try {
-          const res = await fetch(geminiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                responseMimeType: "application/json",
-                thinkingConfig: {
-                  thinkingBudget: 0,
-                },
-              },
-            }),
-            signal: AbortSignal.timeout(10000),
-          });
-
-          if (res.ok) {
-            const aiData = await res.json();
-            const candidate = aiData?.candidates?.[0];
-            const partWithText = candidate?.content?.parts?.find(
-              (p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought
-            ) || candidate?.content?.parts?.find(
-              (p: { text?: string }) => typeof p.text === "string"
-            );
-            rawAiText = partWithText?.text || "";
-            if (rawAiText) break;
-            lastErrorText = "Gemini did not return candidate JSON text.";
-            continue;
-          }
-
-          lastStatus = res.status;
-          lastErrorText = await res.text();
-          console.warn(`Gemini API model ${model} returned status ${res.status}:`, lastErrorText);
-
-          // Project-level key/billing failures affect all models for this key; stop immediately
-          if (res.status === 401 || res.status === 403) {
-            break;
-          }
-          continue;
-        } catch (fetchErr) {
-          lastErrorText = (fetchErr as Error).message || String(fetchErr);
-          console.warn(`Gemini API model ${model} fetch exception:`, lastErrorText);
-          continue;
-        }
-      }
-    }
-
-    // Optional server-side OpenAI fallback if OPENAI_API_KEY is configured in Supabase secrets
-    if (!rawAiText && openAiKey) {
-      try {
-        const openAiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openAiKey}`,
-          },
-          body: JSON.stringify({
-            model: configuredOpenAiModel,
-            response_format: { type: "json_object" },
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.2,
-          }),
-          signal: AbortSignal.timeout(12000),
-        });
-
-        if (openAiRes.ok) {
-          const openAiData = await openAiRes.json();
-          rawAiText = openAiData?.choices?.[0]?.message?.content || "";
-        } else {
-          lastStatus = openAiRes.status;
-          lastErrorText = await openAiRes.text();
-          console.warn(`OpenAI fallback returned status ${openAiRes.status}:`, lastErrorText);
-        }
-      } catch (openAiErr) {
-        lastErrorText = (openAiErr as Error).message || String(openAiErr);
-        console.warn("OpenAI fallback fetch exception:", lastErrorText);
-      }
-    }
-
-    if (!rawAiText) {
-      let readableDetail = "";
-      try {
-        const parsedErr = JSON.parse(lastErrorText);
-        if (parsedErr?.error?.message) {
-          readableDetail = String(parsedErr.error.message);
-        }
-      } catch {
-        readableDetail = lastErrorText;
-      }
-
-      if (geminiKey) readableDetail = readableDetail.split(geminiKey).join("[REDACTED]");
-      if (openAiKey) readableDetail = readableDetail.split(openAiKey).join("[REDACTED]");
-
-      if (lastStatus === 429) {
-        return respond(200, {
-          success: false,
-          error: readableDetail || "AI API daily or rate limit reached. Please wait a few moments and retry.",
-        });
-      }
-      if (lastStatus === 400 || lastStatus === 401 || lastStatus === 403) {
-        return respond(200, {
-          success: false,
-          error: readableDetail || `AI API authentication or permission error (${lastStatus}). Please update GEMINI_API_KEY (or set OPENAI_API_KEY) in Supabase secrets.`,
-        });
-      }
+    if (!aiResponse.ok) {
       return respond(200, {
         success: false,
-        error: `AI service returned status ${lastStatus}. ${readableDetail || "Unable to complete validation at this time."}`,
+        error: aiResponse.error,
       });
     }
 
-    let parsed: {
+    const parsed = aiResponse.data as {
       correctedQuestion?: string;
       wasCorrected?: boolean;
       changes?: string[];
@@ -416,6 +561,7 @@ Output MUST be strict JSON in this exact structure:
       score?: number;
       suggestedDifficulty?: string;
       difficultyReason?: string;
+      idealAnswer?: string;
       difficultyAssessment?: {
         knowledge_required?: string;
         cognitive_complexity?: string;
@@ -430,20 +576,6 @@ Output MUST be strict JSON in this exact structure:
         interviewSuitability?: { status: "pass" | "fail"; message: string };
       };
     };
-
-    try {
-      parsed = JSON.parse(rawAiText);
-    } catch {
-      try {
-        const cleaned = rawAiText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-        parsed = JSON.parse(cleaned);
-      } catch {
-        return respond(200, {
-          success: false,
-          error: "AI service returned malformed JSON. Please retry validation.",
-        });
-      }
-    }
 
     const DIFFICULTY_MAP: Record<string, { tier: "Easy" | "Medium" | "Hard"; code: "EASY" | "MEDIUM" | "HARD" }> = {
       easy: { tier: "Easy", code: "EASY" },
@@ -475,7 +607,7 @@ Output MUST be strict JSON in this exact structure:
     ) {
       return respond(200, {
         success: false,
-        error: "AI difficulty classification returned an incomplete or invalid evaluation. Please retry validation.",
+        error: "AI difficulty classification returned an incomplete or invalid evaluation. Please retry.",
       });
     }
 
@@ -496,7 +628,6 @@ Output MUST be strict JSON in this exact structure:
       duplicateMatches.push(highSimilarityMatch);
     }
 
-    // Enforce prohibited violation if detected deterministically
     const interviewSuitabilityCheck = prohibitedViolation
       ? {
           status: "fail" as const,
@@ -509,7 +640,6 @@ Output MUST be strict JSON in this exact structure:
           message: parsed.checks?.interviewSuitability?.message || "Professional and workplace-appropriate.",
         };
 
-    // Determine final status and score
     let finalStatus: "valid" | "needs_revision" | "invalid" = parsed.status || "valid";
     let finalScore = typeof parsed.score === "number" ? parsed.score : 90;
     let finalFeedback = parsed.overallFeedback || "Validation complete.";
@@ -525,7 +655,15 @@ Output MUST be strict JSON in this exact structure:
     } else if (parsed.checks?.categoryRelevance?.status === "fail") {
       finalStatus = "invalid";
       finalScore = Math.min(finalScore, 30);
-      finalFeedback = `Question does not match the selected ${category} category track. Please revise or change category.`;
+      finalFeedback = `Question does not match the selected ${categoryLabel} track. Please revise or change category.`;
+    }
+
+    const generatedIdealAnswer = limitToTwoSentences(parsed.idealAnswer);
+    if (finalStatus !== "invalid" && !generatedIdealAnswer) {
+      return respond(200, {
+        success: false,
+        error: "AI did not generate an Answer Guide for this question. Please retry.",
+      });
     }
 
     const correctedText = parsed.correctedQuestion?.trim() || questionText;
@@ -542,10 +680,13 @@ Output MUST be strict JSON in this exact structure:
         changes: parsed.changes || [],
         status: finalStatus,
         score: finalScore,
+        category,
+        jobRole: effectiveJobRole,
         suggestedDifficulty,
         suggestedDifficultyCode: normalizedDiff.code,
         difficultyReason,
         difficultyAssessment,
+        idealAnswer: generatedIdealAnswer,
         overallFeedback: finalFeedback,
         suggestedQuestion: wasCorrected && correctedText !== questionText ? correctedText : null,
         checks: {
@@ -562,7 +703,7 @@ Output MUST be strict JSON in this exact structure:
           categoryRelevance: {
             status: parsed.checks?.categoryRelevance?.status === "fail" ? "fail" : "pass",
             title: "Category Relevance",
-            message: parsed.checks?.categoryRelevance?.message || `Relevant to ${category}.`,
+            message: parsed.checks?.categoryRelevance?.message || `Relevant to ${categoryLabel}.`,
           },
           interviewSuitability: interviewSuitabilityCheck,
           duplicateDetection: {

@@ -8,6 +8,10 @@ import {
   toDifficultyCode,
   validateDifficultyClassification,
   resolveDifficultyPersistence,
+  normalizeQuestionCategory,
+  getCategoryDisplayLabel,
+  limitToTwoSentences,
+  buildQuestionSavePayload,
 } from "../src/services/questionValidator.js";
 
 const SAMPLE_EXISTING_QUESTIONS = [
@@ -378,4 +382,145 @@ test("resolveDifficultyPersistence tracks AI vs ADMIN_OVERRIDE and blocks incomp
     hasCompletedClassification: false,
   });
   assert.equal(incomplete.isComplete, false);
+});
+
+test("normalizeQuestionCategory and getCategoryDisplayLabel map all supported question categories", () => {
+  assert.equal(normalizeQuestionCategory("HR Questions"), "HR");
+  assert.equal(normalizeQuestionCategory("HR"), "HR");
+  assert.equal(normalizeQuestionCategory("Technical Questions"), "Technical");
+  assert.equal(normalizeQuestionCategory("Behavioral Questions"), "Behavioral");
+  assert.equal(normalizeQuestionCategory("Situational Questions"), "Situational");
+  assert.equal(normalizeQuestionCategory(null), "");
+  assert.equal(normalizeQuestionCategory("Random"), "");
+
+  assert.equal(getCategoryDisplayLabel("HR"), "HR Questions");
+  assert.equal(getCategoryDisplayLabel("Technical"), "Technical Questions");
+  assert.equal(getCategoryDisplayLabel("Behavioral"), "Behavioral Questions");
+  assert.equal(getCategoryDisplayLabel("Situational"), "Situational Questions");
+});
+
+test("buildQuestionSavePayload enforces category and non-empty ideal_answer on save", () => {
+  const missingCategory = buildQuestionSavePayload({
+    question: "Tell me about a challenge you overcame at school.",
+    category: null,
+    jobRole: "Software Engineer / Developer",
+    difficulty: "Medium",
+    idealAnswer: "Use STAR format.",
+  });
+  assert.equal(missingCategory.ok, false);
+  assert.match(missingCategory.error, /category is required/i);
+
+  const emptyIdeal = buildQuestionSavePayload({
+    question: "Tell me about a challenge you overcame at school.",
+    category: "Behavioral Questions",
+    jobRole: "Software Engineer / Developer",
+    difficulty: "Medium",
+    idealAnswer: "   ",
+  });
+  assert.equal(emptyIdeal.ok, false);
+  assert.match(emptyIdeal.error, /answer guide cannot be empty/i);
+
+  const valid = buildQuestionSavePayload({
+    question: "What is normalization in relational databases?",
+    category: "Technical Questions",
+    jobRole: "Data Analyst",
+    difficulty: "Easy",
+    idealAnswer: "Organizing tables to minimize redundancy and preserve integrity.",
+    isActive: true,
+    difficultyMeta: {
+      status: "COMPLETED",
+      aiSuggestedDifficulty: "MEDIUM",
+      reason: "Requires conceptual understanding of database normal forms.",
+      assessment: {
+        knowledge_required: "Relational schema design",
+        cognitive_complexity: "Explaining normal forms",
+        problem_solving: "Reducing duplicate attributes",
+        experience_required: "Coursework SQL labs",
+      },
+    },
+  });
+
+  assert.equal(valid.ok, true);
+  assert.equal(valid.payload.category, "Technical");
+  assert.equal(valid.payload.job_role, "Data Analyst");
+  assert.equal(valid.payload.difficulty, "Easy");
+  assert.equal(
+    valid.payload.ideal_answer,
+    "Organizing tables to minimize redundancy and preserve integrity."
+  );
+  assert.equal(valid.payload.is_active, true);
+  assert.equal(valid.payload["is _active"], true);
+  assert.equal(valid.payload.classification_method, "ADMIN_OVERRIDE");
+});
+
+test("limitToTwoSentences restricts Answer Guides to 1-2 sentences without breaking abbreviations", () => {
+  assert.equal(
+    limitToTwoSentences("Explain your project role clearly. Highlight one measurable outcome."),
+    "Explain your project role clearly. Highlight one measurable outcome."
+  );
+
+  assert.equal(
+    limitToTwoSentences(
+      "Use encryption (e.g., TLS in Node.js) to protect payloads. Mention certificate verification cleanly. Ignore this third extra sentence."
+    ),
+    "Use encryption (e.g., TLS in Node.js) to protect payloads. Mention certificate verification cleanly."
+  );
+});
+
+test("buildQuestionSavePayload attaches relational interview mode fields and validates industry consistency", () => {
+  const valid = buildQuestionSavePayload({
+    question: "Design a REST API rate limiter for multi-tenant SaaS workloads.",
+    category: "Technical",
+    industryId: "ind-1",
+    questionSetId: "qs-1",
+    questionSetName: "Core Software Engineering",
+    questionSetIndustryId: "ind-1",
+    jobRoleId: "jr-1",
+    jobRoleIndustryId: "ind-1",
+    jobRole: "Backend Developer",
+    difficulty: "Hard",
+    idealAnswer:
+      "Use a token-bucket or sliding-window counter per tenant backed by atomic Redis operations. Return HTTP 429 with Retry-After headers when limits are exceeded.",
+    isActive: true,
+    legacyDifficultyMethod: "ADMIN_OVERRIDE",
+  });
+
+  assert.equal(valid.ok, true);
+  assert.equal(valid.payload.industry_id, "ind-1");
+  assert.equal(valid.payload.question_set_id, "qs-1");
+  assert.equal(valid.payload.question_set, "Core Software Engineering");
+  assert.equal(valid.payload.job_role_id, "jr-1");
+  assert.equal(valid.payload.job_role, "Backend Developer");
+  assert.equal(valid.payload.difficulty, "Hard");
+  assert.equal(valid.payload.difficulty_code, "Hard");
+
+  const mismatchedSet = buildQuestionSavePayload({
+    question: "Design a REST API rate limiter for multi-tenant SaaS workloads.",
+    category: "Technical",
+    industryId: "ind-1",
+    questionSetId: "qs-2",
+    questionSetName: "Nursing Clinical Care",
+    questionSetIndustryId: "ind-2",
+    jobRole: "Backend Developer",
+    difficulty: "Medium",
+    idealAnswer: "Explain the sliding window rate limiting algorithm clearly.",
+  });
+  assert.equal(mismatchedSet.ok, false);
+  assert.match(mismatchedSet.error, /question set.*industry/i);
+
+  const mismatchedRole = buildQuestionSavePayload({
+    question: "Design a REST API rate limiter for multi-tenant SaaS workloads.",
+    category: "Technical",
+    industryId: "ind-1",
+    questionSetId: "qs-1",
+    questionSetName: "Core Software Engineering",
+    questionSetIndustryId: "ind-1",
+    jobRoleId: "jr-2",
+    jobRoleIndustryId: "ind-2",
+    jobRole: "Registered Nurse",
+    difficulty: "Medium",
+    idealAnswer: "Explain the sliding window rate limiting algorithm clearly.",
+  });
+  assert.equal(mismatchedRole.ok, false);
+  assert.match(mismatchedRole.error, /job role.*industry/i);
 });

@@ -9,6 +9,7 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const QuestionManagement = lazy(() => import("./pages/QuestionManagement"));
+const InterviewModeManagement = lazy(() => import("./pages/InterviewModeManagement"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
 const BackupRestore = lazy(() => import("./pages/BackupRestore"));
 const ReactivationRequests = lazy(() => import("./pages/ReactivationRequests"));
@@ -44,6 +45,7 @@ function App() {
               />
               <Route path="/reactivation-requests" element={<ReactivationRequests />} />
               <Route path="/question-management" element={<QuestionManagement />} />
+              <Route path="/interview-mode" element={<InterviewModeManagement />} />
               <Route path="/staff-management" element={<StaffManagement />} />
               <Route path="/staff-assignments" element={<StaffAssignments />} />
               <Route path="/interview-results" element={<AdminInterviewResults />} />

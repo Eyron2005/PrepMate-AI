@@ -12,6 +12,7 @@ import {
   FaShieldAlt,
   FaUserClock,
   FaEnvelope,
+  FaSlidersH,
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 import { clearProfileOnlineStatus } from "../services/profilePresence";
@@ -207,6 +208,13 @@ export default function AdminSidebar({ adminName }) {
           <div className="flex items-center gap-3">
             <FaQuestionCircle className="shrink-0 text-base transition-transform group-hover:scale-110" />
             <span className="hidden md:inline">Question Management</span>
+          </div>
+        </NavLink>
+
+        <NavLink to="/interview-mode" title="Industries & Job Roles" aria-label="Industries & Job Roles" className={navLinkClass}>
+          <div className="flex items-center gap-3">
+            <FaSlidersH className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Industries &amp; Roles</span>
           </div>
         </NavLink>
 

@@ -20,6 +20,55 @@ import { supabase } from "./supabase.js";
 export const VALID_CATEGORIES = ["Technical", "Behavioral", "Situational", "HR"];
 export const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
+export const CATEGORY_OPTIONS = [
+  { value: "HR", label: "HR Questions" },
+  { value: "Technical", label: "Technical Questions" },
+  { value: "Behavioral", label: "Behavioral Questions" },
+  { value: "Situational", label: "Situational Questions" },
+];
+
+export const JOB_ROLE_OPTIONS = [
+  "General / Entry-Level",
+  "Software Engineer / Developer",
+  "Web Developer",
+  "Mobile App Developer",
+  "QA / Software Tester",
+  "Data Analyst",
+  "IT Support / Systems Administrator",
+  "UI/UX Designer",
+  "Cybersecurity Analyst",
+  "Business / Systems Analyst",
+  "Project Coordinator",
+];
+
+const CATEGORY_ALIAS_MAP = {
+  hr: "HR",
+  "hr questions": "HR",
+  technical: "Technical",
+  "technical questions": "Technical",
+  behavioral: "Behavioral",
+  "behavioral questions": "Behavioral",
+  situational: "Situational",
+  "situational questions": "Situational",
+};
+
+const CATEGORY_LABEL_MAP = {
+  HR: "HR Questions",
+  Technical: "Technical Questions",
+  Behavioral: "Behavioral Questions",
+  Situational: "Situational Questions",
+};
+
+export function normalizeQuestionCategory(value) {
+  if (typeof value !== "string") return "";
+  return CATEGORY_ALIAS_MAP[value.trim().toLowerCase()] || "";
+}
+
+export function getCategoryDisplayLabel(value) {
+  const canonical = normalizeQuestionCategory(value);
+  return CATEGORY_LABEL_MAP[canonical] || (typeof value === "string" ? value.trim() : "");
+}
+
 const DIFFICULTY_BY_LOWER = {
   easy: "Easy",
   medium: "Medium",
@@ -876,15 +925,153 @@ function buildFinalResult(status, score, overallFeedback, suggestedQuestion, che
   };
 }
 
+export function limitToTwoSentences(raw) {
+  const cleaned = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+  if (!cleaned) return "";
+
+  if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+    const segmenter = new Intl.Segmenter("en", { granularity: "sentence" });
+    const sentences = Array.from(segmenter.segment(cleaned), (part) => part.segment.trim()).filter(Boolean);
+    if (sentences.length > 0) {
+      return sentences.slice(0, 2).join(" ");
+    }
+  }
+
+  const fallback = cleaned.match(/[^.!?]+(?:[.!?]+|$)/g) || [cleaned];
+  return fallback.map((s) => s.trim()).filter(Boolean).slice(0, 2).join(" ");
+}
+
+export function buildQuestionSavePayload({
+  question,
+  category,
+  industryId = null,
+  questionSetId = null,
+  questionSetName = "",
+  questionSetIndustryId = null,
+  jobRoleId = null,
+  jobRoleIndustryId = null,
+  jobRole = "",
+  difficulty,
+  idealAnswer,
+  isActive = true,
+  difficultyMeta = null,
+  legacyDifficultyMethod = null,
+}) {
+  const cleanQuestion = typeof question === "string" ? question.trim() : "";
+  if (!cleanQuestion) {
+    return { ok: false, error: "Question prompt text must not be empty." };
+  }
+
+  const canonicalCategory = normalizeQuestionCategory(category);
+  if (!canonicalCategory) {
+    return {
+      ok: false,
+      error: "Category is required. Select HR Questions, Technical Questions, Behavioral Questions, or Situational Questions.",
+    };
+  }
+
+  const cleanIndustryId = typeof industryId === "string" && industryId.trim() ? industryId.trim() : null;
+  const cleanSetId = typeof questionSetId === "string" && questionSetId.trim() ? questionSetId.trim() : null;
+  const cleanRoleId = typeof jobRoleId === "string" && jobRoleId.trim() ? jobRoleId.trim() : null;
+
+  if (cleanIndustryId && cleanSetId && questionSetIndustryId && String(questionSetIndustryId) !== cleanIndustryId) {
+    return {
+      ok: false,
+      error: "The selected Question Set does not belong to the chosen Industry.",
+    };
+  }
+
+  if (cleanIndustryId && cleanRoleId && jobRoleIndustryId && String(jobRoleIndustryId) !== cleanIndustryId) {
+    return {
+      ok: false,
+      error: "The selected Job Role does not belong to the chosen Industry.",
+    };
+  }
+
+  const cleanJobRole = typeof jobRole === "string" && jobRole.trim() ? jobRole.trim() : null;
+  const cleanQuestionSet = typeof questionSetName === "string" && questionSetName.trim()
+    ? questionSetName.trim()
+    : canonicalCategory === "HR"
+      ? "HR Questions"
+      : canonicalCategory;
+
+  const cleanIdealAnswer = limitToTwoSentences(idealAnswer);
+  if (!cleanIdealAnswer) {
+    return {
+      ok: false,
+      error: "Answer Guide cannot be empty. Wait for AI generation or retry generating the Answer Guide before saving.",
+    };
+  }
+
+  const normalizedDifficulty = toDisplayDifficultyTier(difficulty);
+  const activeFlag = isActive !== false;
+
+  const basePayload = {
+    question: cleanQuestion,
+    category: canonicalCategory,
+    industry_id: cleanIndustryId,
+    question_set_id: cleanSetId,
+    job_role_id: cleanRoleId,
+    job_role: cleanJobRole,
+    ideal_answer: cleanIdealAnswer,
+    is_active: activeFlag,
+    "is _active": activeFlag,
+    question_set: cleanQuestionSet,
+  };
+
+  if (difficultyMeta?.status === "COMPLETED" && difficultyMeta?.aiSuggestedDifficulty) {
+    const persistence = resolveDifficultyPersistence({
+      selectedDifficulty: normalizedDifficulty || difficulty,
+      aiSuggestedDifficulty: difficultyMeta.aiSuggestedDifficulty,
+      assessment: difficultyMeta.assessment,
+      reason: difficultyMeta.reason,
+      hasCompletedClassification: true,
+    });
+    if (!persistence.isComplete) {
+      return { ok: false, error: persistence.error };
+    }
+    return {
+      ok: true,
+      payload: {
+        ...basePayload,
+        difficulty: persistence.difficulty,
+        difficulty_code: persistence.difficulty,
+        ai_suggested_difficulty: persistence.ai_suggested_difficulty,
+        difficulty_assessment: persistence.difficulty_assessment,
+        difficulty_reason: persistence.difficulty_reason,
+        classification_status: persistence.classification_status,
+        classification_method: persistence.classification_method,
+      },
+    };
+  }
+
+  if (!normalizedDifficulty) {
+    return {
+      ok: false,
+      error: "Please select or classify a valid Difficulty Level (Easy, Medium, or Hard) before saving.",
+    };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      ...basePayload,
+      difficulty: normalizedDifficulty,
+      difficulty_code: normalizedDifficulty,
+      ...(legacyDifficultyMethod ? { classification_method: legacyDifficultyMethod } : {}),
+    },
+  };
+}
+
 /**
- * Validates an interview question using the backend AI Edge Function.
- * Returns the AI-corrected question, individual validation indicators, status, score,
- * and an optional suggestedDifficulty ("Easy" | "Medium" | "Hard").
+ * Validates an interview question using the backend AI Edge Function and automatically generates
+ * a concise 1-2 sentence Answer Guide in the same AI request.
  */
 export async function validateQuestionWithAiOrRules({
   question,
   category,
-  difficulty,
+  jobRole = "",
+  difficulty = "",
   currentQuestionId = null,
 }) {
   const trimmed = typeof question === "string" ? question.trim() : "";
@@ -895,12 +1082,22 @@ export async function validateQuestionWithAiOrRules({
     };
   }
 
+  const canonicalCategory = normalizeQuestionCategory(category);
+  if (!canonicalCategory) {
+    return {
+      success: false,
+      error: "Please select a supported Category before validating.",
+    };
+  }
+
   try {
     const { data, error } = await supabase.functions.invoke("validate-question", {
       body: {
+        mode: "validate",
         question: trimmed,
-        category: category || "Technical",
-        difficulty: difficulty || "",
+        category: canonicalCategory,
+        jobRole: typeof jobRole === "string" ? jobRole.trim() : "",
+        selectedDifficulty: typeof difficulty === "string" ? difficulty.trim() : "",
         currentQuestionId,
       },
     });
@@ -909,7 +1106,6 @@ export async function validateQuestionWithAiOrRules({
       console.error("Supabase edge function error:", error);
       let errorMsg = error.message;
 
-      // Extract detailed server error response body if available from HTTP context
       if (error.context && typeof error.context.json === "function") {
         try {
           const errorBody = await error.context.json();
@@ -930,7 +1126,7 @@ export async function validateQuestionWithAiOrRules({
     if (!data?.success || !data?.validation) {
       return {
         success: false,
-        error: data?.error || "AI validation could not be completed. Please retry.",
+        error: data?.error || "AI validation and Answer Guide generation could not be completed. Please retry.",
       };
     }
 
@@ -942,9 +1138,19 @@ export async function validateQuestionWithAiOrRules({
       };
     }
 
+    const idealAnswer = limitToTwoSentences(data.validation.idealAnswer);
+    if (data.validation.status !== "invalid" && !idealAnswer) {
+      return {
+        success: false,
+        error: "AI failed to generate a non-empty Answer Guide. Please retry.",
+      };
+    }
+
     return {
       success: true,
       ...data.validation,
+      category: normalizeQuestionCategory(data.validation.category) || canonicalCategory,
+      idealAnswer,
       suggestedDifficulty: difficultyClassification.difficultyTier,
       difficultyClassification,
     };
@@ -953,6 +1159,66 @@ export async function validateQuestionWithAiOrRules({
     return {
       success: false,
       error: err.message || "Unable to reach the validation service. Please check network connectivity.",
+    };
+  }
+}
+
+/**
+ * Regenerates the concise 1-2 sentence AI Answer Guide for a question when the admin updates
+ * job role, difficulty, or requests a refresh.
+ */
+export async function regenerateIdealAnswerWithAi({
+  question,
+  category,
+  jobRole = "",
+  difficulty = "",
+}) {
+  const trimmed = typeof question === "string" ? question.trim() : "";
+  const canonicalCategory = normalizeQuestionCategory(category);
+  if (!trimmed) {
+    return { success: false, error: "Enter the question prompt before generating an Answer Guide." };
+  }
+  if (!canonicalCategory) {
+    return { success: false, error: "Select a valid Category before generating an Answer Guide." };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke("validate-question", {
+      body: {
+        mode: "regenerate_ideal_answer",
+        question: trimmed,
+        category: canonicalCategory,
+        jobRole: typeof jobRole === "string" ? jobRole.trim() : "",
+        selectedDifficulty: typeof difficulty === "string" ? difficulty.trim() : "",
+      },
+    });
+
+    if (error) {
+      let errorMsg = error.message;
+      if (error.context && typeof error.context.json === "function") {
+        try {
+          const errorBody = await error.context.json();
+          if (errorBody?.error) errorMsg = errorBody.error;
+        } catch {
+          // ignore parse errors
+        }
+      }
+      return { success: false, error: errorMsg || "Unable to regenerate Answer Guide." };
+    }
+
+    const idealAnswer = limitToTwoSentences(data?.idealAnswer);
+    if (!data?.success || !idealAnswer) {
+      return {
+        success: false,
+        error: data?.error || "AI could not generate an Answer Guide. Please retry.",
+      };
+    }
+
+    return { success: true, idealAnswer };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message || "Network error while generating Answer Guide.",
     };
   }
 }

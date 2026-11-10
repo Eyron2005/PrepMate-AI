@@ -25,6 +25,7 @@ import {
   FaServer,
   FaUserClock,
   FaEnvelope,
+  FaSlidersH,
 } from "react-icons/fa";
 
 function AdminDashboard() {
@@ -149,6 +150,17 @@ function AdminDashboard() {
       surface: "border-cyan-100/90",
       count: totalQuestions ?? "—",
       countLabel: "Active Questions",
+    },
+    {
+      title: "Industries & Job Roles",
+      badge: "Interview Mode",
+      description: "Manage active industries and job roles synced directly with the Android app dropdowns.",
+      href: "/interview-mode",
+      icon: FaSlidersH,
+      color: "from-sky-600 to-indigo-600",
+      surface: "border-sky-100/90",
+      count: null,
+      countLabel: null,
     },
     {
       title: "Staff Management",
@@ -277,6 +289,12 @@ function AdminDashboard() {
               className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-sky-50/80 px-3 py-1.5 font-semibold text-sky-700 transition hover:bg-sky-100/80 hover:text-sky-900"
             >
               <FaPlus className="text-[10px]" /> Add Question
+            </Link>
+            <Link
+              to="/interview-mode"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/80 bg-indigo-50/80 px-3 py-1.5 font-semibold text-indigo-700 transition hover:bg-indigo-100/80 hover:text-indigo-900"
+            >
+              <FaSlidersH className="text-[10px]" /> Industries &amp; Job Roles
             </Link>
             <Link
               to="/staff-management"

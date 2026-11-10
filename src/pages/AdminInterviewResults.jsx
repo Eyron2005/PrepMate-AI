@@ -663,8 +663,8 @@ function QuestionReview({ answer, question, index, isCompletedSession = true }) 
           <ReviewSection title="Follow-Up Response">
             <FeedbackContent value={followUp} unavailable="No follow-up response." />
           </ReviewSection>
-          <ReviewSection title="Ideal Answer Guide">
-            <FeedbackContent value={idealAnswer} unavailable="Ideal answer reference unavailable." />
+          <ReviewSection title="Answer Guide">
+            <FeedbackContent value={idealAnswer} unavailable="Answer guide unavailable." />
           </ReviewSection>
           <ReviewSection title="AI Evaluation & Grading">
             {isCompletedSession ? (
@@ -1041,7 +1041,7 @@ function SessionDetails({
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Detailed Breakdown</span>
           <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Question-by-Question Review</h2>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-            Inspect individual question prompts, candidate responses, model ideal answers, and multi-modal evaluations.
+            Inspect individual question prompts, candidate responses, answer guides, and multi-modal evaluations.
           </p>
         </div>
 
