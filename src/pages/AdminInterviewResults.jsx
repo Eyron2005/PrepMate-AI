@@ -1319,7 +1319,7 @@ function AdminInterviewResults({ isStaff = false }) {
                 <div className="max-w-2xl">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-800 shadow-sm">
                     <FaShieldAlt className="text-sky-600 text-[10px]" />
-                    {isStaff ? "Staff Performance Workspace" : "Admin Performance Console"}
+                    {isStaff ? "Staff Portal" : "Admin Portal"}
                   </span>
                   <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
                     Interview Results

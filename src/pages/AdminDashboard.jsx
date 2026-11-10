@@ -195,7 +195,7 @@ function AdminDashboard() {
               <div className="flex flex-wrap items-center gap-2.5">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
                   <FaShieldAlt className="text-sky-600 text-[11px]" />
-                  Admin Console
+                  Admin Portal
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
                   <FaCalendarAlt className="text-slate-400 text-[11px]" />

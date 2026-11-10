@@ -169,7 +169,7 @@ export default function AdminSidebar({ adminName }) {
         </div>
         <div className="hidden min-w-0 md:block">
           <h1 className="text-lg font-bold tracking-tight text-slate-950">Prepmate AI</h1>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-700">Admin Console</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-700">Admin Portal</p>
         </div>
       </div>
 
