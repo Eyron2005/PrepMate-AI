@@ -141,13 +141,13 @@ function BackupRestore() {
           <div className="relative">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-emerald-800 shadow-sm">
               <FaDatabase className="text-emerald-600 text-[11px]" />
-              Data Security &amp; Continuity
+              Save &amp; Restore Data
             </span>
             <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
               Backup &amp; Restore
             </h1>
             <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-              Export CSV application data snapshots or restore previous backups with atomic verification.
+              Download a backup copy of your data as CSV files, or restore saved data from a backup file.
             </p>
           </div>
         </section>
@@ -195,8 +195,8 @@ function BackupRestore() {
                 </div>
               </div>
 
-              <h2 className="mt-5 text-xl font-bold text-slate-950">Export System Snapshot</h2>
-              <p className="mt-1.5 text-xs text-slate-600">Choose tables to export into a timestamped CSV backup file.</p>
+              <h2 className="mt-5 text-xl font-bold text-slate-950">Download Backup</h2>
+              <p className="mt-1.5 text-xs text-slate-600">Pick the data you want to download as a CSV backup file.</p>
 
               <div className="mt-5 space-y-2.5">
                 {BACKUP_OPTIONS.map(({ key, label, desc }) => {
@@ -245,13 +245,13 @@ function BackupRestore() {
                   <FaUpload />
                 </span>
                 <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-800 ring-1 ring-amber-200">
-                  Cautionary Action
+                  Important
                 </span>
               </div>
 
               <h2 className="mt-5 text-xl font-bold text-slate-950">Restore from File</h2>
               <p className="mt-1.5 text-xs text-slate-600">
-                Overwrites matching table records with contents from an existing CSV backup file.
+                Replaces matching saved data using the contents of your CSV backup file.
               </p>
 
               {/* File Dropzone */}
@@ -292,7 +292,7 @@ function BackupRestore() {
               className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 py-3.5 text-xs font-bold text-white shadow-md shadow-orange-600/30 transition hover:shadow-orange-600/50 disabled:opacity-50"
             >
               <FaUpload className="text-xs" />
-              <span>{working ? "Restoring Database..." : "Execute Database Restore"}</span>
+              <span>{working ? "Restoring Data..." : "Restore Backup"}</span>
             </button>
           </div>
         </section>

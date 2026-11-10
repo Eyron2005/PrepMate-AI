@@ -19,7 +19,7 @@ export default function StudentEriPanel({
   analytics,
   loading = false,
   spinnerClassName = "text-sky-600",
-  emptyMessage = "This student has not completed any eligible mock interview evaluations on PrepMate AI yet.",
+  emptyMessage = "This student has not finished a scored interview on PrepMate AI yet.",
 }) {
   const source = analytics || student || {};
   const eriScore =
@@ -92,7 +92,7 @@ export default function StudentEriPanel({
             </p>
           </div>
           <div className="rounded-xl border border-sky-200/80 bg-sky-50/70 px-2.5 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Valid Eval</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Scored</p>
             <p className="mt-0.5 text-sm font-extrabold text-sky-900 tabular-nums">
               {validEvaluatedCount}
             </p>
@@ -143,7 +143,7 @@ export default function StudentEriPanel({
               <div className="flex-1 space-y-2 text-xs">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Latest Completed Assessment
+                    Latest Completed Interview
                   </span>
                   <p className="font-semibold text-slate-800">
                     {source.latest_eri_date
@@ -157,12 +157,12 @@ export default function StudentEriPanel({
                 </div>
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    ERI Formula Applied
+                    How ERI Is Calculated
                   </span>
                   <p className="font-semibold text-slate-700">
                     {availableCategoriesCount === 4
-                      ? "4-Category Mean (÷ 4)"
-                      : `Available Categories Mean (÷ ${availableCategoriesCount})`}
+                      ? "Average of all 4 categories"
+                      : `Average of ${availableCategoriesCount} available categories`}
                   </p>
                 </div>
               </div>
@@ -172,7 +172,7 @@ export default function StudentEriPanel({
             {loading ? (
               <div className="rounded-xl border border-slate-100 bg-white/70 p-6 text-center text-xs text-slate-400">
                 <FaSyncAlt className={`mx-auto mb-1 animate-spin text-sm ${spinnerClassName}`} />
-                Loading completed assessments...
+                Loading completed interviews...
               </div>
             ) : (
               <EriHistoryChart history={history} />

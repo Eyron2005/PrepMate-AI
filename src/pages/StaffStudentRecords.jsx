@@ -290,7 +290,7 @@ function StaffStudentRecords() {
                 Assigned Student Records
               </h1>
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
-                Supervise your assigned students, track their Employment Readiness Index (ERI), and monitor mock interview assessments.
+                View your assigned students, check their Employment Readiness (ERI) score, and see interview progress.
               </p>
             </div>
 
@@ -301,7 +301,7 @@ function StaffStudentRecords() {
               className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200/80 bg-white/80 px-4 py-2 text-xs font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-50 hover:shadow disabled:opacity-50"
             >
               <FaSyncAlt className={`text-xs ${refreshing || loading ? "animate-spin" : ""}`} />
-              <span>{refreshing ? "Refreshing..." : "Sync Records"}</span>
+              <span>{refreshing ? "Refreshing..." : "Refresh List"}</span>
             </button>
           </div>
         </section>
@@ -564,13 +564,13 @@ function StaffStudentRecords() {
                 {/* Left Column: Candidate Profile & Guidance */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Candidate Profile
+                    Student Details
                   </h4>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 space-y-3.5 text-xs">
                     <div className="flex items-center justify-between rounded-xl bg-white p-3 ring-1 ring-slate-100">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Profile Identifier
+                          User ID
                         </p>
                         <p className="font-mono text-xs font-semibold text-slate-800 break-all">
                           {selectedStudent.id}
@@ -619,7 +619,7 @@ function StaffStudentRecords() {
                   <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-sky-50/50 p-4 text-xs">
                     <p className="font-bold text-indigo-950">Supervisor Guidance</p>
                     <p className="mt-1 text-slate-600 leading-relaxed">
-                      Track your student&apos;s interview readiness progression over time. Detailed verbal, behavioral, and AI feedback rubrics can be evaluated in Interview Results.
+                      Follow your student&apos;s interview readiness over time, or open Interview Results to see full answers and feedback.
                     </p>
                     <Link
                       to="/staff/interview-results"
@@ -644,7 +644,7 @@ function StaffStudentRecords() {
             {/* Modal Footer */}
             <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
               <span className="text-[11px] text-slate-400 font-medium">
-                PrepMate AI Staff Workspace • Candidate Readiness Analysis
+                PrepMate AI Staff • Student Readiness
               </span>
               <button
                 type="button"

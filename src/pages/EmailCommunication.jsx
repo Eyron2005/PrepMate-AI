@@ -439,10 +439,10 @@ function EmailCommunication({ isStaff = false }) {
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-slate-600">
                 {isAdmin
-                  ? "Send individualized notices or announcements to registered students, inspect provider delivery statuses, and audit all portal communication logs."
+                  ? "Send messages or announcements to students and check whether emails were delivered."
                   : sender?.canEmailUnassigned
-                    ? "Send personalized follow-up emails to registered students and track delivery status for your sent messages."
-                    : "Send personalized guidance, reminders, and feedback directly to students assigned to your supervisor account."}
+                    ? "Send emails to students and check delivery status for your sent messages."
+                    : "Send reminders and feedback directly to your assigned students."}
               </p>
             </div>
 
@@ -485,7 +485,7 @@ function EmailCommunication({ isStaff = false }) {
           {/* Summary KPIs */}
           <div className="relative mt-6 grid gap-3 sm:grid-cols-4">
             <div className="rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Eligible Recipients</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Students</p>
               <p className="mt-1 text-2xl font-extrabold text-slate-900">{students.length}</p>
             </div>
             <div className="rounded-2xl border border-sky-200/80 bg-sky-50/70 px-4 py-3 shadow-sm">
@@ -708,7 +708,7 @@ function EmailCommunication({ isStaff = false }) {
                     2. Compose Message
                   </h2>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Write a custom email or choose an editable communication template.
+                    Write your own email or pick a ready-made template.
                   </p>
                 </div>
 
@@ -741,7 +741,7 @@ function EmailCommunication({ isStaff = false }) {
 
                 {selectedRecipients.length === 0 ? (
                   <p className="text-xs text-slate-500 italic">
-                    Select a student from the directory on the left to populate their registered email address.
+                    Pick a student on the left to fill in their email address.
                   </p>
                 ) : selectedRecipients.length === 1 ? (
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -942,7 +942,7 @@ function EmailCommunication({ isStaff = false }) {
               <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
                   <FaClock className="text-slate-400" />
-                  Sent emails are logged automatically with provider tracking.
+                  Sent emails are saved in Email History so you can check delivery status.
                 </span>
 
                 <div className="flex items-center justify-end gap-2.5">
@@ -985,8 +985,8 @@ function EmailCommunication({ isStaff = false }) {
                 <h2 className="text-lg font-extrabold text-slate-950">Email History &amp; Delivery Logs</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {isAdmin
-                    ? "Complete audit log of emails attempted by administrators and staff supervisors."
-                    : "Email attempts sent from your staff account with provider delivery statuses."}
+                    ? "List of all emails sent by admins and staff."
+                    : "List of emails sent from your account and their delivery status."}
                 </p>
               </div>
 
@@ -1061,7 +1061,7 @@ function EmailCommunication({ isStaff = false }) {
                     ) : filteredLogs.length === 0 ? (
                       <tr>
                         <td colSpan="6" className="px-6 py-14 text-center text-slate-400">
-                          No email logs found matching your filter criteria.
+                          No sent emails match your search or filter.
                         </td>
                       </tr>
                     ) : (
@@ -1134,7 +1134,7 @@ function EmailCommunication({ isStaff = false }) {
                 <FaPaperPlane className="text-base" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-700">Confirm Dispatch</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-700">Confirm Send</p>
                 <h3 className="text-xl font-extrabold text-slate-950">Send Email to Student{selectedRecipients.length > 1 ? "s" : ""}?</h3>
               </div>
             </div>
@@ -1157,7 +1157,7 @@ function EmailCommunication({ isStaff = false }) {
                 <p className="mt-0.5 font-semibold text-slate-900">{subject.trim()}</p>
               </div>
               <div>
-                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Sender Identification</span>
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Sent From</span>
                 <p className="mt-0.5 text-slate-700">{sender?.name} ({isAdmin ? "ADMIN" : "STAFF"})</p>
               </div>
             </div>
@@ -1198,7 +1198,7 @@ function EmailCommunication({ isStaff = false }) {
           <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[2.25rem] glass-card-elevated border border-white/80 bg-white/95 shadow-2xl ring-1 ring-slate-200/80 fade-in-up">
             <div className="flex items-center justify-between border-b border-slate-100 px-7 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-700">Email Communication Record</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-700">Email Details</p>
                 <h3 className="mt-0.5 text-lg font-extrabold text-slate-950">{inspectLog.subject}</h3>
               </div>
               <button
@@ -1237,11 +1237,11 @@ function EmailCommunication({ isStaff = false }) {
                   </span>
                 </div>
                 <div>
-                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Attempted At</span>
+                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Sent On</span>
                   <p className="mt-1 font-semibold text-slate-700">{formatDateTime(inspectLog.created_at)}</p>
                 </div>
                 <div>
-                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Provider ID</span>
+                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Message ID</span>
                   <p className="mt-1 font-mono text-[11px] text-slate-600 truncate" title={inspectLog.provider_message_id || ""}>
                     {inspectLog.provider_message_id || "—"}
                   </p>

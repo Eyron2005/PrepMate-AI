@@ -836,7 +836,7 @@ function SessionDetails({
           <FaArrowLeft className="text-sky-600" /> Back to interview sessions
         </button>
         <span className="rounded-full bg-sky-50 px-3.5 py-1 text-xs font-bold text-sky-800 ring-1 ring-sky-200/80 shadow-sm">
-          Session Inspection
+          Interview Details
         </span>
       </div>
 
@@ -937,7 +937,7 @@ function SessionDetails({
 
         {!sessionInfo.isCompleted && (
           <div className="relative mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-xs text-amber-900">
-            <strong>{sessionInfo.status} Session:</strong> Partial, abandoned, and in-progress interviews are preserved in history for auditing but are excluded from category averages, readiness classification, and ERI scores.
+            <strong>{sessionInfo.status} Interview:</strong> Unfinished or ongoing interviews stay in history for viewing, but they are not included in scores, category averages, or ERI.
           </div>
         )}
       </section>
@@ -963,12 +963,12 @@ function SessionDetails({
             <section className="glass-card rounded-3xl border border-white/80 p-6 shadow-md ring-1 ring-sky-100/80">
               <div className="flex items-center gap-2 mb-4">
                 <FaBrain className="text-sky-600 text-sm" />
-                <h3 className="text-base font-bold text-slate-900">Overall Feedback & Critique</h3>
+                <h3 className="text-base font-bold text-slate-900">Overall Feedback</h3>
               </div>
               <div className="space-y-5 text-sm text-slate-800">
                 {hasSavedValue(examinerVerdict) && (
                   <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-sky-800 mb-1">Examiner Verdict</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-sky-800 mb-1">Summary</h4>
                     <FeedbackContent value={examinerVerdict} />
                   </div>
                 )}
@@ -978,7 +978,7 @@ function SessionDetails({
                   || hasSavedValue(strengths)
                   || hasSavedValue(improvements)) && (
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Detailed AI Evaluation</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Detailed AI Feedback</h4>
                     <AiFeedbackContent
                       value={savedAiFeedback}
                       strengths={strengths}
@@ -996,7 +996,7 @@ function SessionDetails({
             <section className="glass-card rounded-3xl border border-white/80 p-6 shadow-md ring-1 ring-sky-100/80">
               <div className="flex items-center gap-2 mb-4">
                 <FaVideo className="text-indigo-600 text-sm" />
-                <h3 className="text-base font-bold text-slate-900">Camera & Non-Verbal Observations</h3>
+                <h3 className="text-base font-bold text-slate-900">Camera &amp; Body Language Notes</h3>
               </div>
               <div className="space-y-3.5 text-sm">
                 {cameraEvaluationItems.map((item) => (
@@ -1039,9 +1039,9 @@ function SessionDetails({
       <section className="mt-2">
         <div className="mb-4">
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Detailed Breakdown</span>
-          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Question-by-Question Review</h2>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Answers &amp; Feedback</h2>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-            Inspect individual question prompts, candidate responses, answer guides, and multi-modal evaluations.
+            See each question, the student's answer, the answer guide, and AI scores.
           </p>
         </div>
 
@@ -1059,7 +1059,7 @@ function SessionDetails({
           </div>
         ) : answers.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-sm text-slate-500">
-            No question-level response records were captured for this evaluation session.
+            No saved answers were found for this interview.
           </div>
         ) : (
           <div className="grid gap-4">
@@ -1400,15 +1400,15 @@ function AdminInterviewResults({ isStaff = false }) {
                   </h1>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
                     {isStaff
-                      ? "Review interview evaluations, speech metrics, camera analysis, and question responses for students assigned to you."
-                      : "Audit candidate mock interview evaluations, multi-modal speech & camera scoring, and question responses across all students."}
+                      ? "See interview scores, speech and camera feedback, and answers for your assigned students."
+                      : "See interview scores, speech and camera feedback, and answers for all students."}
                   </p>
                 </div>
 
                 {/* Stat Pill Card */}
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="rounded-2xl border border-sky-100/90 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-md">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Sessions Loaded</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Total Interviews</p>
                     <p className="mt-0.5 text-2xl font-extrabold text-slate-900">{sessionsCount}</p>
                   </div>
                   {selectedStudent && (
@@ -1427,7 +1427,7 @@ function AdminInterviewResults({ isStaff = false }) {
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label htmlFor="student-search" className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Filter by candidate
+                      Filter by student
                     </label>
                     {selectedStudent && (
                       <button
@@ -1441,7 +1441,7 @@ function AdminInterviewResults({ isStaff = false }) {
                         }}
                         className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200"
                       >
-                        <FaTimes className="text-[10px]" /> Clear candidate filter
+                        <FaTimes className="text-[10px]" /> Clear student filter
                       </button>
                     )}
                   </div>
@@ -1471,10 +1471,10 @@ function AdminInterviewResults({ isStaff = false }) {
                     ) : (
                       <p>
                         {selectedStudent
-                          ? `Displaying interview sessions recorded for ${selectedStudent.full_name}`
+                          ? `Showing interviews for ${selectedStudent.full_name}`
                           : isStaff
-                            ? "Choose an assigned candidate to review their historical sessions, or browse all assigned evaluations below."
-                            : "Choose a candidate to inspect their specific interview track, or browse all evaluations across the cohort."}
+                            ? "Pick an assigned student to see their interviews, or browse all below."
+                            : "Pick a student to see their interviews, or browse all below."}
                       </p>
                     )}
                   </div>
@@ -1500,7 +1500,7 @@ function AdminInterviewResults({ isStaff = false }) {
                     {selectedStudent ? `${selectedStudent.full_name}'s Interviews` : "Recorded Interview Sessions"}
                   </h2>
                   <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                    Newest evaluation sessions appear first. Click any session to inspect question responses &amp; AI critique.
+                    Newest interviews appear first. Click any interview to see answers and feedback.
                   </p>
                 </div>
                 <span className="rounded-full bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-sky-800 ring-1 ring-sky-200/80 shadow-sm">

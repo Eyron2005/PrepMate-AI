@@ -104,13 +104,13 @@ export default function InterviewModeManagement() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
                 <FaSlidersH className="text-sky-600 text-[11px]" />
-                Android Interview Mode Dropdowns
+                Mobile App Options
               </span>
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
                 Industries &amp; Job Roles
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Add, edit, activate, or deactivate industries and job roles stored in Supabase. Active items sync directly with PrepMate AI&apos;s Android Select Industry and Job Role dropdowns.
+                Add, edit, or turn on and off the industries and job roles shown in the PrepMate AI mobile app.
               </p>
             </div>
 
@@ -122,14 +122,14 @@ export default function InterviewModeManagement() {
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50"
               >
                 <FaSyncAlt className={loading ? "animate-spin text-sky-600" : "text-sky-600"} />
-                <span>Refresh from Supabase</span>
+                <span>Refresh List</span>
               </button>
               <Link
                 to="/question-management"
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-sky-500/25 transition hover:-translate-y-0.5 hover:shadow-sky-500/40"
               >
                 <FaQuestionCircle className="text-xs" />
-                <span>Question Management</span>
+                <span>Manage Questions</span>
               </Link>
             </div>
           </div>
@@ -142,7 +142,7 @@ export default function InterviewModeManagement() {
                 <FaIndustry className="text-sky-600" />
               </div>
               <p className="mt-2.5 text-3xl font-extrabold text-slate-950">{activeIndustriesCount}</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">{catalog.industries.length} total registered</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">{catalog.industries.length} total added</p>
             </div>
 
             <div className="rounded-[1.5rem] border border-indigo-100/90 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/60 p-5 shadow-xs ring-1 ring-indigo-200/50">
@@ -151,19 +151,19 @@ export default function InterviewModeManagement() {
                 <FaBriefcase className="text-indigo-600" />
               </div>
               <p className="mt-2.5 text-3xl font-extrabold text-slate-950">{activeRolesCount}</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">{catalog.jobRoles.length} total mapped</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">{catalog.jobRoles.length} total added</p>
             </div>
 
             <div className="rounded-[1.5rem] border border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-slate-50/60 p-5 shadow-xs sm:col-span-2 lg:col-span-1">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Fixed Interview Settings</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Fixed App Settings</p>
                 <FaLock className="text-slate-400" />
               </div>
               <p className="mt-2 text-xs font-bold text-slate-800">
                 Categories: HR · Technical · Behavioral · Situational
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Difficulty Tiers: Easy · Medium · Hard (locked and preserved for consistent evaluation).
+                Difficulty Levels: Easy · Medium · Hard (these stay the same for every interview).
               </p>
             </div>
           </div>
@@ -225,14 +225,14 @@ export default function InterviewModeManagement() {
             </div>
 
             <p className="text-[11px] font-medium text-slate-500">
-              Select Industry → Job Role (synced live to Android Interview Mode)
+              Choose an industry first, then manage the job roles under it.
             </p>
           </div>
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-xs text-slate-500">
               <FaSyncAlt className="mb-2 animate-spin text-lg text-sky-600" />
-              Loading Industries &amp; Job Roles from Supabase...
+              Loading industries and job roles...
             </div>
           ) : (
             <>

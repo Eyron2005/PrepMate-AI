@@ -9,7 +9,7 @@ const sections = [
   {
     title: "Student Records",
     badge: "Assigned Students",
-    description: "Inspect student profiles, assigned tracks, and supervisor progress monitoring.",
+    description: "View your assigned students, their details, and interview progress.",
     href: "/staff/student-records",
     icon: FaClipboardList,
     color: "from-violet-500 to-indigo-600",
@@ -18,7 +18,7 @@ const sections = [
   {
     title: "Interview Results",
     badge: "Mock Evaluations",
-    description: "Review interview session recordings, score breakdowns, and AI feedback rubrics.",
+    description: "See student interview answers, scores, and AI feedback.",
     href: "/staff/interview-results",
     icon: FaFileAlt,
     color: "from-emerald-500 to-teal-600",
@@ -110,7 +110,7 @@ function StaffDashboard() {
                 {greeting}{staffName ? ", " : ""}<span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-sky-600 bg-clip-text text-transparent">{staffName}</span>
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Your supervisor dashboard for Prepmate AI. Review your assigned students, assess performance transcripts, and monitor interview readiness.
+                View your assigned students, check their interview results, and track readiness progress.
               </p>
             </div>
 
@@ -124,7 +124,7 @@ function StaffDashboard() {
                   Supervisor Session Active
                 </span>
               </div>
-              <p className="text-[11px] font-medium text-slate-500">Role-scoped access granted</p>
+              <p className="text-[11px] font-medium text-slate-500">Staff access active</p>
             </div>
           </div>
         </section>

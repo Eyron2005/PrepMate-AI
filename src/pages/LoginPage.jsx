@@ -213,7 +213,7 @@ function LoginPage() {
 
           <div className="mb-7 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Welcome Back</h1>
-            <p className="mt-2 text-sm text-slate-600">Enter your credentials to access the management portal</p>
+            <p className="mt-2 text-sm text-slate-600">Sign in with your email and password to continue</p>
           </div>
 
           {(errorMessage || (authError && `Unable to restore your session: ${authError.message}`)) && (
@@ -272,7 +272,7 @@ function LoginPage() {
                 {isSubmitting ? (
                   <>
                     <FaSpinner className="animate-spin text-sm" />
-                    <span>Verifying Credentials...</span>
+                    <span>Signing In...</span>
                   </>
                 ) : (
                   <>
@@ -287,7 +287,7 @@ function LoginPage() {
           {/* Security Badge */}
           <div className="mt-8 flex items-center justify-center gap-2 border-t border-slate-100 pt-5 text-center text-[11px] font-medium text-slate-500">
             <FaShieldAlt className="text-sky-600" />
-            <span>Protected with Row-Level Security &amp; Supabase Auth</span>
+            <span>Secure Admin &amp; Staff Sign-In</span>
           </div>
         </div>
       </div>

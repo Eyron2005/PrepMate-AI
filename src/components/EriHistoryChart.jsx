@@ -8,9 +8,9 @@ export default function EriHistoryChart({ history = [] }) {
   if (!history || history.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-xs">
-        <p className="font-bold text-slate-700">No Completed Assessment History</p>
+        <p className="font-bold text-slate-700">No Completed Interviews Yet</p>
         <p className="mt-1 text-slate-500">
-          Historical trend line will be charted once the candidate completes an eligible mock interview evaluation.
+          Progress chart will appear once the student finishes a scored interview.
         </p>
       </div>
     );
@@ -24,7 +24,7 @@ export default function EriHistoryChart({ history = [] }) {
         <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4 ring-1 ring-sky-200/50">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
-              Baseline Assessment (1 Completed)
+              First Interview (1 Completed)
             </span>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold tabular-nums ${session.classification.badgeClass}`}>
               {formatEriScore(session.score)}
@@ -51,7 +51,7 @@ export default function EriHistoryChart({ history = [] }) {
           </div>
         </div>
         <p className="text-center text-[11px] italic text-slate-400">
-          Additional completed interview sessions will populate the chronological progress trend line.
+          Finish more interviews to see progress over time.
         </p>
       </div>
     );
@@ -86,7 +86,7 @@ export default function EriHistoryChart({ history = [] }) {
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-sm">
         <div className="flex items-center justify-between px-2 pt-1 pb-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Readiness Trend Line ({history.length} Completed)
+            Readiness Progress ({history.length} Completed)
           </span>
           {activePoint && (
             <span className="text-xs font-bold text-sky-700 tabular-nums">
@@ -142,7 +142,7 @@ export default function EriHistoryChart({ history = [] }) {
         </div>
       </div>
 
-      {/* Chronological List of Completed Assessments */}
+      {/* Chronological List of Completed Interviews */}
       <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
           Completed Assessments

@@ -5,14 +5,7 @@ import AdminSidebar from "../components/AdminSidebar";
 import { useAuth } from "../contexts/authContext";
 import { fetchCurrentAdminProfile, getCachedAdminProfile } from "../services/adminProfile";
 import {
-  ERI_CATEGORIES,
-  fetchAdminEriAnalytics,
-  formatEriScore,
-  getEriClassification,
-} from "../services/eri";
-import {
   FaUsers,
-  FaAward,
   FaQuestionCircle,
   FaUserTie,
   FaDatabase,
@@ -36,10 +29,7 @@ function AdminDashboard() {
     userId: null,
     displayName: "",
   });
-  const [totalUsers, setTotalUsers] = useState(null);
-  const [totalQuestions, setTotalQuestions] = useState(null);
   const [pendingRequests, setPendingRequests] = useState(null);
-  const [eriAnalytics, setEriAnalytics] = useState(null);
   const [mounted, setMounted] = useState(false);
 
   const cachedAdmin = userId ? getCachedAdminProfile(userId, email) : null;
@@ -64,28 +54,12 @@ function AdminDashboard() {
     }
 
     async function loadDashboard() {
-      const [userResult, questionResult, requestsResult, analyticsResult] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("questions").select("id", { count: "exact", head: true }),
-        supabase.from("account_reactivation_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        fetchAdminEriAnalytics(),
-      ]);
+      const requestsResult = await supabase
+        .from("account_reactivation_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
       if (!active) return;
 
-      if (analyticsResult) {
-        setEriAnalytics(analyticsResult);
-      }
-
-      if (userResult.error) {
-        console.error("Unable to load the registered user count:", userResult.error);
-      } else {
-        setTotalUsers(userResult.count || 0);
-      }
-      if (questionResult.error) {
-        console.error("Unable to load the question count:", questionResult.error);
-      } else {
-        setTotalQuestions(questionResult.count || 0);
-      }
       if (requestsResult.error) {
         console.warn("Unable to load pending requests count:", requestsResult.error);
       } else {
@@ -121,101 +95,83 @@ function AdminDashboard() {
     {
       title: "User Management",
       badge: "User Directory",
-      description: "Manage registered student accounts, monitor active sessions, and oversee account activation.",
+      description: "View student accounts, see who is online, and activate or deactivate logins.",
       href: "/user-management",
       icon: FaUsers,
       color: "from-sky-500 to-blue-600",
       surface: "border-sky-100/90",
-      count: totalUsers ?? "—",
-      countLabel: "Registered Profiles",
     },
     {
       title: "Reactivation Requests",
       badge: "Review Queue",
-      description: "Review reactivation appeals from deactivated students and approve or reject access requests.",
+      description: "Review requests from deactivated students asking to turn their account back on.",
       href: "/reactivation-requests",
       icon: FaUserClock,
       color: "from-amber-500 to-orange-600",
       surface: "border-amber-100/90",
-      count: pendingRequests ?? "—",
-      countLabel: "Pending Appeals",
     },
     {
       title: "Question Management",
       badge: "Question Bank",
-      description: "Curate mock interview questions across Technical, Behavioral, Situational, and HR tracks.",
+      description: "Add, check, and edit interview questions by category, difficulty, and job role.",
       href: "/question-management",
       icon: FaQuestionCircle,
       color: "from-cyan-500 to-teal-600",
       surface: "border-cyan-100/90",
-      count: totalQuestions ?? "—",
-      countLabel: "Active Questions",
     },
     {
       title: "Industries & Job Roles",
-      badge: "Interview Mode",
-      description: "Manage active industries and job roles synced directly with the Android app dropdowns.",
+      badge: "Mobile App Options",
+      description: "Add, edit, or turn on and off the industries and job roles shown in the mobile app.",
       href: "/interview-mode",
       icon: FaSlidersH,
       color: "from-sky-600 to-indigo-600",
       surface: "border-sky-100/90",
-      count: null,
-      countLabel: null,
     },
     {
       title: "Staff Management",
       badge: "Supervisors",
-      description: "Invite supervisors, configure department roles, and handle staff access credentials.",
+      description: "Invite staff members, set their departments and roles, and manage access.",
       href: "/staff-management",
       icon: FaUserTie,
       color: "from-violet-500 to-indigo-600",
       surface: "border-violet-100/90",
-      count: null,
-      countLabel: null,
     },
     {
       title: "Staff Assignments",
       badge: "Student Pairing",
-      description: "Assign designated staff members to specific student cohorts and track responsibilities.",
+      description: "Pair staff advisors with students so they can check progress and results.",
       href: "/staff-assignments",
       icon: FaUserCheck,
       color: "from-blue-500 to-indigo-600",
       surface: "border-blue-100/90",
-      count: null,
-      countLabel: null,
     },
     {
       title: "Interview Results",
       badge: "Evaluations",
-      description: "Inspect student interview sessions, AI score rubrics, detailed feedback, and performance trends.",
+      description: "See student interview scores, answers, AI feedback, and progress over time.",
       href: "/interview-results",
       icon: FaFileAlt,
       color: "from-indigo-500 to-purple-600",
       surface: "border-indigo-100/90",
-      count: null,
-      countLabel: null,
     },
     {
       title: "Email Communication",
       badge: "Messaging",
-      description: "Send individualized notices or announcements to registered students and track delivery logs.",
+      description: "Send messages or announcements to students and check if emails were delivered.",
       href: "/email-communication",
       icon: FaEnvelope,
       color: "from-sky-500 to-cyan-600",
       surface: "border-sky-100/90",
-      count: null,
-      countLabel: null,
     },
     {
       title: "Backup & Restore",
       badge: "Data Protection",
-      description: "Generate timestamped database snapshots or restore tables with verified integrity checks.",
+      description: "Download a CSV backup copy of your data or restore saved backups from a file.",
       href: "/backup-restore",
       icon: FaDatabase,
       color: "from-emerald-500 to-teal-600",
       surface: "border-emerald-100/90",
-      count: null,
-      countLabel: null,
     },
   ];
 
@@ -254,7 +210,7 @@ function AdminDashboard() {
                 {greeting}{adminName ? ", " : ""}<span className="bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">{adminName}</span>
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                System overview and administration controls for Prepmate AI. Monitor candidate engagement, review question banks, and oversee staff activities.
+                Manage students, staff, interview questions, and app choices for PrepMate AI from one place.
               </p>
             </div>
 
@@ -270,7 +226,7 @@ function AdminDashboard() {
                 </span>
               </div>
               <p className="text-[11px] font-medium text-slate-500">
-                Connected · 11 Edge Functions Active
+                Connected & Ready
               </p>
             </div>
           </div>
@@ -315,15 +271,15 @@ function AdminDashboard() {
         <section className="mt-10">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-sky-700">Workspace Hub</p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Management Modules</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-sky-700">Admin Tools</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Manage Everything</h2>
             </div>
-            <p className="text-xs font-medium text-slate-500 sm:text-sm">Select any module to inspect and configure</p>
+            <p className="text-xs font-medium text-slate-500 sm:text-sm">Choose a tool below to get started</p>
           </div>
 
           {/* Cards Grid */}
           <div className="grid items-stretch gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {managementTools.map(({ title, badge, description, href, icon: Icon, color, surface, count, countLabel }) => (
+            {managementTools.map(({ title, badge, description, href, icon: Icon, color, surface }) => (
               <Link
                 key={href}
                 to={href}
@@ -345,20 +301,13 @@ function AdminDashboard() {
                     {title}
                   </h3>
 
-                  {count !== null && (
-                    <div className="mt-3 flex items-baseline gap-2">
-                      <span className="text-3xl font-extrabold tracking-tight text-slate-950">{count}</span>
-                      {countLabel && <span className="text-xs font-semibold text-slate-500">{countLabel}</span>}
-                    </div>
-                  )}
-
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
                     {description}
                   </p>
                 </div>
 
                 <div className="mt-6 flex items-center justify-between border-t border-slate-100/80 pt-4 text-xs font-bold text-sky-700">
-                  <span className="transition group-hover:underline">Launch module</span>
+                  <span className="transition group-hover:underline">Open tool</span>
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-50 text-sky-600 transition-transform duration-300 group-hover:translate-x-1 group-hover:bg-sky-600 group-hover:text-white">
                     <FaArrowRight className="text-[10px]" />
                   </span>
@@ -368,81 +317,6 @@ function AdminDashboard() {
           </div>
         </section>
 
-        {/* Cohort ERI & Session Integrity Summary */}
-        {eriAnalytics && (
-          <section className="glass-card mt-10 rounded-[2rem] border border-sky-100/90 p-6 shadow-sm ring-1 ring-sky-200/40 sm:p-7">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-md shadow-sky-500/25">
-                  <FaAward />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-950">Cohort ERI &amp; Session Integrity</h3>
-                  <p className="text-xs text-slate-500">
-                    Calculated strictly from completed sessions across HR, Behavioral, Situational, and Technical categories.
-                  </p>
-                </div>
-              </div>
-              <Link
-                to="/interview-results"
-                className="text-xs font-bold text-sky-700 hover:text-sky-900 hover:underline"
-              >
-                Inspect Interview Sessions →
-              </Link>
-            </div>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800">Cohort Average ERI</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-2xl font-extrabold text-slate-950 tabular-nums">
-                    {formatEriScore(eriAnalytics.averageEri)}
-                  </span>
-                  {eriAnalytics.averageEri !== null && (
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${getEriClassification(eriAnalytics.averageEri).badgeClass}`}>
-                      {getEriClassification(eriAnalytics.averageEri).label}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-[11px] text-slate-500 tabular-nums">
-                  {eriAnalytics.studentsWithEri} assessed · {eriAnalytics.studentsWithoutEri} N/A
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Completed Sessions</p>
-                <p className="mt-2 text-2xl font-extrabold text-slate-950 tabular-nums">
-                  {eriAnalytics.completedSessionsTotal ?? 0}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-500 tabular-nums">
-                  {eriAnalytics.validEvaluatedSessionsTotal ?? 0} valid evaluated
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Incomplete Sessions</p>
-                <p className="mt-2 text-2xl font-extrabold text-slate-950 tabular-nums">
-                  {eriAnalytics.incompleteSessionsTotal ?? 0}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-500">Excluded from ERI &amp; averages</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Category Averages</p>
-                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {ERI_CATEGORIES.map((cat) => (
-                    <div key={cat} className="flex items-center justify-between gap-1">
-                      <span className="font-semibold text-slate-600">{cat}:</span>
-                      <span className="font-bold text-slate-900 tabular-nums">
-                        {formatEriScore(eriAnalytics.categoryAverages?.[cat])}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Security & Infrastructure Banner */}
         <section className="mt-10 rounded-[2rem] border border-sky-100/80 bg-gradient-to-r from-sky-50/60 via-white to-cyan-50/50 p-6 shadow-sm ring-1 ring-sky-200/40">
@@ -452,13 +326,13 @@ function AdminDashboard() {
                 <FaServer />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-900">Infrastructure &amp; Access Controls</h4>
-                <p className="text-xs text-slate-600">Row-level security policies, account deactivation restrictions, and real-time presence active on linked Supabase backend.</p>
+                <h4 className="text-sm font-bold text-slate-900">Account Security &amp; Live Status</h4>
+                <p className="text-xs text-slate-600">Protected login rules, deactivated account blocks, and live online status are active.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-xs font-semibold text-sky-700">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>RLS Enforced</span>
+              <span>Protected</span>
             </div>
           </div>
         </section>

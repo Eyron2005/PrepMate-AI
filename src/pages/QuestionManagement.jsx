@@ -702,13 +702,13 @@ function QuestionManagement() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-100 to-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-cyan-800 shadow-sm">
                 <FaQuestionCircle className="text-cyan-600 text-[11px]" />
-                Curated Question Bank
+                Interview Questions
               </span>
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
                 Question Management
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Create, validate, and organize interview questions across Industries, Job Roles, Track Categories, and Difficulty Tiers with 1–2 sentence Answer Guides.
+                Create, check, and organize interview questions by industry, job role, category, and difficulty level with short Answer Guides.
               </p>
             </div>
 
@@ -747,7 +747,7 @@ function QuestionManagement() {
 
             <div className="stat-card rounded-[1.75rem] border border-cyan-100/80 bg-gradient-to-br from-cyan-50/80 via-white to-sky-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-cyan-200/50">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Track Categories</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-800">Categories</p>
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700">
                   <FaLayerGroup className="text-sm" />
                 </span>
@@ -760,7 +760,7 @@ function QuestionManagement() {
 
             <div className="stat-card rounded-[1.75rem] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-white to-indigo-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-violet-200/50">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Difficulty Tiers</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Difficulty Levels</p>
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
                   <FaSignal className="text-sm" />
                 </span>
@@ -768,7 +768,7 @@ function QuestionManagement() {
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">
                 {new Set(questions.map((item) => item.difficulty)).size}
               </p>
-              <p className="mt-1 text-xs text-slate-500">Easy, Medium, and Hard stages</p>
+              <p className="mt-1 text-xs text-slate-500">Easy, Medium, and Hard</p>
             </div>
           </div>
         </section>
@@ -883,7 +883,7 @@ function QuestionManagement() {
                 <thead className="bg-slate-50/90 text-left uppercase tracking-wider text-[11px] font-bold text-slate-500">
                   <tr>
                     <th className="px-5 py-3.5">Question &amp; Answer Guide</th>
-                    <th className="px-4 py-3.5">Configuration</th>
+                    <th className="px-4 py-3.5">Industry &amp; Job Role</th>
                     <th className="px-4 py-3.5">Category</th>
                     <th className="px-4 py-3.5">Difficulty</th>
                     <th className="px-4 py-3.5">Status</th>
@@ -901,7 +901,7 @@ function QuestionManagement() {
                   ) : filteredQuestions.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="px-6 py-14 text-center text-slate-400">
-                        No questions found matching your filter criteria.
+                        No questions match your search or filter.
                       </td>
                     </tr>
                   ) : (
@@ -934,7 +934,7 @@ function QuestionManagement() {
                             )}
                             <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                               <FaBriefcase className="text-[9px] text-slate-400" />
-                              {question.job_role || "General / All Roles"}
+                              {question.job_role || "Any Job Role"}
                             </span>
                           </div>
                         </td>
@@ -1048,7 +1048,7 @@ function QuestionManagement() {
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
-                    <option value="">All Industries (General)</option>
+                    <option value="">Any Industry</option>
                     {modalIndustries.map((ind) => (
                       <option key={ind.id} value={ind.id}>
                         {ind.name}{ind.is_active ? "" : " (Inactive)"}
@@ -1076,7 +1076,7 @@ function QuestionManagement() {
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
-                    <option value="">All Job Roles</option>
+                    <option value="">Any Job Role</option>
                     {modalJobRoles.map((role) => (
                       <option key={role.id} value={role.id}>
                         {role.name}{role.is_active ? "" : " (Inactive)"}
@@ -1087,7 +1087,7 @@ function QuestionManagement() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Category Track <span className="text-rose-500">*</span>
+                    Category <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={formState.category}
@@ -1109,7 +1109,7 @@ function QuestionManagement() {
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
-                    <option value="">Select Category Track</option>
+                    <option value="">Choose a category...</option>
                     {CATEGORY_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
@@ -1125,7 +1125,7 @@ function QuestionManagement() {
                       difficultyInfo.method === "ADMIN_OVERRIDE" ? (
                         <div className="flex items-center gap-1.5">
                           <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                            Override (AI: {difficultyInfo.difficultyTier})
+                            Changed by Admin (AI suggested: {difficultyInfo.difficultyTier})
                           </span>
                           <button
                             type="button"
@@ -1140,12 +1140,12 @@ function QuestionManagement() {
                         </div>
                       ) : (
                         <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${getDifficultyBadge(difficultyInfo.difficultyTier)}`}>
-                          AI Classified
+                          Set by AI
                         </span>
                       )
                     ) : (
                       <span className="text-[10px] font-semibold text-slate-400">
-                        Select or auto-classify
+                        Choose or let AI decide
                       </span>
                     )}
                   </div>
@@ -1165,7 +1165,7 @@ function QuestionManagement() {
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
-                    <option value="">Auto-classified on Validate</option>
+                    <option value="">Picked automatically after check</option>
                     {VALID_DIFFICULTIES.map((level) => (
                       <option key={level} value={level}>
                         {level}
@@ -1183,8 +1183,8 @@ function QuestionManagement() {
                     onChange={(e) => setFormState((prev) => ({ ...prev, is_active: e.target.value === "active" }))}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
-                    <option value="active">Active (Visible to Students)</option>
-                    <option value="inactive">Inactive (Hidden / Archived)</option>
+                    <option value="active">Active (Shown to Students)</option>
+                    <option value="inactive">Inactive (Hidden)</option>
                   </select>
                 </div>
               </div>
@@ -1193,7 +1193,7 @@ function QuestionManagement() {
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Question Prompt Text <span className="text-rose-500">*</span>
+                    Interview Question <span className="text-rose-500">*</span>
                   </label>
                   <div className="flex items-center gap-3">
                     <span className={`text-[11px] font-bold ${
@@ -1375,7 +1375,7 @@ function QuestionManagement() {
                 />
 
                 <p className="text-[11px] text-slate-500">
-                  Concise 1–2 sentence Answer Guide saved in <code className="font-mono text-slate-700">questions.ideal_answer</code> as a learning reference for students.
+                  Short 1–2 sentence Answer Guide saved to help students study.
                 </p>
 
                 {idealAnswerError && (
@@ -1400,7 +1400,7 @@ function QuestionManagement() {
                   <p className="font-semibold">
                     {isGeneratingIdealAnswer
                       ? "Generating 1–2 sentence Answer Guide with AI..."
-                      : "Validating question, classifying difficulty tier, and generating AI Answer Guide..."}
+                      : "Checking question, picking difficulty level, and writing Answer Guide..."}
                   </p>
                 </div>
               )}
@@ -1411,7 +1411,7 @@ function QuestionManagement() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
-                        Difficulty Classification
+                        Difficulty Check
                       </span>
                       {difficultyInfo.difficultyTier && (
                         <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${getDifficultyBadge(difficultyInfo.difficultyTier)}`}>
@@ -1439,7 +1439,7 @@ function QuestionManagement() {
                         <p className="mt-0.5 text-[11px] text-slate-600 leading-snug">{difficultyInfo.assessment.knowledge_required}</p>
                       </div>
                       <div className="rounded-xl border border-slate-200/70 bg-white px-2.5 py-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Cognitive Complexity</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Thinking Level</p>
                         <p className="mt-0.5 text-[11px] text-slate-600 leading-snug">{difficultyInfo.assessment.cognitive_complexity}</p>
                       </div>
                       <div className="rounded-xl border border-slate-200/70 bg-white px-2.5 py-2">
@@ -1575,7 +1575,7 @@ function QuestionManagement() {
               <div className="text-[11px] font-medium text-slate-500">
                 {isValidating || isGeneratingIdealAnswer ? (
                   <span className="text-sky-700 font-semibold flex items-center gap-1.5 animate-pulse">
-                    <FaSyncAlt className="text-sky-500 text-xs animate-spin" /> Generating Answer Guide &amp; classifying difficulty...
+                    <FaSyncAlt className="text-sky-500 text-xs animate-spin" /> Checking question and writing Answer Guide...
                   </span>
                 ) : difficultyInfo?.status === "FAILED" || idealAnswerMode === "failed" ? (
                   <span className="text-rose-600 font-semibold flex items-center gap-1.5">
@@ -1592,7 +1592,7 @@ function QuestionManagement() {
                   </span>
                 ) : (
                   <span className="text-amber-700 font-medium flex items-center gap-1.5">
-                    <FaShieldAlt className="text-amber-500 text-xs" /> Click &ldquo;Create Question&rdquo; to validate &amp; auto-generate the Answer Guide.
+                    <FaShieldAlt className="text-amber-500 text-xs" /> Click &ldquo;Create Question&rdquo; to check the question and write its Answer Guide.
                   </span>
                 )}
               </div>
@@ -1618,7 +1618,7 @@ function QuestionManagement() {
                   }`}
                 >
                   {actionLoading
-                    ? "Saving to Questions Table..."
+                    ? "Saving Question..."
                     : isValidating || isGeneratingIdealAnswer
                       ? "Generating..."
                       : formState.ideal_answer.trim() && (validationAttempted || editingQuestion)
@@ -1644,7 +1644,7 @@ function QuestionManagement() {
             </div>
             <h3 className="mt-4 text-xl font-extrabold text-slate-950">Delete question from bank?</h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              This prompt will be removed permanently from future mock interview generation sessions.
+              This question will be permanently deleted and won&apos;t appear in future interviews.
             </p>
 
             <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:justify-end">

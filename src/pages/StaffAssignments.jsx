@@ -254,13 +254,13 @@ function StaffAssignments() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-800 shadow-sm">
                 <FaUserGraduate className="text-sky-600 text-[11px]" />
-                Staff-Student Access Control
+                Assign Students
               </span>
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
                 Staff Assignments
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Assign candidate students to faculty and staff supervisors to control delegated access to interview progress, evaluations, and readiness ratings.
+                Pair students with staff advisors so staff can see their progress, interview results, and readiness scores.
               </p>
             </div>
 
@@ -271,7 +271,7 @@ function StaffAssignments() {
               className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-white/80 px-4 py-2.5 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
             >
               <FaSyncAlt className={`text-xs ${refreshing || loading ? "animate-spin" : ""}`} />
-              <span>{refreshing ? "Refreshing..." : "Sync Directory"}</span>
+              <span>{refreshing ? "Refreshing..." : "Refresh List"}</span>
             </button>
           </div>
 
@@ -304,7 +304,7 @@ function StaffAssignments() {
                 </span>
               </div>
               <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{activeStaffCount}</p>
-              <p className="mt-1.5 text-xs text-slate-500">Staff members with candidates</p>
+              <p className="mt-1.5 text-xs text-slate-500">Staff with assigned students</p>
             </div>
 
             {/* Assigned Students */}
@@ -320,7 +320,7 @@ function StaffAssignments() {
                 </span>
               </div>
               <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{assignedStudentsCount}</p>
-              <p className="mt-1.5 text-xs text-slate-500">Candidates with delegated access</p>
+              <p className="mt-1.5 text-xs text-slate-500">Students assigned to staff</p>
             </div>
 
             {/* Unassigned Students Pool */}
@@ -330,13 +330,13 @@ function StaffAssignments() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-800">Unassigned Pool</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-800">Not Assigned</p>
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
-                  <FaUsers className="text-[10px]" /> POOL
+                  <FaUsers className="text-[10px]" /> WAITING
                 </span>
               </div>
               <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">{unassignedStudentsCount}</p>
-              <p className="mt-1.5 text-xs text-slate-500">Candidates awaiting assignment</p>
+              <p className="mt-1.5 text-xs text-slate-500">Students without a staff advisor</p>
             </div>
           </div>
         </section>
@@ -377,12 +377,12 @@ function StaffAssignments() {
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700">
-                <FaLink className="text-[10px]" /> Delegation Manager
+                <FaLink className="text-[10px]" /> Assign Student
               </span>
-              <h2 className="mt-1 text-xl font-bold text-slate-950">Assign Candidate to Supervisor</h2>
+              <h2 className="mt-1 text-xl font-bold text-slate-950">Pair a Student with a Staff Member</h2>
             </div>
             <span className="rounded-xl bg-sky-50 px-3 py-1 text-xs font-bold text-sky-800 ring-1 ring-sky-200/60">
-              New Link
+              New Assignment
             </span>
           </div>
 
@@ -450,7 +450,7 @@ function StaffAssignments() {
                 ) : (
                   <>
                     <FaPlus className="text-xs" />
-                    <span>Assign Candidate</span>
+                    <span>Assign Student</span>
                   </>
                 )}
               </button>
@@ -464,7 +464,7 @@ function StaffAssignments() {
           )}
           {students.length === 0 && !loading && (
             <p className="mt-3 text-xs font-semibold text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
-              No registered candidate profiles found in the database.
+              No students found yet.
             </p>
           )}
         </section>
@@ -475,10 +475,10 @@ function StaffAssignments() {
             <div>
               <div className="flex items-center gap-2">
                 <FaShieldAlt className="text-sky-600 text-sm" />
-                <h2 className="text-xl font-bold text-slate-950">Current Assignments Directory</h2>
+                <h2 className="text-xl font-bold text-slate-950">Current Assignments</h2>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Browse, search, and manage all active supervisor-student access permissions.
+                Search, view, or remove student-to-staff assignments.
               </p>
             </div>
 
@@ -488,7 +488,7 @@ function StaffAssignments() {
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search staff or candidate..."
+                placeholder="Search staff or student..."
                 className="w-full rounded-2xl border border-slate-200/90 bg-slate-50/80 pl-10 pr-9 py-2.5 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
               />
               {searchTerm && (
@@ -566,7 +566,7 @@ function StaffAssignments() {
                         <p className="font-bold text-slate-700 text-sm">No Assignments Found</p>
                         <p className="mt-1 text-xs text-slate-500">
                           {searchTerm || staffFilter !== "all"
-                            ? "No assignments match your search or filter criteria."
+                            ? "No assignments match your search or filter."
                             : "No students have been assigned to staff members yet."}
                         </p>
                       </td>
@@ -663,7 +663,7 @@ function StaffAssignments() {
               Remove Student Assignment?
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">
-              Are you sure you want to remove this assignment? The staff supervisor will no longer have access to this student&apos;s mock interview records and evaluations.
+              Are you sure you want to remove this assignment? This staff member will no longer be able to view this student&apos;s interviews and scores.
             </p>
 
             {/* Target Card */}

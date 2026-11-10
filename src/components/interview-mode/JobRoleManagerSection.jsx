@@ -110,8 +110,8 @@ export default function JobRoleManagerSection({
     await onReload();
     onSuccess(
       editing
-        ? `Job role "${result.data.name}" updated.`
-        : `Job role "${result.data.name}" created and synced to Supabase.`
+        ? `Job role "${result.data.name}" has been updated.`
+        : `Job role "${result.data.name}" has been added.`
     );
   }
 
@@ -126,9 +126,9 @@ export default function JobRoleManagerSection({
     onRequestConfirm({
       variant: "power",
       title: `Deactivate "${role.name}"?`,
-      message: `Inactive job roles are hidden from the Android app's Job Role dropdown while keeping ${
+      message: `Students will no longer see "${role.name}" in the mobile app when starting a new interview. Your ${
         usage.questions || 0
-      } question(s) and ${usage.sessions || 0} historical session(s) intact.`,
+      } question(s) and ${usage.sessions || 0} past interview(s) will stay saved.`,
       confirmLabel: "Deactivate Job Role",
       action: () => executeToggleActive(role, false),
     });
@@ -148,14 +148,14 @@ export default function JobRoleManagerSection({
     const usage = usageByJobRoleId[role.id] || {};
     const guard = canDeleteConfigRecord(usage);
     if (!guard.allowed) {
-      onError(`Cannot delete job role "${role.name}": ${guard.reason}`);
+      onError(`Cannot delete "${role.name}": ${guard.reason}`);
       return;
     }
 
     onRequestConfirm({
       variant: "danger",
       title: `Delete "${role.name}"?`,
-      message: "This job role has no linked questions or interview sessions and will be permanently removed.",
+      message: "No questions or past interviews use this job role. Deleting it cannot be undone.",
       confirmLabel: "Delete Job Role",
       action: async () => {
         const res = await deleteJobRole(role.id);
@@ -164,7 +164,7 @@ export default function JobRoleManagerSection({
           return;
         }
         await onReload();
-        onSuccess(`Job role "${role.name}" removed.`);
+        onSuccess(`Job role "${role.name}" was deleted.`);
       },
     });
   }
@@ -233,8 +233,8 @@ export default function JobRoleManagerSection({
             <thead className="bg-slate-50/90 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
               <tr>
                 <th className="px-5 py-3.5">Job Role</th>
-                <th className="px-4 py-3.5">Corresponding Industry</th>
-                <th className="px-4 py-3.5">Questions / Sessions</th>
+                <th className="px-4 py-3.5">Industry</th>
+                <th className="px-4 py-3.5">Questions &amp; Interviews</th>
                 <th className="px-4 py-3.5">Status</th>
                 <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
@@ -243,7 +243,7 @@ export default function JobRoleManagerSection({
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center text-slate-400">
-                    No job roles match your current filters.
+                    No job roles match your search or filter.
                   </td>
                 </tr>
               ) : (
@@ -263,7 +263,7 @@ export default function JobRoleManagerSection({
                           <div>
                             <p className="text-xs font-bold text-slate-900">{role.name}</p>
                             <p className="mt-0.5 max-w-md text-[11px] text-slate-500">
-                              {role.description || "No role description provided."}
+                              {role.description || "No description added."}
                             </p>
                           </div>
                         </div>
@@ -271,17 +271,17 @@ export default function JobRoleManagerSection({
                       <td className="px-4 py-4">
                         <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-800 ring-1 ring-sky-200/80">
                           <FaIndustry className="text-[10px] text-sky-600" />
-                          {ind?.name || "Unassigned Industry"}
+                          {ind?.name || "No industry chosen"}
                         </span>
                         {parentInactive && (
                           <p className="mt-1 text-[10px] font-bold text-amber-700">
-                            Parent industry inactive (hidden in Android app)
+                            Hidden in app while its industry is inactive
                           </p>
                         )}
                       </td>
                       <td className="px-4 py-4 text-[11px] text-slate-600 whitespace-nowrap">
                         <span className="font-semibold text-slate-800">{usage.questions || 0}</span> questions ·{" "}
-                        <span className="font-semibold text-slate-800">{usage.sessions || 0}</span> sessions
+                        <span className="font-semibold text-slate-800">{usage.sessions || 0}</span> interviews
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span
@@ -348,7 +348,7 @@ export default function JobRoleManagerSection({
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Job Role Management</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Job Role Details</p>
                 <h3 className="mt-0.5 text-xl font-extrabold text-slate-950">
                   {editing ? "Edit Job Role" : "Add New Job Role"}
                 </h3>
@@ -372,7 +372,7 @@ export default function JobRoleManagerSection({
 
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Corresponding Industry <span className="text-rose-500">*</span>
+                  Industry <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={formState.industry_id}
@@ -382,7 +382,7 @@ export default function JobRoleManagerSection({
                   }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
                 >
-                  <option value="">Select Industry...</option>
+                  <option value="">Choose an industry...</option>
                   {selectableIndustries.map((ind) => (
                     <option key={ind.id} value={ind.id}>
                       {ind.name}
@@ -416,15 +416,15 @@ export default function JobRoleManagerSection({
                   rows={3}
                   value={formState.description}
                   onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Core skills, tools, and responsibilities covered by this job role."
+                  placeholder="Short note about what this job role does (optional)."
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
                 />
               </div>
 
               <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Active Job Role</p>
-                  <p className="text-[11px] text-slate-500">Show this role in the Android app&apos;s Job Role dropdown.</p>
+                  <p className="text-xs font-bold text-slate-900">Show in Mobile App (Active)</p>
+                  <p className="text-[11px] text-slate-500">Students can pick this job role when starting an interview.</p>
                 </div>
                 <input
                   type="checkbox"
@@ -448,7 +448,7 @@ export default function JobRoleManagerSection({
                 disabled={saving}
                 className="rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:opacity-95 disabled:opacity-60"
               >
-                {saving ? "Saving..." : editing ? "Save Changes" : "Create Job Role"}
+                {saving ? "Saving..." : editing ? "Save Changes" : "Add Job Role"}
               </button>
             </div>
           </form>

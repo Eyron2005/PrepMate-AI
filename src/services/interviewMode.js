@@ -14,10 +14,10 @@ export function validateIndustryInput(input, existingIndustries = [], currentId 
   const is_active = input?.is_active !== false;
 
   if (!name) {
-    return { ok: false, error: "Industry name is required." };
+    return { ok: false, error: "Please enter an industry name." };
   }
   if (name.length < 2 || name.length > 100) {
-    return { ok: false, error: "Industry name must be between 2 and 100 characters." };
+    return { ok: false, error: "Industry name must be 2 to 100 characters long." };
   }
 
   const key = normalizeComparableKey(name);
@@ -38,13 +38,13 @@ export function validateJobRoleInput(input, existingRoles = [], currentId = null
   const is_active = input?.is_active !== false;
 
   if (!industry_id) {
-    return { ok: false, error: "Please select an industry for this job role." };
+    return { ok: false, error: "Please choose an industry for this job role." };
   }
   if (!name) {
-    return { ok: false, error: "Job role name is required." };
+    return { ok: false, error: "Please enter a job role name." };
   }
   if (name.length < 2 || name.length > 100) {
-    return { ok: false, error: "Job role name must be between 2 and 100 characters." };
+    return { ok: false, error: "Job role name must be 2 to 100 characters long." };
   }
 
   const key = normalizeComparableKey(name);
@@ -79,13 +79,13 @@ export function canDeleteConfigRecord(usage = {}) {
 
   const blockers = [];
   if (questions > 0) blockers.push(`${questions} question(s)`);
-  if (sessions > 0) blockers.push(`${sessions} interview session(s)`);
+  if (sessions > 0) blockers.push(`${sessions} past interview(s)`);
   if (childRoles > 0) blockers.push(`${childRoles} job role(s)`);
 
   if (blockers.length > 0) {
     return {
       allowed: false,
-      reason: `Referenced by ${blockers.join(", ")}. Deactivate it instead of deleting.`,
+      reason: `Still used by ${blockers.join(", ")}. You can deactivate it instead of deleting.`,
     };
   }
 
@@ -95,10 +95,10 @@ export function canDeleteConfigRecord(usage = {}) {
 function formatDbError(error, fallback) {
   if (!error) return fallback;
   if (error.code === "23505") {
-    return "A record with that name already exists in the selected scope.";
+    return "That name already exists. Please use a different name.";
   }
   if (error.code === "23503") {
-    return "This record is still referenced by existing questions, job roles, or interview sessions. Deactivate it instead.";
+    return "This item is still used by existing questions, job roles, or interviews. You can deactivate it instead.";
   }
   return error.message || fallback;
 }
@@ -124,7 +124,7 @@ export async function fetchInterviewModeCatalog() {
   if (firstError) {
     return {
       ok: false,
-      error: formatDbError(firstError, "Unable to load Industries and Job Roles from Supabase."),
+      error: formatDbError(firstError, "Could not load industries and job roles right now. Please try again."),
       data: null,
     };
   }

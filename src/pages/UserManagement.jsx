@@ -518,7 +518,7 @@ function UserManagement() {
     if (!deactivateTarget) return;
 
     if (!deactivateDetails.trim()) {
-      setDeactivateError("Please provide administrative remarks or details for this deactivation.");
+      setDeactivateError("Please write a short reason for deactivating this account.");
       return;
     }
 
@@ -664,13 +664,13 @@ function UserManagement() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-100 to-cyan-100 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-800 shadow-sm">
                 <FaShieldAlt className="text-sky-600 text-[10px]" />
-                Directory Management
+                Students
               </span>
               <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
                 User Management
               </h1>
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
-                Search candidate profiles, monitor real-time presence, inspect student records, and securely manage account activation status.
+                Search students, see who is online, view student details, and activate or deactivate accounts.
               </p>
             </div>
 
@@ -681,7 +681,7 @@ function UserManagement() {
               className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-white/80 px-4 py-2 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
             >
               <FaSyncAlt className={`text-xs ${refreshing || loading ? "animate-spin" : ""}`} />
-              <span>{refreshing ? "Refreshing..." : "Sync Directory"}</span>
+              <span>{refreshing ? "Refreshing..." : "Refresh List"}</span>
             </button>
           </div>
 
@@ -698,7 +698,7 @@ function UserManagement() {
                 <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold text-white">ALL</span>
               </div>
               <p className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">{totalUserCount ?? "—"}</p>
-              <p className="mt-1 text-[11px] text-sky-100/90">Registered candidates in system</p>
+              <p className="mt-1 text-[11px] text-sky-100/90">All student accounts</p>
             </div>
 
             {/* Active Accounts */}
@@ -714,7 +714,7 @@ function UserManagement() {
                 </span>
               </div>
               <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">{activeUserCount ?? "—"}</p>
-              <p className="mt-1 text-[11px] text-slate-500">Unrestricted app login access</p>
+              <p className="mt-1 text-[11px] text-slate-500">Can log in to the app</p>
             </div>
 
             {/* Deactivated Accounts */}
@@ -730,7 +730,7 @@ function UserManagement() {
                 </span>
               </div>
               <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">{deactivatedUserCount ?? "—"}</p>
-              <p className="mt-1 text-[11px] text-slate-500">Banned from signing in</p>
+              <p className="mt-1 text-[11px] text-slate-500">Blocked from logging in</p>
             </div>
 
             {/* Realtime Online */}
@@ -758,9 +758,9 @@ function UserManagement() {
           <div className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-950">Student Directory</h2>
+                <h2 className="text-xl font-bold text-slate-950">Student List</h2>
                 <p className="mt-1 text-xs text-slate-500">
-                  Select a student profile to inspect metadata or modify account status.
+                  Click any student to see their details or change account status.
                 </p>
               </div>
 
@@ -870,7 +870,7 @@ function UserManagement() {
                       <tr>
                         <td colSpan="6" className="px-6 py-14 text-center text-slate-400">
                           <FaSyncAlt className="mx-auto mb-2 animate-spin text-base text-sky-600" />
-                          Loading candidate profiles...
+                          Loading students...
                         </td>
                       </tr>
                     ) : loadError && displayedUsers.length === 0 ? (
@@ -882,7 +882,7 @@ function UserManagement() {
                     ) : displayedUsers.length === 0 ? (
                       <tr>
                         <td colSpan="6" className="px-6 py-14 text-center text-slate-400">
-                          No student accounts match the selected criteria.
+                          No students match your search or filter.
                         </td>
                       </tr>
                     ) : (
@@ -1029,7 +1029,7 @@ function UserManagement() {
                                     setModalUser(user);
                                   }}
                                   className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-sky-100 hover:text-sky-800"
-                                  title="Inspect Student Details"
+                                  title="View Student Details"
                                 >
                                   <FaEye className="text-[11px]" /> Inspect
                                 </button>
@@ -1160,10 +1160,10 @@ function UserManagement() {
                       <FaBan className="text-rose-600 text-lg" />
                       <div>
                         <h4 className="font-extrabold text-rose-950 text-sm tracking-wide">
-                          Account Suspended (Deactivated)
+                          Account Deactivated
                         </h4>
                         <p className="text-[11px] text-rose-700">
-                          This student is banned from logging into the mobile application.
+                          This student cannot log in to the mobile app right now.
                         </p>
                       </div>
                     </div>
@@ -1189,14 +1189,14 @@ function UserManagement() {
                       <p className="mt-1 font-semibold text-slate-800">
                         {modalUserWithPresence.deactivated_at
                           ? new Date(modalUserWithPresence.deactivated_at).toLocaleString()
-                          : "Recorded during administrative hold"}
+                          : "Set by admin"}
                       </p>
                     </div>
 
                     {modalUserWithPresence.deactivation_details && (
                       <div className="sm:col-span-2 rounded-xl bg-white/80 p-3.5 ring-1 ring-rose-200/50">
                         <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
-                          Administrative Remarks:
+                          Admin Notes:
                         </span>
                         <p className="mt-1 font-medium italic text-slate-700">
                           &ldquo;{modalUserWithPresence.deactivation_details}&rdquo;
@@ -1239,7 +1239,7 @@ function UserManagement() {
                 {/* Left Column: Account Metadata */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Account & Profile Metadata
+                    Account Details
                   </h4>
 
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 space-y-3.5 text-xs">
@@ -1247,7 +1247,7 @@ function UserManagement() {
                     <div className="flex items-center justify-between rounded-xl bg-white p-3 ring-1 ring-slate-100">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Profile Identifier
+                          User ID
                         </p>
                         <p className="font-mono text-xs font-semibold text-slate-800 break-all">
                           {modalUserWithPresence.id}
@@ -1282,12 +1282,12 @@ function UserManagement() {
                       <FaClock className="text-slate-400 text-sm" />
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Last Seen Activity
+                          Last Active
                         </p>
                         <p className="font-semibold text-slate-800">
                           {modalUserWithPresence.last_online_at
                             ? new Date(modalUserWithPresence.last_online_at).toLocaleString()
-                            : "No recent activity recorded"}
+                            : "No recent activity"}
                         </p>
                       </div>
                     </div>
@@ -1295,12 +1295,12 @@ function UserManagement() {
                     {/* Access Status Summary */}
                     <div className="rounded-xl bg-white p-3 ring-1 ring-slate-100">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Application Access Status
+                        App Login Status
                       </p>
                       <p className="mt-1 font-semibold text-slate-800">
                         {modalUserWithPresence.account_status === "deactivated"
-                          ? "Access restricted: Login banned by administrator."
-                          : "Full access: Active student can complete mock interviews."}
+                          ? "Blocked: This student cannot log in right now."
+                          : "Active: Student can log in and take mock interviews."}
                       </p>
                     </div>
                   </div>
@@ -1308,7 +1308,7 @@ function UserManagement() {
                   {/* Danger Zone Actions */}
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 space-y-2.5">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Administrative Actions
+                      Account Actions
                     </p>
 
                     {modalUserWithPresence.account_status !== "deactivated" ? (
@@ -1340,7 +1340,7 @@ function UserManagement() {
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
                     >
                       <FaTrash className="text-[10px]" />
-                      <span>Permanent Delete (Purge Account)</span>
+                      <span>Delete Account Permanently</span>
                     </button>
                   </div>
                 </div>
@@ -1357,7 +1357,7 @@ function UserManagement() {
             {/* Modal Footer */}
             <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
               <span className="text-[11px] text-slate-400 font-medium">
-                PrepMate AI Administrative Console • Comprehensive Student Profile
+                PrepMate AI Admin • Student Details
               </span>
               <button
                 type="button"
@@ -1414,7 +1414,7 @@ function UserManagement() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Profile Identifier
+                    User ID
                   </p>
                   <p className="font-mono text-[11px] text-slate-500 truncate">{deactivateTarget.id}</p>
                 </div>
@@ -1449,13 +1449,13 @@ function UserManagement() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-800">
-                  Administrative Remarks & Notes <span className="text-rose-600">*</span>
+                  Reason &amp; Notes <span className="text-rose-600">*</span>
                 </label>
                 <textarea
                   rows={3}
                   value={deactivateDetails}
                   onChange={(e) => setDeactivateDetails(e.target.value)}
-                  placeholder="Provide detailed context or explanation for why this student account is being deactivated..."
+                  placeholder="Write a clear explanation for why this student's account is being deactivated..."
                   className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
                 />
               </div>
@@ -1548,7 +1548,7 @@ function UserManagement() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Profile Identifier
+                    User ID
                   </p>
                   <p className="font-mono text-[11px] text-slate-500 truncate">{reactivateTarget.id}</p>
                 </div>
@@ -1559,17 +1559,17 @@ function UserManagement() {
             <div className="mt-5 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-800">
-                  Administrative Remarks <span className="font-normal text-slate-400">(Optional)</span>
+                  Admin Note <span className="font-normal text-slate-400">(Optional)</span>
                 </label>
                 <textarea
                   rows={3}
                   value={reactivateRemarks}
                   onChange={(e) => setReactivateRemarks(e.target.value)}
-                  placeholder="e.g. Issue resolved with administration, direct verification completed, disciplinary hold lifted..."
+                  placeholder="e.g. Issue resolved, student verified, account ready to use again..."
                   className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  These remarks will be recorded in the audit log and attached to any pending request as the resolution rationale.
+                  This note is saved in the activity history and shown with this reactivation.
                 </p>
               </div>
 
@@ -1625,10 +1625,10 @@ function UserManagement() {
               <FaTrash className="text-lg" />
             </div>
             <h3 className="mt-4 text-xl font-extrabold text-slate-950">
-              Permanently purge candidate record?
+              Delete this student account permanently?
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              This will permanently delete <strong>{deleteUserTarget.full_name}</strong> and all associated interview sessions. (Note: To temporarily suspend access without losing data, use <em>Deactivate Account</em> instead).
+              This will permanently remove <strong>{deleteUserTarget.full_name}</strong> and all their saved interviews. If you only want to block login without losing data, use <em>Deactivate Student Account</em> instead.
             </p>
 
             <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:justify-end">

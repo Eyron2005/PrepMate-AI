@@ -87,8 +87,8 @@ export default function IndustryManagerSection({
     await onReload();
     onSuccess(
       editing
-        ? `Industry "${result.data.name}" updated.`
-        : `Industry "${result.data.name}" created and saved.`
+        ? `Industry "${result.data.name}" has been updated.`
+        : `Industry "${result.data.name}" has been added.`
     );
   }
 
@@ -103,7 +103,7 @@ export default function IndustryManagerSection({
     onRequestConfirm({
       variant: "power",
       title: `Deactivate "${item.name}"?`,
-      message: `Inactive industries are hidden from the Android app's Select Industry dropdown and disable their job roles for new interviews. Existing job roles (${usage.childRoles || 0}), questions (${usage.questions || 0}), and historical sessions (${usage.sessions || 0}) remain intact.`,
+      message: `Students will no longer see "${item.name}" or its job roles in the mobile app when starting a new interview. Your ${usage.childRoles || 0} job role(s), ${usage.questions || 0} question(s), and ${usage.sessions || 0} past interview(s) will stay saved.`,
       confirmLabel: "Deactivate Industry",
       action: () => executeToggleActive(item, false),
     });
@@ -123,14 +123,14 @@ export default function IndustryManagerSection({
     const usage = usageByIndustryId[item.id] || {};
     const guard = canDeleteConfigRecord(usage);
     if (!guard.allowed) {
-      onError(`Cannot delete industry "${item.name}": ${guard.reason}`);
+      onError(`Cannot delete "${item.name}": ${guard.reason}`);
       return;
     }
 
     onRequestConfirm({
       variant: "danger",
       title: `Delete "${item.name}"?`,
-      message: "This industry has no linked job roles, questions, or interview sessions and will be permanently removed.",
+      message: "No job roles, questions, or past interviews use this industry. Deleting it cannot be undone.",
       confirmLabel: "Delete Industry",
       action: async () => {
         const res = await deleteIndustry(item.id);
@@ -139,7 +139,7 @@ export default function IndustryManagerSection({
           return;
         }
         await onReload();
-        onSuccess(`Industry "${item.name}" removed.`);
+        onSuccess(`Industry "${item.name}" was deleted.`);
       },
     });
   }
@@ -189,7 +189,7 @@ export default function IndustryManagerSection({
               <tr>
                 <th className="px-5 py-3.5">Industry</th>
                 <th className="px-4 py-3.5">Job Roles</th>
-                <th className="px-4 py-3.5">Questions / Sessions</th>
+                <th className="px-4 py-3.5">Questions &amp; Interviews</th>
                 <th className="px-4 py-3.5">Status</th>
                 <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
@@ -198,7 +198,7 @@ export default function IndustryManagerSection({
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center text-slate-400">
-                    No industries match your current filters.
+                    No industries match your search or filter.
                   </td>
                 </tr>
               ) : (
@@ -215,7 +215,7 @@ export default function IndustryManagerSection({
                           <div>
                             <p className="text-xs font-bold text-slate-900">{item.name}</p>
                             <p className="mt-0.5 max-w-md text-[11px] text-slate-500">
-                              {item.description || "No description provided."}
+                              {item.description || "No description added."}
                             </p>
                           </div>
                         </div>
@@ -223,7 +223,7 @@ export default function IndustryManagerSection({
                       <td className="px-4 py-4 font-bold text-slate-800">{usage.childRoles || 0} roles</td>
                       <td className="px-4 py-4 text-[11px] text-slate-600">
                         <span className="font-semibold text-slate-800">{usage.questions || 0}</span> questions ·{" "}
-                        <span className="font-semibold text-slate-800">{usage.sessions || 0}</span> sessions
+                        <span className="font-semibold text-slate-800">{usage.sessions || 0}</span> interviews
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span
@@ -288,7 +288,7 @@ export default function IndustryManagerSection({
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700">Industry Management</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700">Industry Details</p>
                 <h3 className="mt-0.5 text-xl font-extrabold text-slate-950">
                   {editing ? "Edit Industry" : "Add New Industry"}
                 </h3>
@@ -321,7 +321,7 @@ export default function IndustryManagerSection({
                     setFormState((prev) => ({ ...prev, name: e.target.value }));
                     setFormError("");
                   }}
-                  placeholder="e.g., Healthcare & Nursing"
+                  placeholder="e.g., Healthcare"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
                 />
               </div>
@@ -334,15 +334,15 @@ export default function IndustryManagerSection({
                   rows={3}
                   value={formState.description}
                   onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Scope of roles and interview readiness focus areas for this industry."
+                  placeholder="Short note about the jobs included in this industry (optional)."
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
                 />
               </div>
 
               <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Active Industry</p>
-                  <p className="text-[11px] text-slate-500">Allow students to select this industry in Interview Mode.</p>
+                  <p className="text-xs font-bold text-slate-900">Show in Mobile App (Active)</p>
+                  <p className="text-[11px] text-slate-500">Students can pick this industry when starting an interview.</p>
                 </div>
                 <input
                   type="checkbox"
@@ -366,7 +366,7 @@ export default function IndustryManagerSection({
                 disabled={saving}
                 className="rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:opacity-95 disabled:opacity-60"
               >
-                {saving ? "Saving..." : editing ? "Save Changes" : "Create Industry"}
+                {saving ? "Saving..." : editing ? "Save Changes" : "Add Industry"}
               </button>
             </div>
           </form>

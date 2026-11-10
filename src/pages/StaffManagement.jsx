@@ -154,29 +154,29 @@ function StaffManagement() {
           <div className="relative">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-100 to-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-indigo-800 shadow-sm">
               <FaUserTie className="text-[11px]" />
-              Staff Directory &amp; Permissions
+              Staff Accounts
             </span>
             <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
               Staff Management
             </h1>
             <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-              Add staff supervisors, dispatch invitations, assign department positions, and manage team access.
+              Invite staff members, set their departments and roles, and manage their access.
             </p>
           </div>
 
           {/* Quick Metrics Bar */}
           <div className="relative mt-8 grid gap-4 sm:grid-cols-2">
             <div className="stat-card rounded-[1.75rem] border border-violet-100/80 bg-gradient-to-br from-violet-50/80 via-white to-indigo-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(99,102,241,0.3)] ring-1 ring-violet-200/50">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Total Staff Members</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-800">Total Staff</p>
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">{staff.length}</p>
-              <p className="mt-1 text-xs text-slate-500">Active supervisors in organization</p>
+              <p className="mt-1 text-xs text-slate-500">Active staff members</p>
             </div>
             <div className="stat-card rounded-[1.75rem] border border-sky-100/80 bg-gradient-to-br from-sky-50/80 via-white to-cyan-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(14,116,144,0.4)] ring-1 ring-sky-200/50">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-800">Departments Represented</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-800">Departments</p>
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">
                 {new Set(staff.map((item) => item.department).filter(Boolean)).size}
               </p>
-              <p className="mt-1 text-xs text-slate-500">Distinct faculty &amp; supervisory divisions</p>
+              <p className="mt-1 text-xs text-slate-500">Departments added</p>
             </div>
           </div>
         </section>
@@ -200,7 +200,7 @@ function StaffManagement() {
         <section className="glass-card rounded-[2.25rem] border border-white/80 p-6 shadow-[0_20px_45px_-25px_rgba(37,99,235,0.4)] ring-1 ring-sky-100/90 sm:p-7">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Staff Credentials</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700">Staff Details</p>
               <h2 className="mt-1 text-xl font-bold text-slate-950">
                 {editing ? `Editing: ${editing.full_name}` : "Invite Staff Member"}
               </h2>

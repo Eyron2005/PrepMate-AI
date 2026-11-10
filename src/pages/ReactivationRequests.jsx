@@ -169,7 +169,7 @@ function ReactivationRequests() {
   const handleReject = async () => {
     if (!rejectTarget) return;
     if (!adminRemarks.trim()) {
-      setActionError("Please provide an administrative reason for rejecting the request.");
+      setActionError("Please write a short reason explaining why this request was rejected.");
       return;
     }
 
@@ -225,13 +225,13 @@ function ReactivationRequests() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-amber-800 shadow-sm">
                 <FaUserClock className="text-amber-700 text-[11px]" />
-                Account Reactivation Queue
+                Student Requests
               </span>
               <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
                 Reactivation Requests
               </h1>
               <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Review submitted requests from deactivated students. Approving restores application access and clears Auth bans.
+                Review requests from deactivated students. Approving turns their account back on so they can log in again.
               </p>
             </div>
 
@@ -242,7 +242,7 @@ function ReactivationRequests() {
               className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-white/80 px-4 py-2.5 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 hover:shadow disabled:opacity-50"
             >
               <FaSyncAlt className={`text-xs ${refreshing ? "animate-spin" : ""}`} />
-              <span>{refreshing ? "Refreshing..." : "Refresh Queue"}</span>
+              <span>{refreshing ? "Refreshing..." : "Refresh List"}</span>
             </button>
           </div>
 
@@ -257,7 +257,7 @@ function ReactivationRequests() {
                 </span>
               </div>
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">{counts.pending}</p>
-              <p className="mt-1 text-xs text-slate-500">Awaiting administrative decision</p>
+              <p className="mt-1 text-xs text-slate-500">Waiting for review</p>
             </div>
 
             <div className="stat-card rounded-[1.75rem] border border-emerald-100/80 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(16,185,129,0.3)] ring-1 ring-emerald-200/50">
@@ -266,7 +266,7 @@ function ReactivationRequests() {
                 <FaCheck className="text-emerald-600 text-sm" />
               </div>
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">{counts.approved}</p>
-              <p className="mt-1 text-xs text-slate-500">Restored to active status</p>
+              <p className="mt-1 text-xs text-slate-500">Turned back on</p>
             </div>
 
             <div className="stat-card rounded-[1.75rem] border border-rose-100/80 bg-gradient-to-br from-rose-50/80 via-white to-pink-50/60 p-6 shadow-[0_18px_35px_-22px_rgba(244,63,94,0.3)] ring-1 ring-rose-200/50">
@@ -275,7 +275,7 @@ function ReactivationRequests() {
                 <FaTimes className="text-rose-600 text-sm" />
               </div>
               <p className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950">{counts.rejected}</p>
-              <p className="mt-1 text-xs text-slate-500">Deactivation upheld</p>
+              <p className="mt-1 text-xs text-slate-500">Kept deactivated</p>
             </div>
           </div>
         </section>
@@ -309,7 +309,7 @@ function ReactivationRequests() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-xl font-bold text-slate-950">Student Requests</h2>
-              <p className="mt-1 text-xs text-slate-500">Inspect justification reasons and approve or reject submissions.</p>
+              <p className="mt-1 text-xs text-slate-500">Read each student's message and choose whether to approve or reject.</p>
             </div>
 
             {/* Search Bar */}
@@ -394,7 +394,7 @@ function ReactivationRequests() {
                     <tr>
                       <td colSpan="6" className="px-6 py-14 text-center text-slate-400">
                         <FaSyncAlt className="mx-auto mb-2 animate-spin text-base text-sky-600" />
-                        Loading reactivation queue...
+                        Loading requests...
                       </td>
                     </tr>
                   ) : filteredRequests.length === 0 ? (
@@ -544,7 +544,7 @@ function ReactivationRequests() {
                   </p>
                   {inspectTarget.admin_remarks && (
                     <div className="mt-2 text-[11px] text-slate-700">
-                      <strong>Admin Remarks:</strong> {inspectTarget.admin_remarks}
+                      <strong>Admin Note:</strong> {inspectTarget.admin_remarks}
                     </div>
                   )}
                 </div>
@@ -583,11 +583,11 @@ function ReactivationRequests() {
 
             <div className="mt-4">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Admin Approval Remarks (Optional)
+                Note (Optional)
               </label>
               <input
                 type="text"
-                placeholder="e.g., Reviewed appeal and verified student eligibility."
+                placeholder="e.g., Request reviewed and approved."
                 value={adminRemarks}
                 onChange={(e) => setAdminRemarks(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
@@ -624,7 +624,7 @@ function ReactivationRequests() {
             </div>
             <h3 className="mt-4 text-xl font-extrabold text-slate-950">Reject Reactivation Request</h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              Please specify the administrative remarks explaining why this student's reactivation request is rejected. The account will remain deactivated.
+              Write a short reason explaining why this request is rejected. The student's account will stay deactivated.
             </p>
 
             <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs space-y-1">
@@ -634,12 +634,12 @@ function ReactivationRequests() {
 
             <div className="mt-4">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Administrative Remarks * (Required)
+                Reason for Rejecting * (Required)
               </label>
               <textarea
                 required
                 rows={3}
-                placeholder="Explain the reason for rejecting this reactivation request..."
+                placeholder="Write a clear reason for rejecting this request..."
                 value={adminRemarks}
                 onChange={(e) => setAdminRemarks(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
