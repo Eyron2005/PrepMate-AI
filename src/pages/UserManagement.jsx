@@ -44,6 +44,51 @@ function getInitials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 
+function StudentAvatar({
+  avatarUrl,
+  name,
+  isDeactivated = false,
+  size = "md",
+}) {
+  const [failedUrl, setFailedUrl] = useState(null);
+  const isLg = size === "lg";
+
+  const sizeClasses = isLg ? "h-14 w-14" : "h-9 w-9";
+  const badgeRadius = isLg ? "rounded-2xl" : "rounded-xl";
+  const textClasses = isLg ? "text-xl font-extrabold" : "text-xs font-bold";
+  const bgClasses = isDeactivated
+    ? "bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20"
+    : "bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/30";
+
+  const hasFailed = Boolean(avatarUrl && failedUrl === avatarUrl);
+
+  if (avatarUrl && !hasFailed) {
+    return (
+      <div
+        className={`relative shrink-0 overflow-hidden rounded-full ${sizeClasses} shadow-sm ring-2 ${
+          isDeactivated ? "ring-slate-300" : "ring-sky-200"
+        } bg-slate-100 flex items-center justify-center`}
+      >
+        <img
+          src={avatarUrl}
+          alt={name || "Student profile photo"}
+          onError={() => setFailedUrl(avatarUrl)}
+          className="h-full w-full object-cover rounded-full"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center text-white shadow-sm ${sizeClasses} ${badgeRadius} ${textClasses} ${bgClasses}`}
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 function UserManagement() {
   const navigate = useNavigate();
   const { connectionCounts } = usePresence();
@@ -146,6 +191,29 @@ function UserManagement() {
         );
         totalCount = !countError && countData != null ? Number(countData) : rpcData.length;
 
+        // Query avatar_url from the Supabase profiles table for candidate profiles
+        const profileIds = rpcData.map((row) => row.id).filter(Boolean);
+        let avatarMap = {};
+        if (profileIds.length > 0) {
+          try {
+            const { data: avatarRows } = await supabase
+              .from("profiles")
+              .select("id, avatar_url")
+              .in("id", profileIds)
+              .abortSignal(controller.signal);
+
+            if (Array.isArray(avatarRows)) {
+              avatarMap = Object.fromEntries(
+                avatarRows
+                  .filter((r) => r && r.id && r.avatar_url)
+                  .map((r) => [r.id, r.avatar_url])
+              );
+            }
+          } catch (avatarFetchErr) {
+            console.warn("Could not query avatar_url from profiles table:", avatarFetchErr);
+          }
+        }
+
         profileUsers = rpcData.map((row) => {
           const lastOnlineDate = row.last_online ? new Date(row.last_online) : null;
           const lastOnlineAt =
@@ -155,6 +223,7 @@ function UserManagement() {
           const status = row.account_status || "active";
           return {
             ...row,
+            avatar_url: row.avatar_url || avatarMap[row.id] || null,
             full_name: row.full_name || row.email || "Unnamed Candidate",
             email: row.email || "",
             account_status: status,
@@ -207,6 +276,7 @@ function UserManagement() {
           const status = row.account_status || "active";
           return {
             ...row,
+            avatar_url: row.avatar_url || null,
             full_name: row.full_name || "Unnamed Candidate",
             email: row.email || "",
             account_status: status,
@@ -331,13 +401,15 @@ function UserManagement() {
     };
   }, [loadAccountCounts, refreshOnlineStatuses]);
 
-  // Load selected or modal candidate's detailed ERI assessment history
+  const modalUserId = modalUser?.id;
+  const modalUserAvatar = modalUser?.avatar_url;
+
+  // Load selected or modal candidate's detailed ERI assessment history & avatar
   useEffect(() => {
     let isMounted = true;
 
     const frameId = requestAnimationFrame(async () => {
-      const targetUserId = modalUser?.id;
-      if (!targetUserId) {
+      if (!modalUserId) {
         if (isMounted) {
           setStudentEriHistory([]);
           setLoadingEriHistory(false);
@@ -347,7 +419,7 @@ function UserManagement() {
 
       setLoadingEriHistory(true);
       try {
-        const history = await fetchStudentEriHistory(targetUserId);
+        const history = await fetchStudentEriHistory(modalUserId);
         if (isMounted) {
           setStudentEriHistory(history || []);
         }
@@ -357,13 +429,32 @@ function UserManagement() {
       } finally {
         if (isMounted) setLoadingEriHistory(false);
       }
+
+      // Query avatar_url from profiles table if missing on modalUser
+      if (!modalUserAvatar) {
+        supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", modalUserId)
+          .maybeSingle()
+          .then(({ data: profileData }) => {
+            if (isMounted && profileData?.avatar_url) {
+              setModalUser((curr) =>
+                curr && curr.id === modalUserId
+                  ? { ...curr, avatar_url: profileData.avatar_url }
+                  : curr
+              );
+            }
+          })
+          .catch(() => {});
+      }
     });
 
     return () => {
       isMounted = false;
       cancelAnimationFrame(frameId);
     };
-  }, [modalUser?.id]);
+  }, [modalUserId, modalUserAvatar]);
 
   const usersWithPresence = useMemo(
     () =>
@@ -395,6 +486,7 @@ function UserManagement() {
     return {
       ...modalUser,
       ...(live || {}),
+      avatar_url: modalUser.avatar_url || live?.avatar_url || null,
     };
   }, [modalUser, usersWithPresence]);
 
@@ -797,15 +889,12 @@ function UserManagement() {
                           >
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-3">
-                                <div
-                                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm ${
-                                    isDeactivated
-                                      ? "bg-gradient-to-br from-slate-400 to-slate-600"
-                                      : "bg-gradient-to-br from-sky-500 to-blue-600"
-                                  }`}
-                                >
-                                  {getInitials(user.full_name)}
-                                </div>
+                                <StudentAvatar
+                                  avatarUrl={user.avatar_url}
+                                  name={user.full_name}
+                                  isDeactivated={isDeactivated}
+                                  size="md"
+                                />
                                 <div className="min-w-0">
                                   <p className="truncate font-bold text-slate-900">{user.full_name}</p>
                                   <p className="truncate text-[11px] text-slate-500">
@@ -984,15 +1073,12 @@ function UserManagement() {
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-5">
               <div className="flex items-center gap-4">
-                <div
-                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-extrabold text-white shadow-md ${
-                    modalUserWithPresence.account_status === "deactivated"
-                      ? "bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/20"
-                      : "bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/30"
-                  }`}
-                >
-                  {getInitials(modalUserWithPresence.full_name)}
-                </div>
+                <StudentAvatar
+                  avatarUrl={modalUserWithPresence.avatar_url}
+                  name={modalUserWithPresence.full_name}
+                  isDeactivated={modalUserWithPresence.account_status === "deactivated"}
+                  size="lg"
+                />
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-xl font-extrabold text-slate-950">

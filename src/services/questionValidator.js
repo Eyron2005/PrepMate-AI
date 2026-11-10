@@ -800,9 +800,23 @@ export async function validateQuestionWithAiOrRules({
 
     if (error) {
       console.error("Supabase edge function error:", error);
+      let errorMsg = error.message;
+
+      // Extract detailed server error response body if available from HTTP context
+      if (error.context && typeof error.context.json === "function") {
+        try {
+          const errorBody = await error.context.json();
+          if (errorBody?.error) {
+            errorMsg = errorBody.error;
+          }
+        } catch {
+          // fallback to error.message
+        }
+      }
+
       return {
         success: false,
-        error: error.message || "Failed to validate question with Gemini. Please check server connection.",
+        error: errorMsg || "Failed to validate question with Gemini. Please check server connection.",
       };
     }
 

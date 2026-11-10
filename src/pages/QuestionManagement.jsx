@@ -230,7 +230,8 @@ function QuestionManagement() {
   async function handleSaveQuestion() {
     if (actionLoading || isValidating) return;
 
-    if (!formState.question.trim()) {
+    const trimmedQuestion = formState.question.trim();
+    if (!trimmedQuestion) {
       alert("Please provide the question prompt text.");
       return;
     }
@@ -245,21 +246,25 @@ function QuestionManagement() {
       return;
     }
 
-    if (!validationAttempted || !validationResult) {
-      alert("Please click 'Validate Question' to verify grammar, relevance, and suitability before creating.");
-      return;
+    // Automatically validate question on the spot if not yet validated
+    let currentResult = validationResult;
+    if (!validationAttempted || !currentResult) {
+      currentResult = await handleValidate(true);
+      if (!currentResult) {
+        return;
+      }
     }
 
-    if (validationResult.status === "invalid") {
+    if (currentResult.status === "invalid") {
       alert(
         `Cannot save question:\n\n${
-          validationResult?.overallFeedback || "The question fails mandatory validation checks. Please correct the flagged issues."
+          currentResult?.overallFeedback || "The question fails mandatory validation checks. Please correct the flagged issues."
         }`
       );
       return;
     }
 
-    const failedChecks = Object.entries(validationResult.checks || {})
+    const failedChecks = Object.entries(currentResult.checks || {})
       .filter(([, c]) => c.status === "fail")
       .map(([, c]) => `• ${c.title}: ${c.message}`);
 
@@ -268,9 +273,9 @@ function QuestionManagement() {
       return;
     }
 
-    if (validationResult.status === "needs_revision") {
+    if (currentResult.status === "needs_revision") {
       const proceed = window.confirm(
-        `This question has quality warnings:\n\n${validationResult.overallFeedback}\n\nDo you want to proceed and save anyway?`
+        `This question has quality warnings:\n\n${currentResult.overallFeedback}\n\nDo you want to proceed and save anyway?`
       );
       if (!proceed) {
         return;
@@ -278,8 +283,9 @@ function QuestionManagement() {
     }
 
     setActionLoading(true);
+    const questionTextToSave = (currentResult.correctedText || formState.question).trim();
     const payload = {
-      question: formState.question.trim(),
+      question: questionTextToSave,
       category: formState.category,
       difficulty: formState.difficulty,
     };
@@ -686,8 +692,7 @@ function QuestionManagement() {
                   <select
                     value={formState.category}
                     onChange={(e) => {
-                      setFormState({ ...formState, category: e.target.value });
-                      if (validationResult) setValidationResult(null);
+                      setFormState((prev) => ({ ...prev, category: e.target.value }));
                       if (validationAttempted) setValidationAttempted(false);
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
@@ -706,9 +711,7 @@ function QuestionManagement() {
                   <select
                     value={formState.difficulty}
                     onChange={(e) => {
-                      setFormState({ ...formState, difficulty: e.target.value });
-                      if (validationResult) setValidationResult(null);
-                      if (validationAttempted) setValidationAttempted(false);
+                      setFormState((prev) => ({ ...prev, difficulty: e.target.value }));
                     }}
                     className="w-full rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/15"
                   >
@@ -841,9 +844,13 @@ function QuestionManagement() {
             {/* Modal Footer */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-100 px-7 py-4 sm:px-9 bg-slate-50/60 rounded-b-[2.25rem]">
               <div className="text-[11px] font-medium text-slate-500">
-                {!validationAttempted ? (
-                  <span className="text-amber-700 font-semibold flex items-center gap-1.5">
-                    <FaShieldAlt className="text-amber-500 text-xs" /> Click &ldquo;Validate Question&rdquo; before saving.
+                {isValidating ? (
+                  <span className="text-sky-700 font-semibold flex items-center gap-1.5 animate-pulse">
+                    <FaSyncAlt className="text-sky-500 text-xs animate-spin" /> AI analyzing and validating question...
+                  </span>
+                ) : !validationAttempted ? (
+                  <span className="text-slate-600 font-medium flex items-center gap-1.5">
+                    <FaShieldAlt className="text-sky-500 text-xs" /> Click &ldquo;Validate Question&rdquo; or click &ldquo;{editingQuestion ? "Update Question" : "Create Question"}&rdquo; to validate & save.
                   </span>
                 ) : validationResult?.status === "invalid" ? (
                   <span className="text-rose-600 font-semibold flex items-center gap-1.5">
@@ -875,16 +882,24 @@ function QuestionManagement() {
                     !formState.question.trim() ||
                     !formState.category ||
                     !formState.difficulty ||
-                    !validationAttempted ||
-                    validationResult?.status === "invalid"
+                    (validationAttempted && validationResult?.status === "invalid")
                   }
                   className={`rounded-xl px-6 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                    !validationAttempted || validationResult?.status === "invalid" || !formState.category || !formState.difficulty
+                    !formState.question.trim() ||
+                    !formState.category ||
+                    !formState.difficulty ||
+                    (validationAttempted && validationResult?.status === "invalid")
                       ? "bg-slate-400"
                       : "bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 shadow-sky-500/30 hover:shadow-sky-500/50"
                   }`}
                 >
-                  {actionLoading ? "Saving Question..." : editingQuestion ? "Update Question" : "Create Question"}
+                  {actionLoading
+                    ? "Saving Question..."
+                    : isValidating
+                      ? "Validating..."
+                      : editingQuestion
+                        ? "Update Question"
+                        : "Create Question"}
                 </button>
               </div>
             </div>

@@ -85,37 +85,43 @@ Deno.serve(async (request) => {
   }
 
   const authorization = request.headers.get("Authorization");
-  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1] || request.headers.get("apikey");
-  if (!token) {
-    return respond(401, { success: false, error: "Authentication is required to validate questions." });
-  }
+  const bearerToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const apiKey = request.headers.get("apikey");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-    return respond(500, { success: false, error: "Supabase environment is not properly configured." });
+    return respond(200, { success: false, error: "Supabase environment is not properly configured." });
   }
 
   try {
-    // 1. Verify user authentication or anon client authorization
-    const authClient = createClient(supabaseUrl, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
+    // 1. Verify user authentication or project client authorization
     let isAuthenticated = false;
-    if (token === anonKey) {
+
+    // Check project apikey header
+    if (apiKey && (apiKey === anonKey || apiKey.startsWith("sb_publishable_") || apiKey.startsWith("eyJ"))) {
       isAuthenticated = true;
-    } else {
-      const { data: userResult, error: authError } = await authClient.auth.getUser(token);
-      if (!authError && userResult?.user) {
+    }
+
+    // Check Bearer token (user session JWT or anon token)
+    if (!isAuthenticated && bearerToken) {
+      if (bearerToken === anonKey || bearerToken.startsWith("sb_publishable_")) {
         isAuthenticated = true;
+      } else {
+        const authClient = createClient(supabaseUrl, anonKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data: userResult, error: authError } = await authClient.auth.getUser(bearerToken);
+        if (!authError && userResult?.user) {
+          isAuthenticated = true;
+        }
       }
     }
 
     if (!isAuthenticated) {
-      return respond(401, { success: false, error: "Your session is invalid or has expired. Please sign in again." });
+      return respond(200, { success: false, error: "Authentication is required to validate questions. Please sign in again." });
     }
 
     // 2. Parse request body
@@ -126,14 +132,14 @@ Deno.serve(async (request) => {
     const currentQuestionId = payload.currentQuestionId || null;
 
     if (!questionText) {
-      return respond(400, {
+      return respond(200, {
         success: false,
         error: "Question prompt text must not be empty.",
       });
     }
 
     if (questionText.length < 10) {
-      return respond(400, {
+      return respond(200, {
         success: false,
         error: "Question prompt text is too short to be an interview question (minimum 10 characters).",
       });
@@ -175,12 +181,12 @@ Deno.serve(async (request) => {
       }
     }
 
-    // 5. Configurable Gemini AI Integration
+    // 5. Configurable Gemini AI Integration with Multi-Model Fallback
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    const geminiModel = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
+    const configuredModel = Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
 
     if (!geminiKey) {
-      return respond(500, {
+      return respond(200, {
         success: false,
         error: "GEMINI_API_KEY environment variable is not configured on the server. Please set it in Supabase secrets.",
       });
@@ -236,20 +242,35 @@ Output MUST be strict JSON in this exact structure:
   }
 }`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
+    // Candidate models to try in priority order for speed and resilience
+    const candidateModels = [
+      configuredModel,
+      "gemini-3-flash-preview",
+      "gemini-flash-latest",
+      "gemini-pro-latest",
+    ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
     let aiResponse: Response | null = null;
     let lastErrorText = "";
+    let lastStatus = 500;
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (const model of candidateModels) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+
       try {
         const res = await fetch(geminiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" },
+            generationConfig: {
+              responseMimeType: "application/json",
+              thinkingConfig: {
+                thinkingBudget: 0,
+              },
+            },
           }),
+          signal: AbortSignal.timeout(6000),
         });
 
         if (res.ok) {
@@ -257,42 +278,35 @@ Output MUST be strict JSON in this exact structure:
           break;
         }
 
+        lastStatus = res.status;
         lastErrorText = await res.text();
-        console.warn(`Gemini API attempt ${attempt} returned status ${res.status}:`, lastErrorText);
+        console.warn(`Gemini API model ${model} returned status ${res.status}:`, lastErrorText);
 
-        // If rate limited or service unavailable / overloaded, back off and retry
-        if ((res.status === 503 || res.status === 429 || res.status === 500) && attempt < 3) {
-          await new Promise((resolve) => setTimeout(resolve, attempt * 800));
-          continue;
-        }
-
-        aiResponse = res;
-        break;
+        // Try next candidate model immediately without stalling
+        continue;
       } catch (fetchErr) {
         lastErrorText = (fetchErr as Error).message || String(fetchErr);
-        if (attempt < 3) {
-          await new Promise((resolve) => setTimeout(resolve, attempt * 800));
-          continue;
-        }
+        console.warn(`Gemini API model ${model} fetch exception:`, lastErrorText);
+        continue;
       }
     }
 
     if (!aiResponse || !aiResponse.ok) {
-      if (aiResponse?.status === 429) {
-        return respond(429, {
+      if (lastStatus === 429) {
+        return respond(200, {
           success: false,
-          error: "Gemini API rate limit exceeded. Please wait a few moments and try again.",
+          error: "Gemini API daily or rate limit reached. Please wait a few moments or check your API key quota.",
         });
       }
-      if (aiResponse?.status === 400 || aiResponse?.status === 403) {
-        return respond(502, {
+      if (lastStatus === 400 || lastStatus === 403) {
+        return respond(200, {
           success: false,
-          error: `Gemini API authentication or configuration error (${aiResponse.status}). Please verify the GEMINI_API_KEY and GEMINI_MODEL (${geminiModel}).`,
+          error: `Gemini API authentication or configuration error (${lastStatus}). Please verify your GEMINI_API_KEY.`,
         });
       }
-      return respond(502, {
+      return respond(200, {
         success: false,
-        error: `Gemini AI service returned status ${aiResponse?.status || 500}. ${lastErrorText || "Unable to complete validation."}`,
+        error: `Gemini AI service returned status ${lastStatus}. ${lastErrorText || "Unable to complete validation at this time."}`,
       });
     }
 
@@ -306,7 +320,7 @@ Output MUST be strict JSON in this exact structure:
 
     const rawAiText = partWithText?.text;
     if (!rawAiText) {
-      return respond(502, {
+      return respond(200, {
         success: false,
         error: "Gemini did not return a valid candidate response. Please try again.",
       });
@@ -425,7 +439,7 @@ Output MUST be strict JSON in this exact structure:
     });
   } catch (error) {
     console.error("Backend question validation error:", error);
-    return respond(500, {
+    return respond(200, {
       success: false,
       error: (error as Error).message || "Internal server error while validating question.",
     });
