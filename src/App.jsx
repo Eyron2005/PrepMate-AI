@@ -17,6 +17,7 @@ const StaffStudentRecords = lazy(() => import("./pages/StaffStudentRecords"));
 const AdminInterviewResults = lazy(() => import("./pages/AdminInterviewResults"));
 const StaffAssignments = lazy(() => import("./pages/StaffAssignments"));
 const AcceptStaffInvitation = lazy(() => import("./pages/AcceptStaffInvitation"));
+const EmailCommunication = lazy(() => import("./pages/EmailCommunication"));
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
               <Route path="/staff-management" element={<StaffManagement />} />
               <Route path="/staff-assignments" element={<StaffAssignments />} />
               <Route path="/interview-results" element={<AdminInterviewResults />} />
+              <Route path="/email-communication" element={<EmailCommunication />} />
               <Route path="/backup-restore" element={<BackupRestore />} />
             </Route>
 
@@ -53,6 +55,7 @@ function App() {
               <Route path="/staff-dashboard" element={<StaffDashboard />} />
               <Route path="/staff/student-records" element={<StaffStudentRecords />} />
               <Route path="/staff/interview-results" element={<AdminInterviewResults isStaff />} />
+              <Route path="/staff/email-communication" element={<EmailCommunication isStaff />} />
             </Route>
           </Routes>
         </Suspense>

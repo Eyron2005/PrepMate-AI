@@ -17,6 +17,7 @@ import {
   FaPlus,
   FaServer,
   FaUserClock,
+  FaEnvelope,
 } from "react-icons/fa";
 
 function AdminDashboard() {
@@ -166,6 +167,17 @@ function AdminDashboard() {
       icon: FaFileAlt,
       color: "from-indigo-500 to-purple-600",
       surface: "border-indigo-100/90",
+      count: null,
+      countLabel: null,
+    },
+    {
+      title: "Email Communication",
+      badge: "Messaging",
+      description: "Send individualized notices or announcements to registered students and track delivery logs.",
+      href: "/email-communication",
+      icon: FaEnvelope,
+      color: "from-sky-500 to-cyan-600",
+      surface: "border-sky-100/90",
       count: null,
       countLabel: null,
     },

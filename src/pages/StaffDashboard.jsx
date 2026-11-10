@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { FaClipboardList, FaFileAlt, FaArrowRight, FaCalendarAlt, FaUserTie } from "react-icons/fa";
+import { FaClipboardList, FaEnvelope, FaFileAlt, FaArrowRight, FaCalendarAlt, FaUserTie } from "react-icons/fa";
 import StaffSidebar from "../components/StaffSidebar";
 import { useAuth } from "../contexts/authContext";
 
@@ -22,6 +22,15 @@ const sections = [
     icon: FaFileAlt,
     color: "from-emerald-500 to-teal-600",
     surface: "border-emerald-100/90",
+  },
+  {
+    title: "Email Communication",
+    badge: "Student Outreach",
+    description: "Send personalized reminders, feedback, and concerns directly to your assigned students.",
+    href: "/staff/email-communication",
+    icon: FaEnvelope,
+    color: "from-sky-500 to-blue-600",
+    surface: "border-sky-100/90",
   },
 ];
 
@@ -104,7 +113,7 @@ function StaffDashboard() {
             </div>
             <p className="text-xs font-medium text-slate-500 sm:text-sm">Choose an area to review</p>
           </div>
-          <div className="grid items-stretch gap-6 sm:grid-cols-2">
+          <div className="grid items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {sections.map(({ title, badge, description, href, icon: Icon, color, surface }) => (
               <Link
                 key={href}

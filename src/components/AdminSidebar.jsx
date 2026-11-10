@@ -11,6 +11,7 @@ import {
   FaFileAlt,
   FaShieldAlt,
   FaUserClock,
+  FaEnvelope,
 } from "react-icons/fa";
 import { supabase } from "../services/supabase";
 import { clearProfileOnlineStatus } from "../services/profilePresence";
@@ -227,6 +228,13 @@ export default function AdminSidebar({ adminName }) {
           <div className="flex items-center gap-3">
             <FaFileAlt className="shrink-0 text-base transition-transform group-hover:scale-110" />
             <span className="hidden md:inline">Interview Results</span>
+          </div>
+        </NavLink>
+
+        <NavLink to="/email-communication" title="Email Communication" aria-label="Email Communication" className={navLinkClass}>
+          <div className="flex items-center gap-3">
+            <FaEnvelope className="shrink-0 text-base transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Email Communication</span>
           </div>
         </NavLink>
 

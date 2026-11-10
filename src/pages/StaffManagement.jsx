@@ -3,7 +3,7 @@ import { FaEdit, FaPlus, FaSearch, FaTrash, FaUserTie, FaBuilding, FaBriefcase, 
 import AdminSidebar from "../components/AdminSidebar";
 import { supabase } from "../services/supabase";
 
-const initialForm = { full_name: "", email: "", department: "", position: "" };
+const initialForm = { full_name: "", email: "", department: "", position: "", can_email_unassigned_students: false };
 const inputClass = "w-full rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-xs text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15";
 
 function getInitials(name) {
@@ -27,7 +27,7 @@ function StaffManagement() {
     async function loadStaff() {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, full_name, email, department, position")
+        .select("id, full_name, email, department, position, can_email_unassigned_students")
         .order("full_name");
       if (error) {
         console.error("Unable to load staff:", error);
@@ -56,6 +56,7 @@ function StaffManagement() {
       email: person.email || "",
       department: person.department || "",
       position: person.position || "",
+      can_email_unassigned_students: Boolean(person.can_email_unassigned_students),
     });
     setErrorMessage("");
   }
@@ -79,6 +80,7 @@ function StaffManagement() {
       email: form.email.trim() || null,
       department: form.department.trim() || null,
       position: form.position.trim() || null,
+      ...(editing ? { can_email_unassigned_students: Boolean(form.can_email_unassigned_students) } : {}),
     };
     try {
       let data;
@@ -87,7 +89,7 @@ function StaffManagement() {
           .from("staff")
           .update(payload)
           .eq("id", editing.id)
-          .select("id, full_name, email, department, position")
+          .select("id, full_name, email, department, position, can_email_unassigned_students")
           .single();
         if (result.error) throw result.error;
         data = result.data;
@@ -267,6 +269,28 @@ function StaffManagement() {
               />
             </div>
 
+            {editing && (
+              <div className="sm:col-span-2 lg:col-span-4 rounded-xl border border-sky-200/80 bg-sky-50/60 px-4 py-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Allow emailing unassigned students</p>
+                  <p className="text-[11px] text-slate-600">
+                    When disabled (default), this staff supervisor can only email students assigned to them.
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-sky-900">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.can_email_unassigned_students)}
+                    onChange={(e) =>
+                      setForm({ ...form, can_email_unassigned_students: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                  />
+                  <span>{form.can_email_unassigned_students ? "Authorized" : "Assigned Only"}</span>
+                </label>
+              </div>
+            )}
+
             <div className="sm:col-span-2 lg:col-span-4 mt-2">
               <button
                 disabled={saving}
@@ -326,7 +350,14 @@ function StaffManagement() {
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white shadow-sm">
                               {getInitials(person.full_name)}
                             </div>
-                            <span className="font-bold text-slate-900">{person.full_name}</span>
+                            <div>
+                              <span className="font-bold text-slate-900">{person.full_name}</span>
+                              {person.can_email_unassigned_students && (
+                                <span className="mt-0.5 block w-fit rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
+                                  Can email all students
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3.5 text-slate-600">{person.email || "—"}</td>

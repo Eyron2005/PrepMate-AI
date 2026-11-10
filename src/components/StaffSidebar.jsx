@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   FaChartPie,
   FaClipboardList,
+  FaEnvelope,
   FaFileAlt,
   FaSignOutAlt,
   FaUserTie,
@@ -13,6 +14,7 @@ const links = [
   { to: "/staff-dashboard", label: "Dashboard", icon: FaChartPie, end: true },
   { to: "/staff/student-records", label: "Student Records", icon: FaClipboardList },
   { to: "/staff/interview-results", label: "Interview Results", icon: FaFileAlt },
+  { to: "/staff/email-communication", label: "Email Communication", icon: FaEnvelope },
 ];
 
 export default function StaffSidebar({ staffName = "Staff" }) {
